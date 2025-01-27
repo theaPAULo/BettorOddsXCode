@@ -3,8 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/27/25.
-//  Version: 1.1.0
-//
+//  Version: 2.1.0
 
 import SwiftUI
 
@@ -15,6 +14,7 @@ struct GamesView: View {
     @State private var selectedGame: Game?
     @State private var showBetModal = false
     @State private var selectedLeague = "NBA"
+    @State private var globalSelectedTeam: (gameId: String, team: TeamSelection)?
     
     let leagues = ["NBA", "NFL"]
     
@@ -34,6 +34,8 @@ struct GamesView: View {
                     Button(action: {
                         withAnimation {
                             selectedLeague = league
+                            // Clear selection when changing leagues
+                            globalSelectedTeam = nil
                         }
                     }) {
                         Text(league)
@@ -50,72 +52,39 @@ struct GamesView: View {
             }
             .padding(.vertical, 8)
             
-            // Games List or Loading State
-            if viewModel.isLoading {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .padding(.top, 40)
-            } else if let error = viewModel.error {
-                VStack(spacing: 16) {
-                    Text("⚠️ Error loading games")
-                        .font(.headline)
-                    Text(error)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                    Button("Try Again") {
-                        Task {
-                            await viewModel.refreshGames()
-                        }
-                    }
-                    .padding()
-                    .background(Color("Primary"))
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-                .padding()
-            } else if viewModel.games.isEmpty {
-                VStack(spacing: 16) {
-                    Text("No games available")
-                        .font(.headline)
-                    Text("Pull down to refresh")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-                .padding(.top, 40)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(viewModel.games.filter { $0.league == selectedLeague }) { game in
-                            GameCard(
-                                game: game,
-                                isFeatured: game.id == viewModel.featuredGame?.id
-                            ) {
+            // Games List
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    ForEach(viewModel.games.filter { $0.league == selectedLeague }) { game in
+                        GameCard(
+                            game: game,
+                            isFeatured: game.id == viewModel.featuredGame?.id,
+                            onSelect: {
                                 selectedGame = game
                                 showBetModal = true
-                            }
-                            .padding(.horizontal)
-                        }
+                            },
+                            globalSelectedTeam: $globalSelectedTeam
+                        )
+                        .padding(.horizontal)
                     }
-                    .padding(.vertical)
                 }
+                .padding(.vertical)
             }
-        }
-        .onAppear {
-            Task {
+            .refreshable {
                 await viewModel.refreshGames()
             }
         }
-        .refreshable {
-            await viewModel.refreshGames()
-        }
         .sheet(isPresented: $showBetModal) {
+            // Clear selection when modal is dismissed
+            globalSelectedTeam = nil
+        } content: {
             if let game = selectedGame,
                let user = authViewModel.user {
                 BetModal(
                     game: game,
                     user: user,
-                    isPresented: $showBetModal
+                    isPresented: $showBetModal,
+                    preSelectedTeam: globalSelectedTeam?.team
                 )
             }
         }

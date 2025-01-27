@@ -13,16 +13,22 @@ struct Game: Identifiable {
     let awayTeam: String
     let time: Date
     let league: String
-    let spread: Double  // Positive for underdog, negative for favorite
-    let totalBets: Int  // For determining featured game
+    let spread: Double  // Positive means home team is underdog, negative means home team is favorite
+    let totalBets: Int
     
     // Team colors
     let homeTeamColors: TeamColors
     let awayTeamColors: TeamColors
     
-    var isLive: Bool {
-        let now = Date()
-        return now >= time && now <= time.addingTimeInterval(3 * 60 * 60) // 3 hours for game duration
+    // Computed properties for spreads
+    var homeSpread: String {
+        let value = spread
+        return value >= 0 ? "+\(String(format: "%.1f", value))" : String(format: "%.1f", value)
+    }
+    
+    var awaySpread: String {
+        let value = -spread
+        return value >= 0 ? "+\(String(format: "%.1f", value))" : String(format: "%.1f", value)
     }
     
     var formattedTime: String {
