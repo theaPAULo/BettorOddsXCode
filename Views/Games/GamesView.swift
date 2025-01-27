@@ -22,23 +22,11 @@ struct GamesView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Balance Header
-            HStack {
-                Text("BettorOdds")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(Color("Primary"))
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("$ \(Int(viewModel.balance))")
-                        .font(.system(size: 20, weight: .bold))
-                    
-                    Text("Daily Total: $\(Int(viewModel.dailyBetsTotal))/100")
-                        .font(.system(size: 12))
-                        .foregroundColor(.gray)
-                }
-            }
-            .padding()
+            BalanceHeader(
+                yellowCoins: authViewModel.user?.yellowCoins ?? 0,
+                greenCoins: authViewModel.user?.greenCoins ?? 0,
+                dailyGreenCoinsUsed: authViewModel.user?.dailyGreenCoinsUsed ?? 0
+            )
             
             // League Selector
             HStack(spacing: 20) {

@@ -2,8 +2,8 @@
 //  GameCard.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/26/25.
-//
+//  Created by Paul Soni on 1/27/25.
+//  Version: 2.0.0
 
 import SwiftUI
 
@@ -13,6 +13,12 @@ struct GameCard: View {
     let onSelect: () -> Void
     
     @State private var isPressed = false
+    @State private var selectedTeam: TeamSelection?
+    
+    enum TeamSelection {
+        case home
+        case away
+    }
     
     var body: some View {
         Button(action: {
@@ -42,9 +48,24 @@ struct GameCard: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(isPressed ? .white : game.awayTeamColors.primary)
                         
-                        Text("\(game.spread > 0 ? "+" : "")\(String(format: "%.1f", -game.spread))")
+                        let awaySpread = abs(game.spread)
+                        Text(game.spread > 0 ? "-\(String(format: "%.1f", awaySpread))" : "+\(String(format: "%.1f", awaySpread))")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(isPressed ? .white : game.awayTeamColors.primary)
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(selectedTeam == .away ? game.awayTeamColors.primary.opacity(0.05) : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(selectedTeam == .away ? game.awayTeamColors.primary.opacity(0.1) : Color.clear, lineWidth: 1)
+                    )
+                    .onTapGesture {
+                        withAnimation {
+                            selectedTeam = .away
+                        }
                     }
                     
                     Spacer()
@@ -61,9 +82,24 @@ struct GameCard: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(isPressed ? .white : game.homeTeamColors.primary)
                         
-                        Text("\(game.spread < 0 ? "" : "+")\(String(format: "%.1f", game.spread))")
+                        let homeSpread = abs(game.spread)
+                        Text(game.spread < 0 ? "+\(String(format: "%.1f", homeSpread))" : "-\(String(format: "%.1f", homeSpread))")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(isPressed ? .white : game.homeTeamColors.primary)
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(selectedTeam == .home ? game.homeTeamColors.primary.opacity(0.05) : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(selectedTeam == .home ? game.homeTeamColors.primary.opacity(0.1) : Color.clear, lineWidth: 1)
+                    )
+                    .onTapGesture {
+                        withAnimation {
+                            selectedTeam = .home
+                        }
                     }
                 }
             }
@@ -79,21 +115,5 @@ struct GameCard: View {
             .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
         }
         .buttonStyle(PlainButtonStyle())
-        .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity,
-                           pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isPressed = pressing
-            }
-        }, perform: {})
     }
-}
-
-#Preview {
-    GameCard(
-        game: Game.sampleGames[0],
-        isFeatured: true
-    ) {
-        print("Game selected")
-    }
-    .padding()
 }
