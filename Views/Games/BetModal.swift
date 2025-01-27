@@ -20,8 +20,8 @@ struct BetModal: View {
     @State private var showToast = false
     
     // Gradient opacities
-    private let defaultOpacity: Double = 0.08
-    private let selectedOpacity: Double = 0.2
+    private let defaultOpacity: Double = 0.1
+    private let selectedOpacity: Double = 0.25
     
     // MARK: - Initialization
     init(game: Game, user: User, isPresented: Binding<Bool>, preSelectedTeam: TeamSelection?) {
@@ -59,8 +59,8 @@ struct BetModal: View {
                         .font(.headline)
                     
                     HStack(spacing: 0) {
-                        // Away Team Button
-                        Button(action: { selectedTeam = .away }) {
+                        // Away Team
+                        Button(action: { withAnimation { selectedTeam = .away } }) {
                             VStack(spacing: 8) {
                                 Text(game.awayTeam)
                                     .font(.system(size: 16, weight: .medium))
@@ -68,14 +68,14 @@ struct BetModal: View {
                                     .font(.system(size: 20, weight: .bold))
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                            .padding(12)
                             .foregroundColor(game.awayTeamColors.primary)
                         }
                         .background(
                             LinearGradient(
                                 colors: [
                                     game.awayTeamColors.primary.opacity(selectedTeam == .away ? selectedOpacity : defaultOpacity),
-                                    game.awayTeamColors.primary.opacity(selectedTeam == .away ? selectedOpacity * 0.7 : defaultOpacity * 0.7)
+                                    game.awayTeamColors.primary.opacity(selectedTeam == .away ? selectedOpacity * 0.8 : defaultOpacity * 0.8)
                                 ],
                                 startPoint: .leading,
                                 endPoint: .trailing
@@ -88,8 +88,8 @@ struct BetModal: View {
                             .frame(width: 40)
                             .background(Color(.systemBackground))
                         
-                        // Home Team Button
-                        Button(action: { selectedTeam = .home }) {
+                        // Home Team
+                        Button(action: { withAnimation { selectedTeam = .home } }) {
                             VStack(spacing: 8) {
                                 Text(game.homeTeam)
                                     .font(.system(size: 16, weight: .medium))
@@ -97,13 +97,13 @@ struct BetModal: View {
                                     .font(.system(size: 20, weight: .bold))
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                            .padding(12)
                             .foregroundColor(game.homeTeamColors.primary)
                         }
                         .background(
                             LinearGradient(
                                 colors: [
-                                    game.homeTeamColors.primary.opacity(selectedTeam == .home ? selectedOpacity * 0.7 : defaultOpacity * 0.7),
+                                    game.homeTeamColors.primary.opacity(selectedTeam == .home ? selectedOpacity * 0.8 : defaultOpacity * 0.8),
                                     game.homeTeamColors.primary.opacity(selectedTeam == .home ? selectedOpacity : defaultOpacity)
                                 ],
                                 startPoint: .leading,
@@ -112,11 +112,20 @@ struct BetModal: View {
                         )
                     }
                     .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                selectedTeam == .home ? game.homeTeamColors.primary :
+                                selectedTeam == .away ? game.awayTeamColors.primary : Color.clear,
+                                lineWidth: 2
+                            )
+                            .opacity(0.3)
+                    )
                 }
                 
-                // Bet Options Section
+                // Bet Options
                 VStack(spacing: 16) {
-                    // Coin Type Selection
+                    // Coin Selection
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Select Coin Type")
                             .font(.headline)
@@ -127,9 +136,8 @@ struct BetModal: View {
                         }
                     }
                     
-                    // Bet Amount and Potential Winnings side by side
+                    // Bet Amount and Potential Win
                     HStack(spacing: 16) {
-                        // Bet Amount Section
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Bet Amount")
                                 .font(.headline)
@@ -144,7 +152,6 @@ struct BetModal: View {
                         }
                         .frame(maxWidth: .infinity)
                         
-                        // Potential Winnings
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Potential Win")
                                 .font(.headline)
@@ -169,7 +176,6 @@ struct BetModal: View {
                 
                 // Validation Messages
                 validationMessages
-                    .padding(.horizontal)
                 
                 Spacer()
                 
@@ -187,7 +193,27 @@ struct BetModal: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: closeButton)
             .overlay(toastOverlay)
-            // Rest of the modifiers (confirmation dialog, etc.) remain the same
+            .confirmationDialog(
+                "Confirm Bet",
+                isPresented: $showConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Place \(viewModel.selectedCoinType.emoji) \(viewModel.betAmount) Bet", role: .none) {
+                    if viewModel.selectedCoinType == .green {
+                        showBiometricAuth = true
+                    } else {
+                        handlePlaceBet()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .alert("Biometric Authentication Required",
+                   isPresented: $showBiometricAuth) {
+                Button("Authenticate") {
+                    handlePlaceBet()
+                }
+                Button("Cancel", role: .cancel) {}
+            }
             .onAppear {
                 selectedTeam = preSelectedTeam
             }
@@ -204,7 +230,6 @@ struct BetModal: View {
     
     private var balanceHeader: some View {
         HStack {
-            // Yellow Coins
             HStack(spacing: 4) {
                 Text("🟡")
                     .font(.system(size: 24))
@@ -214,7 +239,6 @@ struct BetModal: View {
             
             Spacer()
             
-            // Green Coins
             HStack(spacing: 4) {
                 Text("💚")
                     .font(.system(size: 24))
@@ -226,6 +250,35 @@ struct BetModal: View {
         .padding(.vertical, 8)
         .background(AppTheme.Background.card)
         .cornerRadius(12)
+    }
+    
+    private func coinTypeButton(type: CoinType) -> some View {
+        Button(action: {
+            viewModel.selectedCoinType = type
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+        }) {
+            HStack {
+                Text(type.emoji)
+                    .font(.system(size: 24))
+                Text(type.displayName)
+                    .font(.system(size: 16))
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(viewModel.selectedCoinType == type ?
+                       (type == .yellow ? AppTheme.Coins.yellow.opacity(0.1) : AppTheme.Coins.green.opacity(0.1)) :
+                        AppTheme.Background.card)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(viewModel.selectedCoinType == type ?
+                           (type == .yellow ? AppTheme.Coins.yellow : AppTheme.Coins.green) :
+                            Color.clear,
+                           lineWidth: 2)
+            )
+            .foregroundColor(AppTheme.Text.primary)
+        }
     }
     
     private var validationMessages: some View {
@@ -256,7 +309,6 @@ struct BetModal: View {
                 ValidationMessage("Select a team to bet on", type: .info)
             }
         }
-        .padding(.horizontal)
     }
     
     private var toastOverlay: some View {
@@ -281,35 +333,6 @@ struct BetModal: View {
         }
         .animation(.spring(), value: showToast)
         .zIndex(1)
-    }
-    
-    private func coinTypeButton(type: CoinType) -> some View {
-        Button(action: {
-            viewModel.selectedCoinType = type
-            let generator = UIImpactFeedbackGenerator(style: .light)
-            generator.impactOccurred()
-        }) {
-            HStack {
-                Text(type.emoji)
-                    .font(.system(size: 24))
-                Text(type.displayName)
-                    .font(.system(size: 16))
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(viewModel.selectedCoinType == type ?
-                       (type == .yellow ? AppTheme.Coins.yellow.opacity(0.1) : AppTheme.Coins.green.opacity(0.1)) :
-                        AppTheme.Background.card)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(viewModel.selectedCoinType == type ?
-                           (type == .yellow ? AppTheme.Coins.yellow : AppTheme.Coins.green) :
-                            Color.clear,
-                           lineWidth: 2)
-            )
-            .foregroundColor(AppTheme.Text.primary)
-        }
     }
     
     // MARK: - Computed Properties
