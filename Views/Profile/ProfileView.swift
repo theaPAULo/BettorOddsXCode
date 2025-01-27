@@ -1,6 +1,9 @@
-// File: Views/Profile/ProfileView.swift
-// Version: 1.0
-// Description: User profile and settings view
+//
+//  ProfileView.swift
+//  BettorOdds
+//
+//  Created by Paul Soni on 1/26/25.
+//  Version: 2.0.0
 
 import SwiftUI
 
@@ -20,7 +23,7 @@ struct ProfileView: View {
                     if let dateJoined = authViewModel.user?.dateJoined {
                         Text("Member since \(dateJoined.formatted(.dateTime.month().year()))")
                             .font(.system(size: 14))
-                            .foregroundColor(AppTheme.textSecondary)
+                            .foregroundColor(AppTheme.Text.secondary)
                     }
                 }
                 .padding(.top)
@@ -72,9 +75,9 @@ struct ProfileView: View {
                         showSignOutConfirmation()
                     }
                 }
-                .background(Color(.systemBackground))
+                .background(AppTheme.Background.card)
                 .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                .shadow(color: AppTheme.Border.shadow, radius: 5)
                 .padding(.horizontal)
             }
         }
@@ -91,7 +94,6 @@ struct ProfileView: View {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
         
-        // Show confirmation alert
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let viewController = windowScene.windows.first?.rootViewController else {
             return
@@ -112,7 +114,6 @@ struct ProfileView: View {
     }
 }
 
-// Supporting Views
 struct CoinBalanceCard: View {
     let type: CoinType
     let balance: Int
@@ -130,14 +131,14 @@ struct CoinBalanceCard: View {
             HStack {
                 Text(type == .yellow ? "Play Coins" : "Real Coins")
                     .font(.system(size: 14))
-                    .foregroundColor(AppTheme.textSecondary)
+                    .foregroundColor(AppTheme.Text.secondary)
                 Spacer()
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(AppTheme.Background.card)
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .shadow(color: AppTheme.Border.shadow, radius: 5)
     }
 }
 
@@ -152,17 +153,17 @@ struct ActionButton: View {
             HStack {
                 Image(systemName: icon)
                     .font(.system(size: 20))
-                    .foregroundColor(AppTheme.primary)
+                    .foregroundColor(AppTheme.Brand.primary)
                     .frame(width: 30)
                 
                 Text(title)
-                    .foregroundColor(AppTheme.textPrimary)
+                    .foregroundColor(AppTheme.Text.primary)
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14))
-                    .foregroundColor(AppTheme.textSecondary)
+                    .foregroundColor(AppTheme.Text.secondary)
             }
             .padding()
         }

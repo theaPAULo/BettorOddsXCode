@@ -2,35 +2,57 @@
 //  AppTheme.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/26/25.
+//  Created by Paul Soni on 1/27/25.
+//  Version: 1.0.0
 //
-
-
-// File: Utilities/Theme.swift
-// Version: 1.0
-// Description: App-wide color and style definitions
 
 import SwiftUI
 
+/// AppTheme: Central theme configuration for the entire app
 struct AppTheme {
-    static let primary = Color("Primary")
-    static let secondary = Color("Secondary")
-    static let background = Color("Background")
-    static let yellowCoin = Color(hex: "FFD700")
-    static let greenCoin = Color(hex: "22C55E")
+    /// Brand Colors
+    struct Brand {
+        static let primary = Color("Primary", bundle: nil) // Turquoise #00E6CA
+        static let primaryDark = Color("PrimaryDark", bundle: nil) // Darker turquoise #00B5A0
+        static let secondary = Color("Secondary", bundle: nil) // Blue #4B56D2
+        static let secondaryDark = Color("SecondaryDark", bundle: nil) // Darker blue #3A42A0
+    }
     
-    // Add hex color support
-    static let textPrimary = Color("TextPrimary")
-    static let textSecondary = Color("TextSecondary")
+    /// Background Colors
+    struct Background {
+        static let primary = Color("BackgroundPrimary", bundle: nil) // Dark #1A1A1A
+        static let secondary = Color("BackgroundSecondary", bundle: nil) // Slightly lighter #2A2A2A
+        static let card = Color("BackgroundCard", bundle: nil) // Card background #333333
+    }
     
-    struct ButtonStyle {
-        static let cornerRadius: CGFloat = 12
-        static let height: CGFloat = 56
-        static let fontSize: CGFloat = 16
+    /// Text Colors
+    struct Text {
+        static let primary = Color("TextPrimary", bundle: nil) // White #FFFFFF
+        static let secondary = Color("TextSecondary", bundle: nil) // Light gray #B0B0B0
+        static let accent = Color("TextAccent", bundle: nil) // Turquoise #00E6CA
+    }
+    
+    /// Status Colors
+    struct Status {
+        static let success = Color("StatusSuccess", bundle: nil) // Green #4CAF50
+        static let warning = Color("StatusWarning", bundle: nil) // Yellow #FFC107
+        static let error = Color("StatusError", bundle: nil) // Red #FF5252
+    }
+    
+    /// Coin Colors
+    struct Coins {
+        static let yellow = Color("CoinYellow", bundle: nil) // #FFD700
+        static let green = Color("CoinGreen", bundle: nil) // #00C853
+    }
+    
+    /// Border and Shadow Colors
+    struct Border {
+        static let primary = Color("BorderPrimary", bundle: nil) // #404040
+        static let shadow = Color.black.opacity(0.1)
     }
 }
 
-// Extension to support hex colors
+/// Color Extension for hex color support
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -47,6 +69,7 @@ extension Color {
         default:
             (a, r, g, b) = (1, 1, 1, 0)
         }
+
         self.init(
             .sRGB,
             red: Double(r) / 255,

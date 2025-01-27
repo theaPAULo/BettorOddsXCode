@@ -2,19 +2,23 @@
 //  GamesView.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/26/25.
+//  Created by Paul Soni on 1/27/25.
+//  Version: 1.0
 //
 
 import SwiftUI
 
 struct GamesView: View {
+    // MARK: - Properties
     @StateObject private var viewModel = GamesViewModel()
+    @EnvironmentObject var authViewModel: AuthenticationViewModel  // Add this to access user
     @State private var selectedGame: Game?
     @State private var showBetModal = false
     @State private var selectedLeague = "NBA"  // Default to NBA
     
     let leagues = ["NBA", "NFL"]
     
+    // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
             // Balance Header
@@ -79,8 +83,13 @@ struct GamesView: View {
             }
         }
         .sheet(isPresented: $showBetModal) {
-            if let game = selectedGame {
-                BetModal(game: game, isPresented: $showBetModal)
+            if let game = selectedGame,
+               let user = authViewModel.user {  // Safely unwrap user
+                BetModal(
+                    game: game,
+                    user: user,  // Pass the user from authViewModel
+                    isPresented: $showBetModal
+                )
             }
         }
     }
@@ -88,4 +97,5 @@ struct GamesView: View {
 
 #Preview {
     GamesView()
+        .environmentObject(AuthenticationViewModel())  // Add this for preview
 }

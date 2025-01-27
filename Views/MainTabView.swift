@@ -3,12 +3,8 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/26/25.
+//  Version: 2.0.0
 //
-
-
-// File: Views/MainTabView.swift
-// Version: 1.0
-// Description: Main tab navigation for the authenticated app experience
 
 import SwiftUI
 
@@ -45,7 +41,7 @@ struct MainTabView: View {
             }
             .tag(2)
         }
-        .accentColor(AppTheme.primary) // Tab bar tint color
+        .accentColor(AppTheme.Brand.primary) // Tab bar tint color
         .onAppear {
             // Configure tab bar appearance
             let appearance = UITabBarAppearance()

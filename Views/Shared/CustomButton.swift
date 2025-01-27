@@ -3,12 +3,8 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/26/25.
+//  Version: 2.0.0
 //
-
-
-// File: Views/Shared/CustomButton.swift
-// Version: 1.0
-// Description: Reusable button component with different styles
 
 import SwiftUI
 
@@ -27,9 +23,9 @@ struct CustomButton: View {
         var backgroundColor: Color {
             switch self {
             case .primary:
-                return AppTheme.primary
+                return AppTheme.Brand.primary
             case .secondary:
-                return AppTheme.secondary
+                return AppTheme.Brand.secondary
             case .outline:
                 return .clear
             }
@@ -38,16 +34,16 @@ struct CustomButton: View {
         var textColor: Color {
             switch self {
             case .primary, .secondary:
-                return .white
+                return AppTheme.Text.primary
             case .outline:
-                return AppTheme.primary
+                return AppTheme.Brand.primary
             }
         }
         
         var borderColor: Color {
             switch self {
             case .outline:
-                return AppTheme.primary
+                return AppTheme.Brand.primary
             default:
                 return .clear
             }
@@ -57,29 +53,27 @@ struct CustomButton: View {
     var body: some View {
         Button(action: {
             if !isLoading && !disabled {
-                // Add haptic feedback
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
                 action()
             }
         }) {
             ZStack {
-                // Button content
                 if isLoading {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: style.textColor))
                 } else {
                     Text(title)
-                        .font(.system(size: AppTheme.ButtonStyle.fontSize, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: AppTheme.ButtonStyle.height)
+            .frame(height: 56)
             .foregroundColor(style.textColor)
             .background(style.backgroundColor)
-            .cornerRadius(AppTheme.ButtonStyle.cornerRadius)
+            .cornerRadius(12)
             .overlay(
-                RoundedRectangle(cornerRadius: AppTheme.ButtonStyle.cornerRadius)
+                RoundedRectangle(cornerRadius: 12)
                     .stroke(style.borderColor, lineWidth: style == .outline ? 2 : 0)
             )
             .opacity(disabled ? 0.6 : 1.0)

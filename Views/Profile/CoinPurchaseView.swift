@@ -3,12 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/26/25.
-//
-
-
-// File: Views/Profile/CoinPurchaseView.swift
-// Version: 1.0
-// Description: View for purchasing coins
+//  Version: 2.0.0
 
 import SwiftUI
 
@@ -29,7 +24,7 @@ struct CoinPurchaseView: View {
                             .font(.system(size: 24, weight: .bold))
                         Text("1 green coin = $1 USD")
                             .font(.system(size: 16))
-                            .foregroundColor(AppTheme.textSecondary)
+                            .foregroundColor(AppTheme.Text.secondary)
                     }
                     .padding(.top)
                     
@@ -60,7 +55,7 @@ struct CoinPurchaseView: View {
                     // Terms
                     Text("By purchasing coins, you agree to our Terms of Service")
                         .font(.system(size: 12))
-                        .foregroundColor(AppTheme.textSecondary)
+                        .foregroundColor(AppTheme.Text.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                         .padding(.bottom)
@@ -80,7 +75,6 @@ struct CoinPurchaseView: View {
     private func handlePurchase() {
         guard let amount = selectedAmount else { return }
         
-        // Haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
         
@@ -89,7 +83,6 @@ struct CoinPurchaseView: View {
         // Simulate API call
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             isProcessing = false
-            // Show success and dismiss
             showPurchaseConfirmation(amount: amount)
         }
     }
@@ -128,15 +121,15 @@ struct PurchaseAmountCard: View {
                     .font(.system(size: 20, weight: .bold))
                 Text("$\(amount)")
                     .font(.system(size: 14))
-                    .foregroundColor(AppTheme.textSecondary)
+                    .foregroundColor(AppTheme.Text.secondary)
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isSelected ? AppTheme.primary.opacity(0.1) : Color(.systemBackground))
+            .background(isSelected ? AppTheme.Brand.primary.opacity(0.1) : Color(.systemBackground))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? AppTheme.primary : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? AppTheme.Brand.primary : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(PlainButtonStyle())
