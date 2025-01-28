@@ -83,8 +83,7 @@ struct GamesView: View {
                 BetModal(
                     game: game,
                     user: user,
-                    isPresented: $showBetModal,
-                    preSelectedTeam: globalSelectedTeam?.team
+                    isPresented: $showBetModal
                 )
             }
         }

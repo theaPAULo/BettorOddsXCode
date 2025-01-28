@@ -1,11 +1,3 @@
-//
-//  OddsService.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/27/25.
-//  Version: 1.0.0
-//
-
 import Foundation
 
 actor OddsService {
@@ -93,7 +85,8 @@ actor OddsService {
             let spread = response.bookmakers.first?.markets.first?.outcomes
                 .first(where: { $0.name == response.homeTeam })?.point ?? 0.0
             
-            return Game(
+            // Create the game with team colors
+            let game = Game(
                 id: response.id,
                 homeTeam: response.homeTeam,
                 awayTeam: response.awayTeam,
@@ -104,6 +97,7 @@ actor OddsService {
                 homeTeamColors: TeamColors.getTeamColors(response.homeTeam),
                 awayTeamColors: TeamColors.getTeamColors(response.awayTeam)
             )
+            return game
         }
     }
     

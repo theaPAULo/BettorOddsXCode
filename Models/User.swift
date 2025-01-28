@@ -6,17 +6,19 @@ import Foundation
 import FirebaseFirestore
 
 struct User: Identifiable, Codable {
-    var id: String    // Instead of @DocumentID
+    var id: String
     var email: String
     var dateJoined: Date
     var yellowCoins: Int
     var greenCoins: Int
     var dailyGreenCoinsUsed: Int
     var isPremium: Bool
+    var lastBetDate: Date
+    var preferences: UserPreferences
     
     // Computed property for remaining daily limit
     var remainingDailyGreenCoins: Int {
-        let dailyLimit = 100 // Move to constants later
+        let dailyLimit = 100
         return max(0, dailyLimit - dailyGreenCoinsUsed)
     }
     
@@ -29,6 +31,8 @@ struct User: Identifiable, Codable {
         self.greenCoins = 0
         self.dailyGreenCoinsUsed = 0
         self.isPremium = false
+        self.lastBetDate = Date()
+        self.preferences = UserPreferences()
     }
     
     // Initialize from Firestore document
@@ -42,6 +46,19 @@ struct User: Identifiable, Codable {
         self.greenCoins = data["greenCoins"] as? Int ?? 0
         self.dailyGreenCoinsUsed = data["dailyGreenCoinsUsed"] as? Int ?? 0
         self.isPremium = data["isPremium"] as? Bool ?? false
+        self.lastBetDate = (data["lastBetDate"] as? Timestamp)?.dateValue() ?? Date()
+        
+        // Handle preferences
+        if let prefsData = data["preferences"] as? [String: Any] {
+            self.preferences = UserPreferences(
+                useBiometrics: prefsData["useBiometrics"] as? Bool ?? false,
+                darkMode: prefsData["darkMode"] as? Bool ?? false,
+                notificationsEnabled: prefsData["notificationsEnabled"] as? Bool ?? true,
+                requireBiometricsForGreenCoins: prefsData["requireBiometricsForGreenCoins"] as? Bool ?? true
+            )
+        } else {
+            self.preferences = UserPreferences()
+        }
     }
     
     // Convert to dictionary for Firestore
@@ -52,7 +69,14 @@ struct User: Identifiable, Codable {
             "yellowCoins": yellowCoins,
             "greenCoins": greenCoins,
             "dailyGreenCoinsUsed": dailyGreenCoinsUsed,
-            "isPremium": isPremium
+            "isPremium": isPremium,
+            "lastBetDate": lastBetDate,
+            "preferences": [
+                "useBiometrics": preferences.useBiometrics,
+                "darkMode": preferences.darkMode,
+                "notificationsEnabled": preferences.notificationsEnabled,
+                "requireBiometricsForGreenCoins": preferences.requireBiometricsForGreenCoins
+            ]
         ]
     }
 }
@@ -62,10 +86,19 @@ struct UserPreferences: Codable {
     var useBiometrics: Bool
     var darkMode: Bool
     var notificationsEnabled: Bool
+    var requireBiometricsForGreenCoins: Bool
     
     init() {
         self.useBiometrics = false
         self.darkMode = false
         self.notificationsEnabled = true
+        self.requireBiometricsForGreenCoins = true
+    }
+    
+    init(useBiometrics: Bool, darkMode: Bool, notificationsEnabled: Bool, requireBiometricsForGreenCoins: Bool) {
+        self.useBiometrics = useBiometrics
+        self.darkMode = darkMode
+        self.notificationsEnabled = notificationsEnabled
+        self.requireBiometricsForGreenCoins = requireBiometricsForGreenCoins
     }
 }

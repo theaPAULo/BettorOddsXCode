@@ -36,6 +36,26 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		E43BC6602D49392900F7AE5C /* Documentation */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Documentation;
+			sourceTree = "<group>";
+		};
+		E43BC6662D4939A400F7AE5C /* Repositories */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Repositories;
+			sourceTree = "<group>";
+		};
+		E43BC67C2D493AFE00F7AE5C /* Components */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Components;
+			sourceTree = "<group>";
+		};
+		E43BC6822D493B3900F7AE5C /* Extensions */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Extensions;
+			sourceTree = "<group>";
+		};
 		E494E2B12D4704330020327A /* BettorOdds */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = BettorOdds;
@@ -114,6 +134,9 @@
 		E494E2A62D4704330020327A = {
 			isa = PBXGroup;
 			children = (
+				E43BC6822D493B3900F7AE5C /* Extensions */,
+				E43BC6662D4939A400F7AE5C /* Repositories */,
+				E43BC6602D49392900F7AE5C /* Documentation */,
 				E494E2D92D47076B0020327A /* Views */,
 				E494E2D72D4707480020327A /* Resources */,
 				E494E2D52D4707290020327A /* Utilities */,
@@ -124,6 +147,7 @@
 				E494E2B02D4704330020327A /* Products */,
 				39D3342290FACD23593D2814 /* Pods */,
 				E433BECB2D47160D002FFF2F /* GoogleService-Info.plist */,
+				E43BC67C2D493AFE00F7AE5C /* Components */,
 			);
 			sourceTree = "<group>";
 		};
@@ -151,6 +175,10 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				E43BC6602D49392900F7AE5C /* Documentation */,
+				E43BC6662D4939A400F7AE5C /* Repositories */,
+				E43BC67C2D493AFE00F7AE5C /* Components */,
+				E43BC6822D493B3900F7AE5C /* Extensions */,
 				E494E2B12D4704330020327A /* BettorOdds */,
 				E494E2D22D4706F60020327A /* Models */,
 				E494E2D32D4707130020327A /* ViewModels */,
@@ -347,9 +375,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"BettorOdds/Preview Content\"";
+				DEVELOPMENT_TEAM = DCXK36979S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -364,6 +394,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = BettorOdds.BettorOdds;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -375,9 +406,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"BettorOdds/Preview Content\"";
+				DEVELOPMENT_TEAM = DCXK36979S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -392,6 +425,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = BettorOdds.BettorOdds;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
