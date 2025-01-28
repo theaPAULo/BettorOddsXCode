@@ -1,25 +1,11 @@
-//
-//  GameCard.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/27/25.
-//  Version: 2.3.0
-
 import SwiftUI
 
 struct GameCard: View {
-    // MARK: - Properties
     let game: Game
     let isFeatured: Bool
     let onSelect: () -> Void
     @Binding var globalSelectedTeam: (gameId: String, team: TeamSelection)?
     
-    // Default background opacity
-    private let defaultOpacity: Double = 0.1
-    // Selected background opacity
-    private let selectedOpacity: Double = 0.25
-    
-    // MARK: - Computed Properties
     private var isTeamSelected: Bool {
         globalSelectedTeam?.gameId == game.id
     }
@@ -28,10 +14,21 @@ struct GameCard: View {
         isTeamSelected ? globalSelectedTeam?.team : nil
     }
     
-    // MARK: - Body
+    private var backgroundGradient: LinearGradient {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                game.awayTeamColors.primary.opacity(0.6),
+                game.awayTeamColors.secondary.opacity(0.6),
+                game.homeTeamColors.secondary.opacity(0.6),
+                game.homeTeamColors.primary.opacity(0.6)
+            ]),
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+    
     var body: some View {
-        VStack(spacing: 8) {
-            // Header with league and time
+        VStack(spacing: 0) {
             HStack {
                 Text(game.league)
                     .font(.system(size: 14, weight: .medium))
@@ -46,129 +43,69 @@ struct GameCard: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
             
-            // Teams and spreads
             HStack(spacing: 0) {
-                // Away Team Side
-                VStack {
-                    TeamView(
-                        name: game.awayTeam,
-                        spread: game.awaySpread,
-                        teamColor: game.awayTeamColors.primary,
-                        isSelected: selectedTeam == .away
-                    )
-                }
-                .frame(maxWidth: .infinity)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            game.awayTeamColors.primary.opacity(selectedTeam == .away ? selectedOpacity : defaultOpacity),
-                            game.awayTeamColors.primary.opacity(selectedTeam == .away ? selectedOpacity * 0.8 : defaultOpacity * 0.8)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .onTapGesture {
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
+                TeamButton(
+                    teamName: game.awayTeam,
+                    spread: game.awaySpread,
+                    teamColor: game.awayTeamColors.primary,
+                    isSelected: selectedTeam == .away
+                ) {
                     globalSelectedTeam = (game.id, .away)
                     onSelect()
                 }
                 
-                // Center Divider
                 Text("@")
-                    .font(.system(size: 16))
-                    .foregroundColor(.gray)
-                    .frame(width: 30)
-                    .background(Color(.systemBackground))
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white.opacity(0.8))
+                    .frame(width: 36, height: 36)
+                    .background(Color.black.opacity(0.1))
+                    .clipShape(Circle())
                 
-                // Home Team Side
-                VStack {
-                    TeamView(
-                        name: game.homeTeam,
-                        spread: game.homeSpread,
-                        teamColor: game.homeTeamColors.primary,
-                        isSelected: selectedTeam == .home
-                    )
-                }
-                .frame(maxWidth: .infinity)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            game.homeTeamColors.primary.opacity(selectedTeam == .home ? selectedOpacity * 0.8 : defaultOpacity * 0.8),
-                            game.homeTeamColors.primary.opacity(selectedTeam == .home ? selectedOpacity : defaultOpacity)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .onTapGesture {
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
+                TeamButton(
+                    teamName: game.homeTeam,
+                    spread: game.homeSpread,
+                    teamColor: game.homeTeamColors.primary,
+                    isSelected: selectedTeam == .home
+                ) {
                     globalSelectedTeam = (game.id, .home)
                     onSelect()
                 }
             }
+            .background(backgroundGradient)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        selectedTeam == .home ? game.homeTeamColors.primary :
-                        selectedTeam == .away ? game.awayTeamColors.primary :
-                        isFeatured ? game.homeTeamColors.primary : Color.clear,
-                        lineWidth: 2
-                    )
-                    .opacity(0.3)
-            )
         }
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(
-            color: (selectedTeam != nil || isFeatured) ?
-                (selectedTeam == .home ? game.homeTeamColors.primary :
-                 selectedTeam == .away ? game.awayTeamColors.primary :
-                    game.homeTeamColors.primary).opacity(0.2) : Color.black.opacity(0.1),
-            radius: 5,
-            x: 0,
-            y: 2
-        )
-        .scaleEffect(isFeatured ? 1.02 : 1.0)
+        .shadow(radius: 5)
     }
 }
 
-// MARK: - Supporting Views
-
-struct TeamView: View {
-    let name: String
+struct TeamButton: View {
+    let teamName: String
     let spread: String
     let teamColor: Color
     let isSelected: Bool
+    let onTap: () -> Void
     
     var body: some View {
-        VStack(alignment: .center, spacing: 8) {
-            Text(name)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(teamColor)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-            
-            Text(spread)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(teamColor)
+        Button(action: onTap) {
+            VStack(spacing: 8) {
+                Text(teamName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : teamColor)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                
+                Text(spread)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(isSelected ? .white : teamColor)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(isSelected ? teamColor.opacity(0.3) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
-}
-
-#Preview {
-    GameCard(
-        game: Game.sampleGames[0],
-        isFeatured: true,
-        onSelect: {},
-        globalSelectedTeam: .constant(nil)
-    )
-    .padding()
 }
