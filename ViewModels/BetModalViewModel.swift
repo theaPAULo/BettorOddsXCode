@@ -24,14 +24,22 @@ class BetModalViewModel: ObservableObject {
     
     // MARK: - Computed Properties
     var canPlaceBet: Bool {
-        guard let amount = Int(betAmount), amount > 0 else { return false }
-        
+        guard let amount = Int(betAmount), amount > 0 else {
+            return false
+        }
+            
+        // Check if game is locked
+        if game.isLocked {
+            return false
+        }
+            
         if selectedCoinType == .green {
             // Check daily limit for green coins
-            return amount <= remainingDailyLimit
+            return amount <= remainingDailyLimit && amount <= user.greenCoins
         }
-        
-        return true
+            
+        // For yellow coins, just check if user has enough
+        return amount <= user.yellowCoins
     }
     
     var remainingDailyLimit: Int {

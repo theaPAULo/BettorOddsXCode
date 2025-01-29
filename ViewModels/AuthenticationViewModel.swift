@@ -33,13 +33,8 @@ class AuthenticationViewModel: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        #if DEBUG
-        // TEMPORARY: Auto-login for testing
-        setupTestUser()
-        #else
-        // In production, check for existing auth state
+        // Check for existing auth state
         checkAuthState()
-        #endif
     }
     
     // MARK: - Public Methods
@@ -52,15 +47,6 @@ class AuthenticationViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        #if DEBUG
-        // Simulate network delay in debug
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-            self?.isLoading = false
-            self?.user = User(id: "test-user-id", email: email)
-            self?.authState = .signedIn
-        }
-        #else
-        // Actual Firebase authentication
         Task {
             do {
                 let authResult = try await Auth.auth().signIn(withEmail: email, password: password)
@@ -72,47 +58,82 @@ class AuthenticationViewModel: ObservableObject {
             }
             isLoading = false
         }
-        #endif
     }
     
     /// Signs up a new user
-    /// - Parameters:
-    ///   - email: User's email
-    ///   - password: User's password
-    ///   - userData: Additional user data
     func signUp(email: String, password: String, userData: [String: Any]) {
         isLoading = true
         errorMessage = nil
         
-        #if DEBUG
-        // Simulate network delay in debug
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-            self?.isLoading = false
-            self?.user = User(id: "test-user-id", email: email)
-            self?.authState = .signedIn
-        }
-        #else
-        // Actual Firebase authentication and user creation
+        print("Starting signup process for email: \(email)")
+        print("User data structure: \(userData)")
+        
         Task {
             do {
+                // 1. Create Firebase Auth user
+                print("Attempting to create Firebase Auth user...")
                 let authResult = try await Auth.auth().createUser(withEmail: email, password: password)
                 let userId = authResult.user.uid
+                print("Successfully created Firebase Auth user with ID: \(userId)")
                 
-                // Create user document in Firestore
-                var userDoc = userData
-                userDoc["id"] = userId
-                userDoc["email"] = email
+                // 2. Convert dates to Timestamps for Firestore
+                var firestoreData = userData
+                if let dateJoined = userData["dateJoined"] as? Date {
+                    firestoreData["dateJoined"] = Timestamp(date: dateJoined)
+                }
+                if let dateOfBirth = userData["dateOfBirth"] as? Date {
+                    firestoreData["dateOfBirth"] = Timestamp(date: dateOfBirth)
+                }
+                if let lastBetDate = userData["lastBetDate"] as? Date {
+                    firestoreData["lastBetDate"] = Timestamp(date: lastBetDate)
+                }
                 
-                try await db.collection("users").document(userId).setData(userDoc)
+                firestoreData["id"] = userId
+                firestoreData["email"] = email
+                
+                print("Attempting to create Firestore document...")
+                
+                // 3. Create Firestore document
+                try await db.collection("users").document(userId).setData(firestoreData)
+                print("Successfully created Firestore document")
+                
+                // 4. Fetch user data
+                print("Fetching user data...")
                 try await fetchUser(userId: userId)
-                authState = .signedIn
+                print("Successfully fetched user data")
+                
+                await MainActor.run {
+                    self.authState = .signedIn
+                    self.isLoading = false
+                }
             } catch {
-                errorMessage = error.localizedDescription
-                authState = .signedOut
+                print("❌ Detailed error information:")
+                print("Error domain: \((error as NSError).domain)")
+                print("Error code: \((error as NSError).code)")
+                print("Error description: \(error.localizedDescription)")
+                print("Full error: \(error)")
+                
+                if let authError = error as? AuthErrorCode {
+                    switch authError.code {
+                    case .emailAlreadyInUse:
+                        errorMessage = "This email is already registered. Please sign in or use a different email."
+                    case .invalidEmail:
+                        errorMessage = "Please enter a valid email address."
+                    case .weakPassword:
+                        errorMessage = "Password is too weak. Please choose a stronger password."
+                    default:
+                        errorMessage = error.localizedDescription
+                    }
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+                
+                await MainActor.run {
+                    self.authState = .signedOut
+                    self.isLoading = false
+                }
             }
-            isLoading = false
         }
-        #endif
     }
     
     /// Signs out the current user

@@ -1,11 +1,5 @@
-//
-//  RegisterView.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/26/25.
-//
-
 import SwiftUI
+import FirebaseFirestore
 
 struct RegisterView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
@@ -46,79 +40,84 @@ struct RegisterView: View {
                         .font(.system(size: 32, weight: .bold))
                     Text("Sign up to start betting")
                         .font(.system(size: 16))
-                        .foregroundColor(Color("TextSecondary"))
+                        .foregroundColor(.secondary)
                 }
                 .padding(.top, 40)
                 
                 // Form Fields
                 VStack(spacing: 16) {
                     // Email Field
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Email")
                             .font(.caption)
-                            .foregroundColor(Color("TextSecondary"))
-                        TextField("", text: $email)
+                            .foregroundColor(.secondary)
+                        TextField("Enter your email", text: $email)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .textContentType(.emailAddress)
+                            .keyboardType(.emailAddress)
                             .autocapitalization(.none)
                     }
                     
                     // Password Field
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Password")
                             .font(.caption)
-                            .foregroundColor(Color("TextSecondary"))
+                            .foregroundColor(.secondary)
                         HStack {
                             if showPassword {
-                                TextField("", text: $password)
+                                TextField("Enter your password", text: $password)
+                                    .textContentType(.newPassword)
                             } else {
-                                SecureField("", text: $password)
+                                SecureField("Enter your password", text: $password)
+                                    .textContentType(.newPassword)
                             }
                             Button(action: { showPassword.toggle() }) {
                                 Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
-                                    .foregroundColor(Color("TextSecondary"))
+                                    .foregroundColor(.secondary)
                             }
                         }
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                     }
                     
                     // Confirm Password Field
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Confirm Password")
                             .font(.caption)
-                            .foregroundColor(Color("TextSecondary"))
+                            .foregroundColor(.secondary)
                         HStack {
                             if showConfirmPassword {
-                                TextField("", text: $confirmPassword)
+                                TextField("Confirm your password", text: $confirmPassword)
+                                    .textContentType(.newPassword)
                             } else {
-                                SecureField("", text: $confirmPassword)
+                                SecureField("Confirm your password", text: $confirmPassword)
+                                    .textContentType(.newPassword)
                             }
                             Button(action: { showConfirmPassword.toggle() }) {
                                 Image(systemName: showConfirmPassword ? "eye.slash.fill" : "eye.fill")
-                                    .foregroundColor(Color("TextSecondary"))
+                                    .foregroundColor(.secondary)
                             }
                         }
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                     }
                     
                     // Date of Birth
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Date of Birth")
                             .font(.caption)
-                            .foregroundColor(Color("TextSecondary"))
+                            .foregroundColor(.secondary)
                         DatePicker("", selection: $dateOfBirth,
                                  in: ...Date(),
                                  displayedComponents: .date)
                             .labelsHidden()
                     }
-                    
-                    if !isOver18 {
-                        Text("You must be 18 or older to register")
-                            .foregroundColor(.red)
-                            .font(.caption)
-                    }
                 }
                 .padding(.horizontal)
+                
+                if !isOver18 {
+                    Text("You must be 18 or older to register")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
                 
                 // Error Message
                 if let error = authViewModel.errorMessage {
@@ -126,6 +125,7 @@ struct RegisterView: View {
                         .foregroundColor(.red)
                         .font(.caption)
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 }
                 
                 // Register Button
@@ -149,7 +149,7 @@ struct RegisterView: View {
                 // Terms and Privacy
                 Text("By creating an account, you agree to our Terms of Service and Privacy Policy")
                     .font(.caption)
-                    .foregroundColor(Color("TextSecondary"))
+                    .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                 
@@ -164,33 +164,55 @@ struct RegisterView: View {
                 .padding(.vertical)
             }
         }
-        .onAppear {
-            setupKeyboardNotifications()
-        }
     }
     
     private func handleRegistration() {
+        print("Starting registration process...")  // Debug log
+        
+        // Validate email
+        guard email.contains("@") && email.contains(".") else {
+            authViewModel.errorMessage = "Please enter a valid email address"
+            return
+        }
+        
+        // Validate password
+        guard password.count >= 6 else {
+            authViewModel.errorMessage = "Password must be at least 6 characters"
+            return
+        }
+        
+        // Validate passwords match
+        guard password == confirmPassword else {
+            authViewModel.errorMessage = "Passwords do not match"
+            return
+        }
+        
+        // Validate age
+        guard isOver18 else {
+            authViewModel.errorMessage = "You must be 18 or older to register"
+            return
+        }
+        
+        print("Validation passed, preparing user data...")  // Debug log
+        
         let userData = [
             "email": email,
-            "dateOfBirth": dateOfBirth,
             "dateJoined": Date(),
+            "dateOfBirth": dateOfBirth,
             "yellowCoins": 100,  // Starting bonus
             "greenCoins": 0,
             "dailyGreenCoinsUsed": 0,
-            "isPremium": false
+            "isPremium": false,
+            "lastBetDate": Date(),
+            "preferences": [
+                "useBiometrics": false,
+                "darkMode": false,
+                "notificationsEnabled": true,
+                "requireBiometricsForGreenCoins": true
+            ]
         ] as [String : Any]
         
         authViewModel.signUp(email: email, password: password, userData: userData)
-    }
-    
-    private func setupKeyboardNotifications() {
-        NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { _ in
-            isKeyboardVisible = true
-        }
-        
-        NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
-            isKeyboardVisible = false
-        }
     }
 }
 

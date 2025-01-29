@@ -12,6 +12,7 @@ struct Game: Identifiable, Codable {
     let homeTeamColors: TeamColors
     let awayTeamColors: TeamColors
     
+    
     // MARK: - Coding Keys
     private enum CodingKeys: String, CodingKey {
         case id, homeTeam, awayTeam, time, league, spread, totalBets
@@ -19,6 +20,21 @@ struct Game: Identifiable, Codable {
     }
     
     // MARK: - Computed Properties
+    var isLocked: Bool {
+        let timeUntilStart = time.timeIntervalSinceNow
+        return timeUntilStart <= 300 // 5 minutes = 300 seconds
+    }
+    
+    var isFinished: Bool {
+        return time < Date()
+    }
+    
+    var sortPriority: Int {
+        if isFinished { return 2 }  // Put finished games last
+        if isLocked { return 1 }    // Put locked games second
+        return 0                    // Put active games first
+    }
+    
     var homeSpread: String {
         let value = spread
         return value >= 0 ? "+\(String(format: "%.1f", value))" : String(format: "%.1f", value)

@@ -35,6 +35,26 @@
 		E494E2AF2D4704330020327A /* BettorOdds.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BettorOdds.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E44A7D8F2D49DBD4006DC12C /* Exceptions for "Utilities" folder in "BettorOdds" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Color+AppTheme.swift",
+			);
+			target = E494E2AE2D4704330020327A /* BettorOdds */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		E44A7D902D49DBD4006DC12C /* Exceptions for "Utilities" folder in "Copy Bundle Resources" phase from "BettorOdds" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = E494E2AD2D4704330020327A /* Resources */;
+			membershipExceptions = (
+				"Color+AppTheme.swift",
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E43BC6602D49392900F7AE5C /* Documentation */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -78,6 +98,10 @@
 		};
 		E494E2D52D4707290020327A /* Utilities */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E44A7D8F2D49DBD4006DC12C /* Exceptions for "Utilities" folder in "BettorOdds" target */,
+				E44A7D902D49DBD4006DC12C /* Exceptions for "Utilities" folder in "Copy Bundle Resources" phase from "BettorOdds" target */,
+			);
 			path = Utilities;
 			sourceTree = "<group>";
 		};

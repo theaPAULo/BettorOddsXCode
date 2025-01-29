@@ -22,8 +22,8 @@ struct GameCard: View {
                 game.homeTeamColors.secondary.opacity(0.8),
                 game.homeTeamColors.primary.opacity(0.8)
             ]),
-            startPoint: .leading,
-            endPoint: .trailing
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
         )
     }
     

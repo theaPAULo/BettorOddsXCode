@@ -1,23 +1,8 @@
-//
-//  FirebaseConfig.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/28/25.
-//
-
-
-//
-//  FirebaseConfig.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/27/25.
-//  Version: 1.0.0
-//
-
 import FirebaseCore
 import FirebaseFirestore
 import FirebaseAuth
 import FirebaseStorage
+import FirebaseAppCheck
 
 /// Manages Firebase configuration and initialization
 class FirebaseConfig {
@@ -31,8 +16,21 @@ class FirebaseConfig {
     
     // MARK: - Initialization
     private init() {
-        // Configure Firebase if not already configured
+        // Check if Firebase is already configured
         if FirebaseApp.app() == nil {
+            // Configure App Check for Debug
+            #if DEBUG
+            let providerFactory = AppCheckDebugProviderFactory()
+            AppCheck.setAppCheckProviderFactory(providerFactory)
+            #else
+            // For production, we'll use device check
+            if #available(iOS 14.0, *) {
+                let providerFactory = DeviceCheckProviderFactory()
+                AppCheck.setAppCheckProviderFactory(providerFactory)
+            }
+            #endif
+            
+            // Configure Firebase
             FirebaseApp.configure()
         }
         
@@ -45,25 +43,9 @@ class FirebaseConfig {
         let settings = FirestoreSettings()
         settings.isPersistenceEnabled = true // Enable offline persistence
         settings.cacheSizeBytes = FirestoreCacheSizeUnlimited // Unlimited cache size
-        db.settings = settings
-    }
-    
-    // MARK: - Configuration Methods
-    
-    /// Configures Firebase for the development environment
-    func configureDevelopment() {
-        let settings = FirestoreSettings()
-        settings.host = "localhost:8080"
-        settings.isPersistenceEnabled = false
-        settings.isSSLEnabled = false
-        db.settings = settings
-    }
-    
-    /// Configures Firebase for the production environment
-    func configureProduction() {
-        let settings = FirestoreSettings()
-        settings.isPersistenceEnabled = true
-        db.settings = settings
+        self.db.settings = settings
+        
+        print("✅ Firebase configuration completed")
     }
     
     // MARK: - Collection References
@@ -92,4 +74,16 @@ class FirebaseConfig {
     var settingsCollection: CollectionReference {
         return db.collection("settings")
     }
+    
+    // MARK: - Development Configuration
+    #if DEBUG
+    func configureDevelopment() {
+        let settings = FirestoreSettings()
+        settings.host = "localhost:8080"
+        settings.isPersistenceEnabled = false
+        settings.isSSLEnabled = false
+        db.settings = settings
+        print("🔧 Firebase configured for development")
+    }
+    #endif
 }

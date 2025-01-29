@@ -22,11 +22,11 @@ struct LoginView: View {
                     VStack(spacing: 8) {
                         Text("BettorOdds")
                             .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(Color("TextPrimary"))
+                            .foregroundColor(.primary)  // Using system primary color
                         
                         Text("Sign in to continue")
                             .font(.system(size: 16))
-                            .foregroundColor(Color("TextSecondary"))
+                            .foregroundColor(.secondary)  // Using system secondary color
                     }
                     .padding(.top, 60)
                     
@@ -36,8 +36,8 @@ struct LoginView: View {
                         VStack(alignment: .leading) {
                             Text("Email")
                                 .font(.caption)
-                                .foregroundColor(Color("TextSecondary"))
-                            TextField("", text: $email)
+                                .foregroundColor(.secondary)
+                            TextField("Enter your email", text: $email)  // Added placeholder text
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                 .textContentType(.emailAddress)
                                 .keyboardType(.emailAddress)
@@ -48,19 +48,19 @@ struct LoginView: View {
                         VStack(alignment: .leading) {
                             Text("Password")
                                 .font(.caption)
-                                .foregroundColor(Color("TextSecondary"))
+                                .foregroundColor(.secondary)
                             HStack {
                                 if showPassword {
-                                    TextField("", text: $password)
+                                    TextField("Enter your password", text: $password)  // Added placeholder text
                                         .textContentType(.password)
                                 } else {
-                                    SecureField("", text: $password)
+                                    SecureField("Enter your password", text: $password)  // Added placeholder text
                                         .textContentType(.password)
                                 }
                                 
                                 Button(action: { showPassword.toggle() }) {
                                     Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
-                                        .foregroundColor(Color("TextSecondary"))
+                                        .foregroundColor(.secondary)
                                 }
                             }
                             .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -91,7 +91,7 @@ struct LoginView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(Color("Primary"))
+                    .background(Color("Primary"))  // Using Primary from asset catalog
                     .foregroundColor(.white)
                     .cornerRadius(12)
                     .padding(.horizontal, 24)
@@ -102,7 +102,7 @@ struct LoginView: View {
                         // Navigate to forgot password
                     }) {
                         Text("Forgot Password?")
-                            .foregroundColor(Color("Primary"))
+                            .foregroundColor(Color("Primary"))  // Using Primary from asset catalog
                             .font(.system(size: 16, weight: .medium))
                     }
                     
@@ -112,9 +112,9 @@ struct LoginView: View {
                     NavigationLink(destination: RegisterView()) {
                         HStack {
                             Text("Don't have an account?")
-                                .foregroundColor(Color("TextSecondary"))
+                                .foregroundColor(.secondary)
                             Text("Sign Up")
-                                .foregroundColor(Color("Primary"))
+                                .foregroundColor(Color("Primary"))  // Using Primary from asset catalog
                                 .fontWeight(.medium)
                         }
                         .font(.system(size: 16))

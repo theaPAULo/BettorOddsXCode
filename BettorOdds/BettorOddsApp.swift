@@ -9,7 +9,17 @@ import FirebaseCore
 struct BettorOddsApp: App {
     // Initialize Firebase when app launches
     init() {
-        FirebaseApp.configure()
+        // Initialize Firebase configuration
+        FirebaseConfig.shared
+        
+        #if DEBUG
+        // Print the path to help locate GoogleService-Info.plist
+        if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") {
+            print("📝 Found GoogleService-Info.plist at: \(path)")
+        } else {
+            print("❌ GoogleService-Info.plist not found in bundle!")
+        }
+        #endif
     }
     
     var body: some Scene {
