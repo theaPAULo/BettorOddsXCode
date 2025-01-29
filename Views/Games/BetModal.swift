@@ -1,10 +1,3 @@
-//
-//  BetModal.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/27/25.
-//  Version: 2.1.0
-
 import SwiftUI
 
 struct BetModal: View {
@@ -23,196 +16,206 @@ struct BetModal: View {
         self._viewModel = StateObject(wrappedValue: BetModalViewModel(game: game, user: user))
     }
     
+    // Background gradient for the modal
+    private var backgroundGradient: LinearGradient {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                .primary.opacity(0.1),
+                .backgroundPrimary.opacity(0.05),
+                .primary.opacity(0.1)
+            ]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
     var body: some View {
-            NavigationView {
-                ZStack {
-                    // Animated Background
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color("Primary").opacity(0.1),
-                            Color.white.opacity(0.05),
-                            Color("Primary").opacity(0.1)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+        NavigationView {
+            ZStack {
+                // Animated Background
+                backgroundGradient
                     .ignoresSafeArea()
-                    
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            // Time Display (optional - can be removed)
-                            Text(game.formattedTime)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .padding(.top, 8)
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Time Display
+                        Text(game.formattedTime)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                            .padding(.top, 8)
+                        
+                        // Team Selection
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Select Team")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
                             
-                            // Team Selection
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Select Team")
-                                    .font(.headline)
-                                
-                                GeometryReader { geometry in
-                                    HStack(spacing: 16) {
-                                        // Away Team Button
-                                        TeamSelectionButton(
-                                            team: game.awayTeam,
-                                            spread: -game.spread,
-                                            teamColors: game.awayTeamColors,
-                                            isSelected: selectedTeam == game.awayTeam,
-                                            width: (geometry.size.width - 16) / 2
-                                        ) {
-                                            selectedTeam = game.awayTeam
-                                            isHomeTeamSelected = false
-                                            hapticFeedback()
-                                        }
-                                        
-                                        // Home Team Button
-                                        TeamSelectionButton(
-                                            team: game.homeTeam,
-                                            spread: game.spread,
-                                            teamColors: game.homeTeamColors,
-                                            isSelected: selectedTeam == game.homeTeam,
-                                            width: (geometry.size.width - 16) / 2
-                                        ) {
-                                            selectedTeam = game.homeTeam
-                                            isHomeTeamSelected = true
-                                            hapticFeedback()
-                                        }
-                                    }
-                                }
-                                .frame(height: 100)
-                            }
-                            
-                            // Coin Type Selection
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Select Coin Type")
-                                    .font(.headline)
-                                
+                            GeometryReader { geometry in
                                 HStack(spacing: 16) {
-                                    CoinTypeButton(
-                                        type: .yellow,
-                                        isSelected: viewModel.selectedCoinType == .yellow
+                                    // Away Team Button
+                                    TeamSelectionButton(
+                                        team: game.awayTeam,
+                                        spread: -game.spread,
+                                        teamColors: game.awayTeamColors,
+                                        isSelected: selectedTeam == game.awayTeam,
+                                        width: (geometry.size.width - 16) / 2
                                     ) {
-                                        viewModel.selectedCoinType = .yellow
+                                        selectedTeam = game.awayTeam
+                                        isHomeTeamSelected = false
                                         hapticFeedback()
                                     }
                                     
-                                    CoinTypeButton(
-                                        type: .green,
-                                        isSelected: viewModel.selectedCoinType == .green
+                                    // Home Team Button
+                                    TeamSelectionButton(
+                                        team: game.homeTeam,
+                                        spread: game.spread,
+                                        teamColors: game.homeTeamColors,
+                                        isSelected: selectedTeam == game.homeTeam,
+                                        width: (geometry.size.width - 16) / 2
                                     ) {
-                                        viewModel.selectedCoinType = .green
+                                        selectedTeam = game.homeTeam
+                                        isHomeTeamSelected = true
                                         hapticFeedback()
                                     }
                                 }
                             }
+                            .frame(height: 100)
+                        }
+                        
+                        // Coin Type Selection
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Select Coin Type")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
                             
-                            // Bet Amount Section
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Bet Amount")
-                                    .font(.headline)
-                                
-                                HStack {
-                                    Text(viewModel.selectedCoinType.emoji)
-                                    TextField("0", text: $viewModel.betAmount)
-                                        .keyboardType(.numberPad)
-                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                            HStack(spacing: 16) {
+                                CoinTypeButton(
+                                    type: .yellow,
+                                    isSelected: viewModel.selectedCoinType == .yellow
+                                ) {
+                                    viewModel.selectedCoinType = .yellow
+                                    hapticFeedback()
                                 }
                                 
-                                if viewModel.selectedCoinType == .green {
-                                    Text("Daily Limit: \(viewModel.remainingDailyLimit) coins")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            
-                            // Potential Winnings
-                            VStack(spacing: 8) {
-                                Text("Potential Winnings")
-                                    .font(.headline)
-                                
-                                HStack {
-                                    Text(viewModel.selectedCoinType.emoji)
-                                    Text(viewModel.potentialWinnings)
-                                        .font(.system(size: 24, weight: .bold))
+                                CoinTypeButton(
+                                    type: .green,
+                                    isSelected: viewModel.selectedCoinType == .green
+                                ) {
+                                    viewModel.selectedCoinType = .green
+                                    hapticFeedback()
                                 }
                             }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
+                        }
+                        
+                        // Bet Amount Section
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Bet Amount")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
                             
-                            // Error Message
-                            if let error = viewModel.errorMessage {
-                                Text(error)
-                                    .foregroundColor(.red)
+                            HStack {
+                                Text(viewModel.selectedCoinType.emoji)
+                                TextField("0", text: $viewModel.betAmount)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .foregroundColor(.textPrimary)
+                            }
+                            
+                            if viewModel.selectedCoinType == .green {
+                                Text("Daily Limit: \(viewModel.remainingDailyLimit) coins")
                                     .font(.system(size: 14))
+                                    .foregroundColor(.textSecondary)
                             }
+                        }
+                        
+                        // Potential Winnings
+                        VStack(spacing: 8) {
+                            Text("Potential Winnings")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
                             
-                            // Place Bet Button
-                            Button(action: handlePlaceBet) {
-                                if viewModel.isProcessing {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Text("PLACE BET")
-                                        .font(.system(size: 18, weight: .heavy))
-                                        .tracking(0.5)
-                                }
+                            HStack {
+                                Text(viewModel.selectedCoinType.emoji)
+                                Text(viewModel.potentialWinnings)
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(.textPrimary)
                             }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(
-                                Group {
-                                    if viewModel.canPlaceBet && selectedTeam != nil {
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [
-                                                Color("Primary"),
-                                                Color("Primary").opacity(0.8)
-                                            ]),
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    } else {
-                                        Color.gray.opacity(0.3)
-                                    }
-                                }
-                            )
-                            .cornerRadius(16)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                            .shadow(
-                                color: viewModel.canPlaceBet && selectedTeam != nil
-                                    ? Color("Primary").opacity(0.3)
-                                    : Color.clear,
-                                radius: 8,
-                                x: 0,
-                                y: 4
-                            )
-                            .foregroundColor(.white)
-                            .disabled(!viewModel.canPlaceBet || selectedTeam == nil || viewModel.isProcessing)
                         }
                         .padding()
-                    }
-                }
-                .navigationTitle("Place Bet")
-                .navigationBarTitleDisplayMode(.inline)
-                .navigationBarItems(trailing: Button("Close") { isPresented = false })
-                .sheet(isPresented: $isShowingBiometricPrompt) {
-                    BiometricPrompt(
-                        title: "Confirm Bet",
-                        subtitle: "Please authenticate to place bet with green coins"
-                    ) { success in
-                        if success {
-                            guard let team = selectedTeam else { return }
-                            processBet(team: team)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.backgroundSecondary)
+                        .cornerRadius(12)
+                        
+                        // Error Message
+                        if let error = viewModel.errorMessage {
+                            Text(error)
+                                .foregroundColor(.statusError)
+                                .font(.system(size: 14))
                         }
+                        
+                        // Place Bet Button
+                        Button(action: handlePlaceBet) {
+                            if viewModel.isProcessing {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Text("PLACE BET")
+                                    .font(.system(size: 18, weight: .heavy))
+                                    .tracking(0.5)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(
+                            Group {
+                                if viewModel.canPlaceBet && selectedTeam != nil {
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            .primary,
+                                            .primary.opacity(0.8)
+                                        ]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                } else {
+                                    Color.textSecondary.opacity(0.3)
+                                }
+                            }
+                        )
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.backgroundSecondary.opacity(0.2), lineWidth: 1)
+                        )
+                        .shadow(
+                            color: viewModel.canPlaceBet && selectedTeam != nil ?
+                                .primary.opacity(0.3) : .clear,
+                            radius: 8,
+                            x: 0,
+                            y: 4
+                        )
+                        .foregroundColor(.white)
+                        .disabled(!viewModel.canPlaceBet || selectedTeam == nil || viewModel.isProcessing)
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle("Place Bet")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(trailing: Button("Close") { isPresented = false })
+            .sheet(isPresented: $isShowingBiometricPrompt) {
+                BiometricPrompt(
+                    title: "Confirm Bet",
+                    subtitle: "Please authenticate to place bet with green coins"
+                ) { success in
+                    if success {
+                        guard let team = selectedTeam else { return }
+                        processBet(team: team)
                     }
                 }
             }
         }
+    }
     
     // MARK: - Methods
     private func hapticFeedback() {
@@ -264,9 +267,11 @@ struct TeamSelectionButton: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(height: 40)
+                    .foregroundColor(isSelected ? .white : .textPrimary)
                 
                 Text(spread >= 0 ? "+\(String(format: "%.1f", spread))" : "\(String(format: "%.1f", spread))")
                     .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(isSelected ? .white : .textPrimary)
             }
             .frame(width: width)
             .padding(.vertical, 12)
@@ -288,7 +293,6 @@ struct TeamSelectionButton: View {
                         lineWidth: isSelected ? 2 : 1
                     )
             )
-            .foregroundColor(isSelected ? .white : teamColors.primary)
         }
     }
 }

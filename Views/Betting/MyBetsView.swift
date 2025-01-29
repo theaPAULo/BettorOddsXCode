@@ -1,11 +1,3 @@
-//
-//  MyBetsView.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/27/25.
-//  Version: 2.0.1
-//
-
 import SwiftUI
 
 struct MyBetsView: View {
@@ -21,6 +13,7 @@ struct MyBetsView: View {
                 Picker("Filter", selection: $selectedFilter) {
                     ForEach(BetFilter.allCases, id: \.self) { filter in
                         Text(filter.rawValue).tag(filter)
+                            .foregroundColor(.textPrimary)
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
@@ -31,6 +24,7 @@ struct MyBetsView: View {
                     if viewModel.isLoading {
                         ProgressView()
                             .padding(.top, 40)
+                            .tint(.primary) // Use theme primary color for spinner
                     } else if viewModel.bets.isEmpty {
                         emptyStateView
                     } else {
@@ -49,11 +43,13 @@ struct MyBetsView: View {
                     viewModel.loadBets()
                 }
             }
+            .background(Color.backgroundPrimary.ignoresSafeArea())
             .navigationTitle("My Bets")
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(viewModel.errorMessage ?? "An unknown error occurred")
+                    .foregroundColor(.statusError)
             }
             .onAppear {
                 viewModel.loadBets()
@@ -70,19 +66,58 @@ struct MyBetsView: View {
         VStack(spacing: 16) {
             Image(systemName: "ticket")
                 .font(.system(size: 50))
-                .foregroundColor(AppTheme.Text.secondary)
+                .foregroundColor(.textSecondary)
             
             Text("No Bets Found")
                 .font(.headline)
-                .foregroundColor(AppTheme.Text.primary)
+                .foregroundColor(.textPrimary)
             
             Text("Your bets will appear here once you place them")
                 .font(.subheadline)
-                .foregroundColor(AppTheme.Text.secondary)
+                .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .padding()
         .padding(.top, 40)
+    }
+}
+
+// MARK: - StatusBadge Component
+struct StatusBadge: View {
+    let status: BetStatus
+    
+    private var statusColor: Color {
+        switch status {
+        case .pending:
+            return .statusWarning
+        case .active:
+            return .primary
+        case .cancelled:
+            return .textSecondary
+        case .won:
+            return .statusSuccess
+        case .lost:
+            return .statusError
+        }
+    }
+    
+    var body: some View {
+        Text(status.rawValue)
+            .font(.system(size: 12, weight: .medium))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(statusColor.opacity(0.2))
+            .foregroundColor(statusColor)
+            .cornerRadius(8)
+    }
+}
+
+// MARK: - BetFilter
+extension MyBetsView {
+    enum BetFilter: String, CaseIterable {
+        case active = "Active"
+        case completed = "Completed"
+        case all = "All"
     }
 }
 
@@ -148,15 +183,6 @@ class MyBetsViewModel: ObservableObject {
                 isLoading = false
             }
         }
-    }
-}
-
-// MARK: - Bet Filter
-extension MyBetsView {
-    enum BetFilter: String, CaseIterable {
-        case active = "Active"
-        case completed = "Completed"
-        case all = "All"
     }
 }
 

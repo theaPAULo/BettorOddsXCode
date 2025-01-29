@@ -1,10 +1,3 @@
-//
-//  ProfileView.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/26/25.
-//  Version: 2.0.0
-
 import SwiftUI
 
 struct ProfileView: View {
@@ -19,11 +12,12 @@ struct ProfileView: View {
                 VStack(spacing: 8) {
                     Text(authViewModel.user?.email ?? "User")
                         .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.textPrimary)
                     
                     if let dateJoined = authViewModel.user?.dateJoined {
                         Text("Member since \(dateJoined.formatted(.dateTime.month().year()))")
                             .font(.system(size: 14))
-                            .foregroundColor(AppTheme.Text.secondary)
+                            .foregroundColor(.textSecondary)
                     }
                 }
                 .padding(.top)
@@ -70,17 +64,19 @@ struct ProfileView: View {
                     ActionButton(
                         title: "Sign Out",
                         icon: "rectangle.portrait.and.arrow.right",
-                        showDivider: false
+                        showDivider: false,
+                        isDestructive: true
                     ) {
                         showSignOutConfirmation()
                     }
                 }
-                .background(AppTheme.Background.card)
+                .background(Color.backgroundSecondary)
                 .cornerRadius(12)
-                .shadow(color: AppTheme.Border.shadow, radius: 5)
+                .shadow(color: Color.backgroundPrimary.opacity(0.1), radius: 5)
                 .padding(.horizontal)
             }
         }
+        .background(Color.backgroundPrimary.ignoresSafeArea())
         .navigationTitle("Profile")
         .sheet(isPresented: $showingCoinPurchase) {
             CoinPurchaseView()
@@ -126,19 +122,20 @@ struct CoinBalanceCard: View {
                 Spacer()
                 Text(balance.formatted())
                     .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.textPrimary)
             }
             
             HStack {
                 Text(type == .yellow ? "Play Coins" : "Real Coins")
                     .font(.system(size: 14))
-                    .foregroundColor(AppTheme.Text.secondary)
+                    .foregroundColor(.textSecondary)
                 Spacer()
             }
         }
         .padding()
-        .background(AppTheme.Background.card)
+        .background(Color.backgroundSecondary)
         .cornerRadius(12)
-        .shadow(color: AppTheme.Border.shadow, radius: 5)
+        .shadow(color: Color.backgroundPrimary.opacity(0.1), radius: 5)
     }
 }
 
@@ -146,6 +143,7 @@ struct ActionButton: View {
     let title: String
     let icon: String
     var showDivider: Bool = true
+    var isDestructive: Bool = false
     let action: () -> Void
     
     var body: some View {
@@ -153,17 +151,17 @@ struct ActionButton: View {
             HStack {
                 Image(systemName: icon)
                     .font(.system(size: 20))
-                    .foregroundColor(AppTheme.Brand.primary)
+                    .foregroundColor(isDestructive ? .statusError : .primary)
                     .frame(width: 30)
                 
                 Text(title)
-                    .foregroundColor(AppTheme.Text.primary)
+                    .foregroundColor(isDestructive ? .statusError : .textPrimary)
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14))
-                    .foregroundColor(AppTheme.Text.secondary)
+                    .foregroundColor(.textSecondary)
             }
             .padding()
         }
@@ -171,6 +169,7 @@ struct ActionButton: View {
         if showDivider {
             Divider()
                 .padding(.leading, 56)
+                .background(Color.backgroundPrimary)
         }
     }
 }

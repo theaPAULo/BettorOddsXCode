@@ -112,27 +112,66 @@ struct PurchaseAmountCard: View {
     let isSelected: Bool
     let action: () -> Void
     
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Text("💚")
-                    .font(.system(size: 24))
-                Text("\(amount)")
-                    .font(.system(size: 20, weight: .bold))
-                Text("$\(amount)")
-                    .font(.system(size: 14))
-                    .foregroundColor(AppTheme.Text.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(isSelected ? AppTheme.Brand.primary.opacity(0.1) : Color(.systemBackground))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? AppTheme.Brand.primary : Color.clear, lineWidth: 2)
+    private var cardBackground: some View {
+        if isSelected {
+            return LinearGradient(
+                colors: [.primary, .primary.opacity(0.8)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            return LinearGradient(
+                colors: [Color(uiColor: .systemBackground), Color(uiColor: .systemBackground)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
         }
-        .buttonStyle(PlainButtonStyle())
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 12) {
+                // Coin Icon
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [.green.opacity(0.2), .green.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 44, height: 44)
+                    
+                    Text("💚")
+                        .font(.system(size: 24))
+                }
+                
+                // Amount
+                Text("\(amount)")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(isSelected ? .white : .primary)
+                
+                // Price
+                Text("$\(amount)")
+                    .font(.system(size: 14))
+                    .foregroundColor(isSelected ? .white.opacity(0.9) : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .background(cardBackground)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isSelected ? Color.primary : Color.secondary.opacity(0.1),
+                           lineWidth: isSelected ? 2 : 1)
+            )
+            .shadow(
+                color: isSelected ? Color.primary.opacity(0.2) : .clear,
+                radius: 8,
+                x: 0,
+                y: 4
+            )
+        }
+        .buttonStyle(ScaleButtonStyle())
     }
 }
 

@@ -205,15 +205,6 @@ struct LeagueButton: View {
     }
 }
 
-// Remove the previous ScaleButtonStyle and replace with this:
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyle.Configuration) -> some View {
-        return configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
-    }
-}
-
 struct ScrollOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     
