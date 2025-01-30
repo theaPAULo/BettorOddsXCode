@@ -11,7 +11,7 @@ import Foundation
 /// Namespace for transaction-related types to avoid ambiguity
 enum TransactionModels {
     /// Different types of transactions in the app
-    enum TransactionType: String, Codable {
+    enum TransactionType: String, Codable, CaseIterable {
         case deposit    // Adding funds
         case withdrawal // Removing funds
         case bet       // Placing a bet

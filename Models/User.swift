@@ -5,6 +5,17 @@
 import Foundation
 import FirebaseFirestore
 
+// MARK: - Admin Role Enum
+enum AdminRole: String, Codable {
+    case none = "none"
+    case admin = "admin"
+    
+    var canManageUsers: Bool { self == .admin }
+    var canManageBets: Bool { self == .admin }
+    var canViewAnalytics: Bool { self == .admin }
+    var canConfigureSystem: Bool { self == .admin }
+}
+
 struct User: Identifiable, Codable {
     var id: String
     var email: String
@@ -13,8 +24,11 @@ struct User: Identifiable, Codable {
     var greenCoins: Int
     var dailyGreenCoinsUsed: Int
     var isPremium: Bool
-    var lastBetDate: Date
+    var lastBetDate: Date?
     var preferences: UserPreferences
+    var adminRole: AdminRole = .none
+    var isEmailVerified: Bool = false
+    var lastAdminAction: Date?
     
     // Computed property for remaining daily limit
     var remainingDailyGreenCoins: Int {

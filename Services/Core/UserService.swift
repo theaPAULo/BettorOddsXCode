@@ -117,7 +117,12 @@ actor UserService {
                     }
                     
                     // Check if we need to reset daily usage (new day)
-                    if !Calendar.current.isDateInToday(user.lastBetDate) {
+                    if let lastBetDate = user.lastBetDate {
+                        if !Calendar.current.isDateInToday(lastBetDate) {
+                            user.dailyGreenCoinsUsed = 0
+                        }
+                    } else {
+                        // If lastBetDate is nil, this is their first bet
                         user.dailyGreenCoinsUsed = 0
                     }
                     

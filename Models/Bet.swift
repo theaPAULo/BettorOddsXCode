@@ -11,7 +11,7 @@ import Foundation
 import FirebaseFirestore
 
 // MARK: - Bet Status Enum
-enum BetStatus: String, Codable {
+enum BetStatus: String, Codable, CaseIterable {
     case pending = "Pending"   // Initial state when bet is placed
     case active = "Active"     // Bet has been matched
     case cancelled = "Cancelled" // Bet was cancelled (by user or system)
