@@ -2,36 +2,27 @@
 //  AdminDashboardViewModel.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/29/25.
-//
-
-
-//
-//  AdminDashboardViewModel.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/29/25.
-//  Version: 1.0.0
+//  Created by Claude on 1/30/25
+//  Version: 1.0.1
 //
 
 import SwiftUI
 import FirebaseFirestore
+import Combine
 
 @MainActor
-class AdminDashboardViewModel: ObservableObject {
+final class AdminDashboardViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published private(set) var stats = DashboardStats()
     @Published private(set) var users: [User] = []
     @Published private(set) var bets: [Bet] = []
     @Published private(set) var transactions: [Transaction] = []
-    @Published private(set) var isLoading = false
+    @Published var showError = false
     @Published var errorMessage: String?
+    @Published private(set) var isLoading = false
     
     // MARK: - Services
     private let db = Firestore.firestore()
-    private let userService = UserService()
-    private let betService = BetService()
-    private let transactionService = TransactionService()
     
     // MARK: - Initialization
     init() {
@@ -40,40 +31,9 @@ class AdminDashboardViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Data Models
-    struct DashboardStats {
-        var activeUsers = 0
-        var dailyBets = 0
-        var revenue = 0.0
-        var pendingBets = 0
-        var recentActivity: [ActivityItem] = []
-    }
-    
-    struct ActivityItem: Identifiable {
-        let id = UUID()
-        let type: ActivityType
-        let description: String
-        let time: String
-        
-        enum ActivityType {
-            case bet, user, transaction
-            
-            var color: Color {
-                switch self {
-                case .bet: return .blue
-                case .user: return .green
-                case .transaction: return .orange
-                }
-            }
-        }
-    }
-    
     // MARK: - Public Methods
-    
-    /// Refreshes all dashboard data
     func refreshData() async {
         isLoading = true
-        errorMessage = nil
         
         do {
             // Fetch all data concurrently
@@ -89,47 +49,40 @@ class AdminDashboardViewModel: ObservableObject {
             
         } catch {
             errorMessage = "Failed to refresh data: \(error.localizedDescription)"
+            showError = true
         }
         
         isLoading = false
     }
     
-    /// Exports current data to CSV
-    func exportData(type: ExportType) async throws -> URL {
-        switch type {
-        case .users:
-            return try await exportUsers()
-        case .bets:
-            return try await exportBets()
-        case .transactions:
-            return try await exportTransactions()
+    // MARK: - Private Methods
+    private func fetchUsers() async throws -> [User] {
+        let snapshot = try await db.collection("users").getDocuments()
+        return snapshot.documents.compactMap { document -> User? in
+            try? document.data(as: User.self)
         }
     }
     
-    // MARK: - Private Methods
-    
-    private func fetchUsers() async throws -> [User] {
-        // Fetch all users from Firestore
-        let snapshot = try await db.collection("users").getDocuments()
-        return snapshot.documents.compactMap { User(document: $0) }
-    }
-    
     private func fetchBets() async throws -> [Bet] {
-        // Fetch recent bets
         let snapshot = try await db.collection("bets")
             .order(by: "createdAt", descending: true)
             .limit(to: 100)
             .getDocuments()
-        return snapshot.documents.compactMap { Bet(document: $0) }
+        
+        return snapshot.documents.compactMap { document -> Bet? in
+            try? document.data(as: Bet.self)
+        }
     }
     
     private func fetchTransactions() async throws -> [Transaction] {
-        // Fetch recent transactions
         let snapshot = try await db.collection("transactions")
             .order(by: "createdAt", descending: true)
             .limit(to: 100)
             .getDocuments()
-        return snapshot.documents.compactMap { Transaction(document: $0) }
+        
+        return snapshot.documents.compactMap { document -> Transaction? in
+            try? document.data(as: Transaction.self)
+        }
     }
     
     private func calculateStats() {
@@ -175,6 +128,17 @@ class AdminDashboardViewModel: ObservableObject {
             ))
         }
         
+        // Add recent user activity
+        users.prefix(5).forEach { user in
+            if let lastBet = user.lastBetDate {
+                activity.append(ActivityItem(
+                    type: .user,
+                    description: "User bet activity: \(user.email)",
+                    time: formatTime(lastBet)
+                ))
+            }
+        }
+        
         // Add recent transactions
         transactions.prefix(5).forEach { transaction in
             activity.append(ActivityItem(
@@ -184,10 +148,14 @@ class AdminDashboardViewModel: ObservableObject {
             ))
         }
         
-        // Sort by time
-        return activity.sorted { a, b in
-            a.time > b.time
-        }
+        // Sort by time and limit to 10 most recent
+        return activity
+            .sorted { a, b in
+                // Compare time strings in reverse order for most recent first
+                return a.time > b.time
+            }
+            .prefix(10)
+            .map { $0 }
     }
     
     private func formatTime(_ date: Date) -> String {
@@ -197,43 +165,9 @@ class AdminDashboardViewModel: ObservableObject {
     }
 }
 
-// MARK: - Export Types
-enum ExportType {
-    case users, bets, transactions
-}
-
-// MARK: - Export Methods
-extension AdminDashboardViewModel {
-    private func exportUsers() async throws -> URL {
-        let csvString = "ID,Email,Date Joined,Yellow Coins,Green Coins\n" +
-        users.map { "\($0.id),\($0.email),\($0.dateJoined),\($0.yellowCoins),\($0.greenCoins)" }
-            .joined(separator: "\n")
-        
-        return try saveToFile(csvString, filename: "users.csv")
-    }
-    
-    private func exportBets() async throws -> URL {
-        let csvString = "ID,User ID,Team,Amount,Status,Created At\n" +
-        bets.map { "\($0.id),\($0.userId),\($0.team),\($0.amount),\($0.status),\($0.createdAt)" }
-            .joined(separator: "\n")
-        
-        return try saveToFile(csvString, filename: "bets.csv")
-    }
-    
-    private func exportTransactions() async throws -> URL {
-        let csvString = "ID,User ID,Type,Coin Type,Amount,Status,Created At\n" +
-        transactions.map { "\($0.id),\($0.userId),\($0.type),\($0.coinType),\($0.amount),\($0.status),\($0.createdAt)" }
-            .joined(separator: "\n")
-        
-        return try saveToFile(csvString, filename: "transactions.csv")
-    }
-    
-    private func saveToFile(_ content: String, filename: String) throws -> URL {
-        let fileManager = FileManager.default
-        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let exportPath = documentsPath.appendingPathComponent(filename)
-        
-        try content.write(to: exportPath, atomically: true, encoding: .utf8)
-        return exportPath
-    }
+#Preview {
+    // Preview setup
+    let viewModel = AdminDashboardViewModel()
+    return AdminDashboardView()
+        .environmentObject(viewModel)
 }

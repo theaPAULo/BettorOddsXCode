@@ -36,13 +36,17 @@ class BiometricHelper {
     /// - Parameter reason: The reason for requesting authentication, shown to the user
     /// - Returns: A boolean indicating success and an optional error message
     func authenticate(reason: String) async -> (success: Bool, error: String?) {
-        // Reset context for each new authentication attempt
-        context.invalidate()
-        
-        // Check if biometrics are available
-        guard canUseBiometrics else {
-            return (false, "Biometric authentication is not available")
-        }
+            // Reset context for each new authentication attempt
+            context.invalidate()
+            
+            // Check if biometrics are available
+            guard canUseBiometrics else {
+                print("⚠️ Biometrics not available - Type: \(context.biometryType.rawValue)")
+                var error = LAError(_nsError: NSError(domain: LAErrorDomain, code: LAError.biometryNotAvailable.rawValue))
+                return (false, getBiometricErrorMessage(error))
+            }
+            
+            print("🔐 Attempting biometric authentication - Type: \(context.biometryType.rawValue)")
         
         do {
             // Attempt authentication

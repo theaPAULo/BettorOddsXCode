@@ -14,6 +14,7 @@ struct GamesView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @State private var selectedGame: Game?
     @State private var showBetModal = false
+    @State private var hasSelectedGame = false  // Track if a game has been selected
     @State private var selectedLeague = "NBA"
     @State private var globalSelectedTeam: (gameId: String, team: TeamSelection)?
     @State private var scrollOffset: CGFloat = 0

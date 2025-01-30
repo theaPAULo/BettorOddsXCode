@@ -2,16 +2,8 @@
 //  AdminDashboardView.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/29/25.
-//
-
-
-//
-//  AdminDashboardView.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/29/25.
-//  Version: 1.0.0
+//  Created by Claude on 1/30/25
+//  Version: 2.0.0
 //
 
 import SwiftUI
@@ -21,6 +13,7 @@ struct AdminDashboardView: View {
     @StateObject private var viewModel = AdminDashboardViewModel()
     @State private var selectedTab = AdminTab.overview
     
+    // MARK: - Tab Enum
     enum AdminTab {
         case overview
         case users
@@ -46,6 +39,7 @@ struct AdminDashboardView: View {
         }
     }
     
+    // MARK: - Body
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -56,7 +50,6 @@ struct AdminDashboardView: View {
                         .foregroundColor(AppTheme.Brand.primary)
                     Spacer()
                     Button(action: {
-                        // Wrap the async call in a Task
                         Task {
                             await viewModel.refreshData()
                         }
@@ -66,6 +59,25 @@ struct AdminDashboardView: View {
                     }
                 }
                 .padding()
+                
+                // Quick Actions Section
+                VStack(spacing: 12) {
+                    // Game Management Button
+                    NavigationLink(destination: AdminGameManagementView()) {
+                        HStack {
+                            Image(systemName: "gamecontroller.fill")
+                            Text("Game Management")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                        .padding()
+                        .background(Color.backgroundSecondary)
+                        .cornerRadius(12)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                .padding(.horizontal)
+                
                 // Tab Selection
                 HStack(spacing: 0) {
                     ForEach([AdminTab.overview, .users, .bets, .transactions], id: \.self) { tab in
@@ -102,13 +114,18 @@ struct AdminDashboardView: View {
                     await viewModel.refreshData()
                 }
             }
+            .background(Color.backgroundPrimary.ignoresSafeArea())
+            .alert("Error", isPresented: $viewModel.showError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(viewModel.errorMessage ?? "An unknown error occurred")
+            }
             .navigationBarHidden(true)
         }
     }
 }
 
 // MARK: - Supporting Views
-
 struct AdminTabButton: View {
     let title: String
     let icon: String
@@ -131,69 +148,58 @@ struct AdminTabButton: View {
     }
 }
 
-struct AdminOverviewSection: View {
-    let stats: AdminDashboardViewModel.DashboardStats
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            // Quick Stats
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 16) {
-                StatCard(title: "Active Users", value: "\(stats.activeUsers)")
-                StatCard(title: "Daily Bets", value: "\(stats.dailyBets)")
-                StatCard(title: "Revenue", value: "$\(stats.revenue)")
-                StatCard(title: "Pending Bets", value: "\(stats.pendingBets)")
-            }
-            
-            // Recent Activity
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Recent Activity")
-                    .font(.headline)
-                
-                ForEach(stats.recentActivity, id: \.id) { activity in
-                    HStack {
-                        Circle()
-                            .fill(activity.type.color)
-                            .frame(width: 8, height: 8)
-                        Text(activity.description)
-                            .font(.system(size: 14))
-                        Spacer()
-                        Text(activity.time)
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-        }
-    }
-}
 
-struct StatCard: View {
-    let title: String
-    let value: String
+
+// MARK: - Row Views
+struct UserRow: View {
+    let user: User
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 14))
-                .foregroundColor(.gray)
-            Text(value)
-                .font(.system(size: 24, weight: .bold))
+        VStack(alignment: .leading) {
+            Text(user.email)
+                .font(.headline)
+            Text("Joined: \(user.dateJoined.formatted())")
+                .font(.caption)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
+        .background(Color.backgroundSecondary)
+        .cornerRadius(8)
     }
 }
 
-// Preview provider
+struct BetRow: View {
+    let bet: Bet
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("\(bet.team) - \(bet.amount) coins")
+                .font(.headline)
+            Text(bet.createdAt.formatted())
+                .font(.caption)
+        }
+        .padding()
+        .background(Color.backgroundSecondary)
+        .cornerRadius(8)
+    }
+}
+
+struct TransactionRow: View {
+    let transaction: Transaction
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("\(transaction.type.rawValue) - \(transaction.amount)")
+                .font(.headline)
+            Text(transaction.createdAt.formatted())
+                .font(.caption)
+        }
+        .padding()
+        .background(Color.backgroundSecondary)
+        .cornerRadius(8)
+    }
+}
+
+// MARK: - Preview
 #Preview {
     AdminDashboardView()
 }

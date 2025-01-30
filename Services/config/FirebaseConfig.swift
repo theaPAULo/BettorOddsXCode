@@ -20,9 +20,11 @@ class FirebaseConfig {
         if FirebaseApp.app() == nil {
             // Configure App Check for Debug
             #if DEBUG
-            let providerFactory = AppCheckDebugProviderFactory()
-            AppCheck.setAppCheckProviderFactory(providerFactory)
+            let appCheckProviderFactory = AppCheckDebugProviderFactory()
+            AppCheck.setAppCheckProviderFactory(appCheckProviderFactory)
+            print("✅ Debug App Check provider configured")
             #else
+
             // For production, we'll use device check
             if #available(iOS 14.0, *) {
                 let providerFactory = DeviceCheckProviderFactory()
