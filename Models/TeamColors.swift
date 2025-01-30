@@ -35,7 +35,16 @@ struct TeamColors: Codable {
         "Trail Blazers": TeamColors(primary: Color(hex: "E03A3E"), secondary: Color(hex: "000000")),
         "Magic": TeamColors(primary: Color(hex: "0077C0"), secondary: Color(hex: "000000")),
         "Raptors": TeamColors(primary: Color(hex: "CE1141"), secondary: Color(hex: "000000")),
-        "Thunder": TeamColors(primary: Color(hex: "007AC1"), secondary: Color(hex: "EF3B24"))
+        "Nuggets": TeamColors(primary: Color(hex: "0E2240"), secondary: Color(hex: "FEC524")),
+        "Pacers": TeamColors(primary: Color(hex: "002D62"), secondary: Color(hex: "FDBB30")),
+        "Clippers": TeamColors(primary: Color(hex: "C8102E"), secondary: Color(hex: "1D428A")),
+        "Timberwolves": TeamColors(primary: Color(hex: "0C2340"), secondary: Color(hex: "236192")),
+        "Pelicans": TeamColors(primary: Color(hex: "0C2340"), secondary: Color(hex: "C8102E")),
+        "Thunder": TeamColors(primary: Color(hex: "007AC1"), secondary: Color(hex: "EF3B24")),
+        "Spurs": TeamColors(primary: Color(hex: "C4CED4"), secondary: Color(hex: "000000")),
+        "Jazz": TeamColors(primary: Color(hex: "002B5C"), secondary: Color(hex: "E31837")),
+        "Wizards": TeamColors(primary: Color(hex: "002B5C"), secondary: Color(hex: "E31837"))
+
     ]
     
     // MARK: - Coding Keys

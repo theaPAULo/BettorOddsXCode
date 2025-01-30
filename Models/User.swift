@@ -51,17 +51,22 @@ struct User: Identifiable, Codable {
     
     // Initialize from Firestore document
     init?(document: DocumentSnapshot) {
-        guard let data = document.data() else { return nil }
-        
-        self.id = document.documentID
-        self.email = data["email"] as? String ?? ""
-        self.dateJoined = (data["dateJoined"] as? Timestamp)?.dateValue() ?? Date()
-        self.yellowCoins = data["yellowCoins"] as? Int ?? 0
-        self.greenCoins = data["greenCoins"] as? Int ?? 0
-        self.dailyGreenCoinsUsed = data["dailyGreenCoinsUsed"] as? Int ?? 0
-        self.isPremium = data["isPremium"] as? Bool ?? false
-        self.lastBetDate = (data["lastBetDate"] as? Timestamp)?.dateValue() ?? Date()
-        
+            guard let data = document.data() else { return nil }
+            
+            self.id = document.documentID
+            self.email = data["email"] as? String ?? ""
+            self.dateJoined = (data["dateJoined"] as? Timestamp)?.dateValue() ?? Date()
+            self.yellowCoins = data["yellowCoins"] as? Int ?? 0
+            self.greenCoins = data["greenCoins"] as? Int ?? 0
+            self.dailyGreenCoinsUsed = data["dailyGreenCoinsUsed"] as? Int ?? 0
+            self.isPremium = data["isPremium"] as? Bool ?? false
+            self.lastBetDate = (data["lastBetDate"] as? Timestamp)?.dateValue() ?? Date()
+            
+            // Parse admin role
+        if let adminRoleString = data["adminRole"] as? String {
+            self.adminRole = AdminRole(rawValue: adminRoleString) ?? .none
+            print("📱 Parsed admin role from Firestore: \(adminRoleString) -> \(self.adminRole)")
+        }
         // Handle preferences
         if let prefsData = data["preferences"] as? [String: Any] {
             self.preferences = UserPreferences(
