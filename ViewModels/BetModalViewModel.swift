@@ -48,9 +48,8 @@ class BetModalViewModel: ObservableObject {
     
     var potentialWinnings: String {
         guard let amount = Double(betAmount) else { return "0" }
-        // Standard -110 odds: Bet 110 to win 100
-        let winnings = amount * 0.909
-        return String(format: "%.2f", winnings)
+        // Even odds: Bet amount equals winning amount
+        return String(format: "%.2f", amount)
     }
     
     // MARK: - Initialization

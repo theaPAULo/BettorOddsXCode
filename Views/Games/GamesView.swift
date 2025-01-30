@@ -1,3 +1,11 @@
+//
+//  GamesView.swift
+//  BettorOdds
+//
+//  Created by Assistant on 1/29/25.
+//  Version: 2.0.0
+//
+
 import SwiftUI
 
 struct GamesView: View {
@@ -83,7 +91,22 @@ struct GamesView: View {
                 // Games List
                 ScrollView {
                     LazyVStack(spacing: 16) {
-                        ForEach(viewModel.games.filter { $0.league == selectedLeague }) { game in
+                        // Sort and filter games
+                        ForEach(viewModel.games
+                            .filter { $0.league == selectedLeague }
+                            .sorted {
+                                // If first game is locked and second isn't, move first game down
+                                if $0.isLocked && !$1.isLocked {
+                                    return false
+                                }
+                                // If first game isn't locked and second is, keep first game up
+                                if !$0.isLocked && $1.isLocked {
+                                    return true
+                                }
+                                // If both games have same lock status, sort by time
+                                return $0.time < $1.time
+                            }
+                        ) { game in
                             GameCard(
                                 game: game,
                                 isFeatured: game.id == viewModel.featuredGame?.id,
@@ -233,4 +256,10 @@ struct ScrollOffsetModifier: ViewModifier {
                 offset = value
             }
     }
+}
+
+// MARK: - Preview
+#Preview {
+    GamesView()
+        .environmentObject(AuthenticationViewModel())
 }

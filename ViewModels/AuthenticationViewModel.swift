@@ -172,13 +172,29 @@ class AuthenticationViewModel: ObservableObject {
     
     /// Fetches user data from Firestore
     /// - Parameter userId: The ID of the user to fetch
-    private func fetchUser(userId: String) async throws {
-        let document = try await db.collection("users").document(userId).getDocument()
-        if let user = User(document: document) {
-            self.user = user
-        } else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse user data"])
-        }
+    /// Fetches user data from Firestore
+        /// - Parameter userId: The ID of the user to fetch
+        private func fetchUser(userId: String) async throws {
+            print("🔍 Fetching user data for ID: \(userId)")
+            let document = try await db.collection("users").document(userId).getDocument()
+            
+            // Debug: Print raw document data
+            if let data = document.data() {
+                print("📄 Raw user data:", data)
+                if let adminRole = data["adminRole"] as? String {
+                    print("👑 Admin role found:", adminRole)
+                } else {
+                    print("❌ No admin role found in user data")
+                }
+            }
+            
+            if let user = User(document: document) {
+                self.user = user
+                print("👤 User parsed successfully. Admin role:", user.adminRole.rawValue)
+            } else {
+                print("❌ Failed to parse user data")
+                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse user data"])
+            }
     }
     
     /// Checks current authentication state
