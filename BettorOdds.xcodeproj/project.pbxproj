@@ -46,6 +46,13 @@
 			);
 			target = E494E2AE2D4704330020327A /* BettorOdds */;
 		};
+		E44A7DB62D4C4494006DC12C /* Exceptions for "BettorOdds" folder in "BettorOdds" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E494E2AE2D4704330020327A /* BettorOdds */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
@@ -81,6 +88,9 @@
 		};
 		E494E2B12D4704330020327A /* BettorOdds */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E44A7DB62D4C4494006DC12C /* Exceptions for "BettorOdds" folder in "BettorOdds" target */,
+			);
 			path = BettorOdds;
 			sourceTree = "<group>";
 		};
@@ -412,6 +422,8 @@
 				DEVELOPMENT_TEAM = DCXK36979S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BettorOdds/Info.plist;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "BettorOdds requires Face ID authentication to access admin features and secure transactions\n";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -443,6 +455,8 @@
 				DEVELOPMENT_TEAM = DCXK36979S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BettorOdds/Info.plist;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "BettorOdds requires Face ID authentication to access admin features and secure transactions\n";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

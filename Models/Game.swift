@@ -186,3 +186,20 @@ extension Array where Element == Game {
         }
     }
 }
+
+// Add this extension at the bottom of your Game.swift file
+
+extension Game {
+    func debugDescription() -> String {
+        return """
+        Game ID: \(id)
+        Home Team: \(homeTeam)
+        Away Team: \(awayTeam)
+        Time: \(time)
+        League: \(league)
+        Spread: \(spread)
+        Is Featured: \(isFeatured)
+        Is Locked: \(isLocked)
+        """
+    }
+}

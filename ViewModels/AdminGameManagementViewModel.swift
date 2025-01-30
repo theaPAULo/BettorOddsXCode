@@ -1,9 +1,9 @@
 //
-//  AdminGameManagementView.swift
+//  AdminGameManagementViewModel.swift
 //  BettorOdds
 //
 //  Created by Claude on 1/30/25
-//  Version: 1.0.0
+//  Version: 1.1.0
 //
 
 import SwiftUI
@@ -35,30 +35,53 @@ class AdminGameManagementViewModel: ObservableObject {
     }
     
     func loadGames() async {
-        isLoading = true
-        defer { isLoading = false }
+        await MainActor.run {
+            isLoading = true
+            print("🎮 Starting to load games...")
+        }
         
         do {
             let snapshot = try await db.collection("games")
                 .order(by: "time", descending: false)
                 .getDocuments()
             
-            self.games = snapshot.documents.compactMap { document -> Game? in
-                let data = document.data()
-                // Map document data to Game properties
-                // Add error handling here if needed
-                return try? document.data(as: Game.self)
+            print("📚 Got \(snapshot.documents.count) games from Firestore")
+            
+            let loadedGames = snapshot.documents.compactMap { document -> Game? in
+                do {
+                    let game = try document.data(as: Game.self)
+                    print("✅ Successfully parsed game: \(game.id)")
+                    return game
+                } catch {
+                    print("❌ Failed to parse game document: \(error)")
+                    return nil
+                }
+            }
+            
+            await MainActor.run {
+                self.games = loadedGames
+                self.isLoading = false
+                print("🎯 Loaded \(loadedGames.count) games successfully")
             }
         } catch {
-            self.errorMessage = error.localizedDescription
-            self.showError = true
+            print("❌ Error loading games: \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to load games: \(error.localizedDescription)"
+                self.showError = true
+                self.isLoading = false
+            }
         }
     }
     
     func setFeaturedGame(_ game: Game) async {
+        await MainActor.run {
+            isLoading = true
+        }
+        
         do {
             // First, unset any currently featured game
             if let currentFeatured = games.first(where: { $0.isFeatured }) {
+                print("🔄 Unsetting current featured game: \(currentFeatured.id)")
                 try await db.collection("games").document(currentFeatured.id)
                     .updateData([
                         "isFeatured": false,
@@ -67,6 +90,7 @@ class AdminGameManagementViewModel: ObservableObject {
                     ])
             }
             
+            print("⭐️ Setting new featured game: \(game.id)")
             // Set the new featured game
             try await db.collection("games").document(game.id)
                 .updateData([
@@ -76,12 +100,20 @@ class AdminGameManagementViewModel: ObservableObject {
                 ])
             
             await loadGames()
-            self.successMessage = "Featured game updated successfully"
-            self.showSuccess = true
+            
+            await MainActor.run {
+                self.successMessage = "Featured game updated successfully"
+                self.showSuccess = true
+                self.isLoading = false
+            }
             
         } catch {
-            self.errorMessage = error.localizedDescription
-            self.showError = true
+            print("❌ Error setting featured game: \(error)")
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.showError = true
+                self.isLoading = false
+            }
         }
     }
     
@@ -94,7 +126,12 @@ class AdminGameManagementViewModel: ObservableObject {
     }
     
     private func updateGame(_ game: Game, field: String, value: Any) async {
+        await MainActor.run {
+            isLoading = true
+        }
+        
         do {
+            print("🔄 Updating game \(game.id) - Setting \(field) to \(value)")
             try await db.collection("games").document(game.id)
                 .updateData([
                     field: value,
@@ -103,191 +140,20 @@ class AdminGameManagementViewModel: ObservableObject {
                 ])
             
             await loadGames()
-            self.successMessage = "Game updated successfully"
-            self.showSuccess = true
+            
+            await MainActor.run {
+                self.successMessage = "Game updated successfully"
+                self.showSuccess = true
+                self.isLoading = false
+            }
             
         } catch {
-            self.errorMessage = error.localizedDescription
-            self.showError = true
-        }
-    }
-}
-
-struct AdminGameManagementView: View {
-    @StateObject private var viewModel = AdminGameManagementViewModel()
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        List {
-            // Featured Game Section
-            Section(header: Text("Featured Game").foregroundColor(.textSecondary)) {
-                if let featuredGame = viewModel.games.first(where: { $0.isFeatured }) {
-                    FeaturedGameRow(game: featuredGame)
-                } else {
-                    Text("No featured game selected")
-                        .foregroundColor(.textSecondary)
-                }
-                
-                Button("Select Featured Game") {
-                    viewModel.showGameSelector = true
-                }
-                .foregroundColor(AppTheme.Brand.primary)
-            }
-            
-            // Game Management Section
-            Section(header: Text("Game Management").foregroundColor(.textSecondary)) {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                } else {
-                    ForEach(viewModel.games) { game in
-                        GameManagementRow(
-                            game: game,
-                            onToggleLock: {
-                                Task { await viewModel.toggleGameLock(game) }
-                            },
-                            onToggleVisibility: {
-                                Task { await viewModel.toggleGameVisibility(game) }
-                            }
-                        )
-                    }
-                }
+            print("❌ Error updating game: \(error)")
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.showError = true
+                self.isLoading = false
             }
         }
-        .navigationTitle("Game Management")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarItems(trailing: Button("Done") { dismiss() })
-        .sheet(isPresented: $viewModel.showGameSelector) {
-            GameSelectorView(
-                games: viewModel.availableGames,
-                onSelect: { game in
-                    Task {
-                        await viewModel.setFeaturedGame(game)
-                    }
-                }
-            )
-        }
-        .alert("Success", isPresented: $viewModel.showSuccess) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(viewModel.successMessage ?? "Operation completed successfully")
-        }
-        .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(viewModel.errorMessage ?? "An unknown error occurred")
-        }
-        .refreshable {
-            await viewModel.loadGames()
-        }
-    }
-}
-
-// MARK: - Supporting Views
-
-struct FeaturedGameRow: View {
-    let game: Game
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("\(game.homeTeam) vs \(game.awayTeam)")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
-            
-            HStack {
-                Image(systemName: "clock.fill")
-                    .foregroundColor(.textSecondary)
-                Text(game.time.formatted(date: .abbreviated, time: .shortened))
-                    .font(.subheadline)
-                    .foregroundColor(.textSecondary)
-            }
-            
-            if let lastUpdated = game.lastUpdatedAt {
-                Text("Last updated: \(lastUpdated.formatted())")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-struct GameManagementRow: View {
-    let game: Game
-    let onToggleLock: () -> Void
-    let onToggleVisibility: () -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("\(game.homeTeam) vs \(game.awayTeam)")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
-            
-            HStack {
-                // Locked Toggle
-                HStack {
-                    Text("Locked")
-                        .foregroundColor(.textSecondary)
-                    Button(action: onToggleLock) {
-                        Image(systemName: game.isLocked ? "lock.fill" : "lock.open.fill")
-                            .foregroundColor(game.isLocked ? .red : .green)
-                    }
-                }
-                
-                Spacer()
-                
-                // Visible Toggle
-                HStack {
-                    Text("Visible")
-                        .foregroundColor(.textSecondary)
-                    Button(action: onToggleVisibility) {
-                        Image(systemName: game.isVisible ? "eye.fill" : "eye.slash.fill")
-                            .foregroundColor(game.isVisible ? .green : .gray)
-                    }
-                }
-            }
-            
-            if let lastUpdated = game.lastUpdatedAt {
-                Text("Last updated: \(lastUpdated.formatted())")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-struct GameSelectorView: View {
-    let games: [Game]
-    let onSelect: (Game) -> Void
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationView {
-            List(games) { game in
-                Button(action: {
-                    onSelect(game)
-                    dismiss()
-                }) {
-                    VStack(alignment: .leading) {
-                        Text("\(game.homeTeam) vs \(game.awayTeam)")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-                        
-                        Text(game.time.formatted(date: .abbreviated, time: .shortened))
-                            .font(.subheadline)
-                            .foregroundColor(.textSecondary)
-                    }
-                }
-            }
-            .navigationTitle("Select Featured Game")
-            .navigationBarItems(trailing: Button("Cancel") { dismiss() })
-        }
-    }
-}
-
-#Preview {
-    NavigationView {
-        AdminGameManagementView()
     }
 }

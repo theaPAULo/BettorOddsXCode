@@ -1,3 +1,11 @@
+//
+//  BetModal.swift
+//  BettorOdds
+//
+//  Created by Assistant on 1/30/25
+//  Version: 2.1.0
+//
+
 import SwiftUI
 
 struct BetModal: View {
@@ -11,8 +19,9 @@ struct BetModal: View {
     
     // MARK: - Initialization
     init(game: Game, user: User, isPresented: Binding<Bool>) {
-        self.game = game
+        print("🎲 Initializing BetModal with game: \(game.id)")
         self._isPresented = isPresented
+        self.game = game
         self._viewModel = StateObject(wrappedValue: BetModalViewModel(game: game, user: user))
     }
     
@@ -60,6 +69,7 @@ struct BetModal: View {
                                         isSelected: selectedTeam == game.awayTeam,
                                         width: (geometry.size.width - 16) / 2
                                     ) {
+                                        print("🏀 Selected away team: \(game.awayTeam)")
                                         selectedTeam = game.awayTeam
                                         isHomeTeamSelected = false
                                         hapticFeedback()
@@ -73,6 +83,7 @@ struct BetModal: View {
                                         isSelected: selectedTeam == game.homeTeam,
                                         width: (geometry.size.width - 16) / 2
                                     ) {
+                                        print("🏀 Selected home team: \(game.homeTeam)")
                                         selectedTeam = game.homeTeam
                                         isHomeTeamSelected = true
                                         hapticFeedback()
@@ -93,6 +104,7 @@ struct BetModal: View {
                                     type: .yellow,
                                     isSelected: viewModel.selectedCoinType == .yellow
                                 ) {
+                                    print("💰 Selected yellow coins")
                                     viewModel.selectedCoinType = .yellow
                                     hapticFeedback()
                                 }
@@ -101,6 +113,7 @@ struct BetModal: View {
                                     type: .green,
                                     isSelected: viewModel.selectedCoinType == .green
                                 ) {
+                                    print("💰 Selected green coins")
                                     viewModel.selectedCoinType = .green
                                     hapticFeedback()
                                 }
@@ -214,6 +227,10 @@ struct BetModal: View {
                     }
                 }
             }
+            .onAppear {
+                print("🎲 BetModal appeared")
+                print("Game details: \(game.debugDescription())")
+            }
         }
     }
     
@@ -225,121 +242,139 @@ struct BetModal: View {
     
     private func handlePlaceBet() {
         guard let team = selectedTeam else { return }
+        print("🎲 Handling bet placement for team: \(team)")
         
         if viewModel.selectedCoinType == .green {
-            isShowingBiometricPrompt = true
-        } else {
-            processBet(team: team)
-        }
-    }
-    
-    private func processBet(team: String) {
-        Task {
-            let success = try? await viewModel.placeBet(team: team, isHomeTeam: isHomeTeamSelected)
-            
-            if success == true {
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-                isPresented = false
-            } else {
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.error)
-            }
-        }
-    }
-}
-
-// MARK: - Supporting Components
-
-struct TeamSelectionButton: View {
-    let team: String
-    let spread: Double
-    let teamColors: TeamColors
-    let isSelected: Bool
-    let width: CGFloat
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 12) {
-                Text(team)
-                    .font(.system(size: 16, weight: .semibold))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(height: 40)
-                    .foregroundColor(isSelected ? .white : .textPrimary)
+            print("💚 Green coins selected - showing biometric prompt")
+                        isShowingBiometricPrompt = true
+                    } else {
+                        print("🟡 Yellow coins selected - processing bet directly")
+                        processBet(team: team)
+                    }
+                }
                 
-                Text(spread >= 0 ? "+\(String(format: "%.1f", spread))" : "\(String(format: "%.1f", spread))")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(isSelected ? .white : .textPrimary)
+                private func processBet(team: String) {
+                    print("🎲 Processing bet for team: \(team)")
+                    Task {
+                        do {
+                            let success = try await viewModel.placeBet(team: team, isHomeTeam: isHomeTeamSelected)
+                            
+                            await MainActor.run {
+                                if success {
+                                    print("✅ Bet placed successfully")
+                                    let generator = UINotificationFeedbackGenerator()
+                                    generator.notificationOccurred(.success)
+                                    isPresented = false
+                                } else {
+                                    print("❌ Failed to place bet")
+                                    let generator = UINotificationFeedbackGenerator()
+                                    generator.notificationOccurred(.error)
+                                }
+                            }
+                        } catch {
+                            print("❌ Error placing bet: \(error)")
+                            await MainActor.run {
+                                viewModel.errorMessage = error.localizedDescription
+                                let generator = UINotificationFeedbackGenerator()
+                                generator.notificationOccurred(.error)
+                            }
+                        }
+                    }
+                }
             }
-            .frame(width: width)
-            .padding(.vertical, 12)
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        teamColors.primary.opacity(isSelected ? 0.8 : 0.1),
-                        teamColors.secondary.opacity(isSelected ? 0.8 : 0.1)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+
+            // MARK: - Supporting Components
+
+            struct TeamSelectionButton: View {
+                let team: String
+                let spread: Double
+                let teamColors: TeamColors
+                let isSelected: Bool
+                let width: CGFloat
+                let action: () -> Void
+                
+                var body: some View {
+                    Button(action: action) {
+                        VStack(spacing: 12) {
+                            Text(team)
+                                .font(.system(size: 16, weight: .semibold))
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(height: 40)
+                                .foregroundColor(isSelected ? .white : .textPrimary)
+                            
+                            Text(spread >= 0 ? "+\(String(format: "%.1f", spread))" : "\(String(format: "%.1f", spread))")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(isSelected ? .white : .textPrimary)
+                        }
+                        .frame(width: width)
+                        .padding(.vertical, 12)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    teamColors.primary.opacity(isSelected ? 0.8 : 0.1),
+                                    teamColors.secondary.opacity(isSelected ? 0.8 : 0.1)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    isSelected ? teamColors.primary : teamColors.primary.opacity(0.3),
+                                    lineWidth: isSelected ? 2 : 1
+                                )
+                        )
+                    }
+                }
+            }
+
+            struct CoinTypeButton: View {
+                let type: CoinType
+                let isSelected: Bool
+                let action: () -> Void
+                
+                var body: some View {
+                    Button(action: action) {
+                        HStack {
+                            Text(type.emoji)
+                            Text(type.displayName)
+                                .font(.system(size: 16))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(buttonBackground)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(buttonBorder, lineWidth: isSelected ? 2 : 1)
+                        )
+                        .foregroundColor(isSelected ? .white : type == .yellow ? .yellow : .green)
+                    }
+                }
+                
+                private var buttonBackground: Color {
+                    if isSelected {
+                        return type == .yellow ? .yellow : .green
+                    }
+                    return type == .yellow ? .yellow.opacity(0.1) : .green.opacity(0.1)
+                }
+                
+                private var buttonBorder: Color {
+                    if isSelected {
+                        return type == .yellow ? .yellow : .green
+                    }
+                    return type == .yellow ? .yellow.opacity(0.3) : .green.opacity(0.3)
+                }
+            }
+
+            // MARK: - Preview Provider
+            #Preview {
+                BetModal(
+                    game: Game.sampleGames[0],
+                    user: User(id: "preview", email: "test@example.com"),
+                    isPresented: .constant(true)
                 )
-            )
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isSelected ? teamColors.primary : teamColors.primary.opacity(0.3),
-                        lineWidth: isSelected ? 2 : 1
-                    )
-            )
-        }
-    }
-}
-
-struct CoinTypeButton: View {
-    let type: CoinType
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                Text(type.emoji)
-                Text(type.displayName)
-                    .font(.system(size: 16))
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(buttonBackground)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(buttonBorder, lineWidth: isSelected ? 2 : 1)
-            )
-            .foregroundColor(isSelected ? .white : type == .yellow ? .yellow : .green)
-        }
-    }
-    
-    private var buttonBackground: Color {
-        if isSelected {
-            return type == .yellow ? .yellow : .green
-        }
-        return type == .yellow ? .yellow.opacity(0.1) : .green.opacity(0.1)
-    }
-    
-    private var buttonBorder: Color {
-        if isSelected {
-            return type == .yellow ? .yellow : .green
-        }
-        return type == .yellow ? .yellow.opacity(0.3) : .green.opacity(0.3)
-    }
-}
-
-#Preview {
-    BetModal(
-        game: Game.sampleGames[0],
-        user: User(id: "preview", email: "test@example.com"),
-        isPresented: .constant(true)
-    )
-}
