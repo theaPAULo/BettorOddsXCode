@@ -1,29 +1,25 @@
-//
-//  ContentView.swift
-//  BettorOdds
-//
-//  Created by Paul Soni on 1/26/25.
-//
-
-
-// File: ContentView.swift
-// Version: 1.0
+// ContentView.swift
+// Version: 1.1.0
 // Description: Root view of the application that handles authentication state and navigation
 
 import SwiftUI
 
 struct ContentView: View {
-    // Inject the authentication view model that will be used throughout the app
     @StateObject private var authViewModel = AuthenticationViewModel()
+    @Environment(\.scenePhase) private var scenePhase
     
     var body: some View {
-        // Use a Group to conditionally render either auth flow or main app
         Group {
             switch authViewModel.authState {
             case .loading:
                 // Show loading screen while checking auth state
-                ProgressView("Loading...")
-                    .progressViewStyle(CircularProgressViewStyle())
+                LoadingView()
+                    .onAppear {
+                        // Force auth check after brief delay to ensure proper initialization
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            authViewModel.checkAuthState()
+                        }
+                    }
             
             case .signedIn:
                 // Show main app interface when user is authenticated
@@ -36,6 +32,29 @@ struct ContentView: View {
                     .environmentObject(authViewModel)
             }
         }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                // Recheck auth state when app becomes active
+                authViewModel.checkAuthState()
+            }
+        }
+    }
+}
+
+// Loading view with animation
+struct LoadingView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle())
+                .scaleEffect(1.5)
+            
+            Text("Loading...")
+                .font(.headline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
     }
 }
 

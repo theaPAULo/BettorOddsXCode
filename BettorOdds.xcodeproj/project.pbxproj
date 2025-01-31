@@ -108,11 +108,6 @@
 			path = Utilities;
 			sourceTree = "<group>";
 		};
-		E494E2D72D4707480020327A /* Resources */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Resources;
-			sourceTree = "<group>";
-		};
 		E494E2D92D47076B0020327A /* Views */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Views;
@@ -158,7 +153,6 @@
 				E43BC6662D4939A400F7AE5C /* Repositories */,
 				E43BC6602D49392900F7AE5C /* Documentation */,
 				E494E2D92D47076B0020327A /* Views */,
-				E494E2D72D4707480020327A /* Resources */,
 				E494E2D52D4707290020327A /* Utilities */,
 				E494E2D42D4707200020327A /* Services */,
 				E494E2D32D4707130020327A /* ViewModels */,
@@ -204,7 +198,6 @@
 				E494E2D32D4707130020327A /* ViewModels */,
 				E494E2D42D4707200020327A /* Services */,
 				E494E2D52D4707290020327A /* Utilities */,
-				E494E2D72D4707480020327A /* Resources */,
 				E494E2D92D47076B0020327A /* Views */,
 			);
 			name = BettorOdds;

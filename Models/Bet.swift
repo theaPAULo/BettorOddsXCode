@@ -53,8 +53,8 @@ struct Bet: Identifiable, Codable {
     
     /// Calculates potential winnings based on bet amount
     var potentialWinnings: Int {
-        // Standard -110 odds: Bet 110 to win 100
-        return Int(Double(amount) * 0.909)
+        // Even odds: Bet 100 to win 100
+        return amount
     }
     
     /// Checks if spread has changed enough to trigger cancellation

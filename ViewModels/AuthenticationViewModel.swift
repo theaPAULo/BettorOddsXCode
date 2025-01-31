@@ -198,14 +198,28 @@ class AuthenticationViewModel: ObservableObject {
     }
     
     /// Checks current authentication state
-    private func checkAuthState() {
-        if let currentUser = Auth.auth().currentUser {
-            Task {
-                try? await fetchUser(userId: currentUser.uid)
-                authState = .signedIn
+    func checkAuthState() {
+        print("🔍 Checking auth state...")
+        authState = .loading
+        
+        // Brief delay to ensure Firebase is initialized
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            if let currentUser = Auth.auth().currentUser {
+                print("👤 Found existing user: \(currentUser.uid)")
+                Task {
+                    do {
+                        try await self.fetchUser(userId: currentUser.uid)
+                        self.authState = .signedIn
+                        print("✅ User authenticated successfully")
+                    } catch {
+                        print("❌ Error fetching user: \(error)")
+                        self.authState = .signedOut
+                    }
+                }
+            } else {
+                print("👤 No existing user found")
+                self.authState = .signedOut
             }
-        } else {
-            authState = .signedOut
         }
     }
     
@@ -219,3 +233,5 @@ class AuthenticationViewModel: ObservableObject {
         self.authState = .signedIn
     }
 }
+
+
