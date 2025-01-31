@@ -72,6 +72,7 @@ struct BetCard: View {
             // Cancel Button (only for pending bets)
             if bet.canBeCancelled {
                 Button(action: {
+                    print("🎲 Cancel button pressed for bet: \(bet.id)")
                     showCancelConfirmation = true
                 }) {
                     HStack(spacing: 6) {
@@ -119,8 +120,11 @@ struct BetCard: View {
                 )
         )
         .alert("Cancel Bet", isPresented: $showCancelConfirmation) {
-            Button("Keep Bet", role: .cancel) {}
+            Button("Keep Bet", role: .cancel) {
+                print("❌ Cancellation cancelled")
+            }
             Button("Yes, Cancel Bet", role: .destructive) {
+                print("✅ User confirmed cancellation")
                 onCancelTapped()
             }
         } message: {

@@ -24,14 +24,19 @@ struct MyBetsView: View {
                     if viewModel.isLoading {
                         ProgressView()
                             .padding(.top, 40)
-                            .tint(.primary) // Use theme primary color for spinner
+                            .tint(.primary)
                     } else if viewModel.bets.isEmpty {
                         emptyStateView
                     } else {
                         LazyVStack(spacing: 16) {
                             ForEach(viewModel.filteredBets(for: selectedFilter)) { bet in
                                 BetCard(bet: bet) {
-                                    viewModel.cancelBet(bet)
+                                    print("🎲 Cancel action received from BetCard")
+                                    Task {
+                                        print("🎲 Starting cancellation task")
+                                        await viewModel.cancelBet(bet)
+                                        print("✅ Cancellation task completed")
+                                    }
                                 }
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                             }
@@ -54,7 +59,6 @@ struct MyBetsView: View {
             .onAppear {
                 viewModel.loadBets()
             }
-            // Listen for navigation notification
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMyBets"))) { _ in
                 viewModel.loadBets()
             }
@@ -130,29 +134,23 @@ class MyBetsViewModel: ObservableObject {
         }
     }
     
-    func cancelBet(_ bet: Bet) {
-        guard bet.canBeCancelled else { return }
-        
+    func cancelBet(_ bet: Bet) async {
+        print("🎲 ViewModel received cancel request for bet: \(bet.id)")
         isLoading = true
         
-        Task { @MainActor in
-            do {
-                // Simulate network delay
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                
-                if let index = bets.firstIndex(where: { $0.id == bet.id }) {
-                    var cancelledBet = bets[index]
-                    cancelledBet.status = .cancelled
-                    bets[index] = cancelledBet
-                }
-                
-                isLoading = false
-            } catch {
-                errorMessage = error.localizedDescription
-                showError = true
-                isLoading = false
-            }
+        do {
+            print("🎲 Calling BetsManager.cancelBet")
+            try await BetsManager.shared.cancelBet(bet.id)
+            print("✅ Bet successfully cancelled")
+            await loadBets()
+            print("✅ Bets reloaded")
+        } catch {
+            print("❌ Error cancelling bet: \(error)")
+            errorMessage = error.localizedDescription
+            showError = true
         }
+        
+        isLoading = false
     }
 }
 

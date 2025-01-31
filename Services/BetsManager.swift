@@ -108,16 +108,29 @@ class BetsManager: ObservableObject {
     
     func cancelBet(_ betId: String) async throws {
         isLoading = true
-        defer { isLoading = false }
         
-        // TODO: Replace with actual API call
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        
-        if let index = bets.firstIndex(where: { $0.id == betId }) {
-            var cancelledBet = bets[index]
-            cancelledBet.status = .cancelled
-            bets[index] = cancelledBet
+        do {
+            print("🎲 Attempting to cancel bet: \(betId)")
+            
+            // Update status in Firestore
+            try await db.collection("bets").document(betId).updateData([
+                "status": BetStatus.cancelled.rawValue,
+                "updatedAt": Timestamp(date: Date())
+            ])
+            
+            print("✅ Bet cancelled in Firestore")
+            
+            // Fetch fresh bets to update the list
+            bets = try await fetchBets()
+            
+            print("✅ Bets list refreshed")
+            
+        } catch {
+            print("❌ Error cancelling bet: \(error)")
+            throw error
         }
+        
+        isLoading = false
     }
     
     // MARK: - Private Methods
