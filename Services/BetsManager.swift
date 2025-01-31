@@ -16,70 +16,94 @@
 
 import Foundation
 import Combine
+import Firebase
+import FirebaseAuth
+
+enum BetsError: Error {
+    case invalidBet
+    case networkError
+    case dailyLimitExceeded
+    case insufficientFunds
+    
+    var localizedDescription: String {
+        switch self {
+        case .invalidBet:
+            return "Invalid bet parameters"
+        case .networkError:
+            return "Network connection error. Please try again."
+        case .dailyLimitExceeded:
+            return "Daily betting limit exceeded"
+        case .insufficientFunds:
+            return "Insufficient funds"
+        }
+    }
+}
 
 @MainActor
 class BetsManager: ObservableObject {
-    // MARK: - Singleton
     static let shared = BetsManager()
-    
-    // MARK: - Published Properties
     @Published private(set) var bets: [Bet] = []
     @Published private(set) var isLoading = false
     
-    // MARK: - Error Handling
-    enum BetsError: Error {
-        case invalidBet
-        case networkError
-        case dailyLimitExceeded
-        case insufficientFunds
-        
-        var localizedDescription: String {
-            switch self {
-            case .invalidBet:
-                return "Invalid bet parameters"
-            case .networkError:
-                return "Failed to connect to server"
-            case .dailyLimitExceeded:
-                return "Daily betting limit exceeded"
-            case .insufficientFunds:
-                return "Insufficient funds"
-            }
-        }
-    }
+    private let db = Firestore.firestore()
     
-    // MARK: - Private Init for Singleton
-    private init() {}
-    
-    // MARK: - Public Methods
     func placeBet(_ bet: Bet) async throws {
         isLoading = true
         defer { isLoading = false }
         
-        // TODO: Replace with actual API call
-        // For now, simulate network request
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        
-        // Validate bet
-        guard validateBet(bet) else {
-            throw BetsError.invalidBet
+        do {
+            print("📝 Attempting to save bet to Firestore...")
+            let data = bet.toDictionary()
+            try await db.collection("bets").document(bet.id).setData(data)
+            bets.append(bet)
+            print("✅ Bet saved to Firestore with ID: \(bet.id)")
+        } catch let error as NSError {
+            print("❌ Error saving bet: \(error.localizedDescription)")
+            if error.domain == NSURLErrorDomain {
+                throw BetsError.networkError
+            }
+            throw error
         }
-        
-        // Add to local array
-        bets.append(bet)
-        
-        // Simulate successful API response
-        return
     }
     
     func fetchBets() async throws -> [Bet] {
-        isLoading = true
-        defer { isLoading = false }
+        guard let userId = Auth.auth().currentUser?.uid else {
+            print("❌ No user logged in")
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user logged in"])
+        }
         
-        // TODO: Replace with actual API call
-        // For now, simulate network request
-        try await Task.sleep(nanoseconds: 1_000_000_000)
+        // Add this right after getting currentUser?.uid
+        print("🔑 Query userId: \(userId)")
+        print("🔑 Expected userId from Firestore: hDr6MObDmAQRxB1o44E5EQp0ozw1")
+        print("🔑 Do they match? \(userId == "hDr6MObDmAQRxB1o44E5EQp0ozw1")")
+        print("🔑 Current userId for fetching: \(userId)")
         
-        return bets
+        do {
+            print("📝 Starting Firestore query...")
+            let query = db.collection("bets")
+                .whereField("userId", isEqualTo: userId)
+                .order(by: "createdAt", descending: true)
+            
+            print("🔍 Executing query: \(query)")
+            let snapshot = try await query.getDocuments()
+            
+            print("📄 Got \(snapshot.documents.count) documents")
+            
+            let bets = snapshot.documents.compactMap { document -> Bet? in
+                print("Processing document ID: \(document.documentID)")
+                print("Document data: \(document.data())")
+                return Bet(document: document)
+            }
+            
+            print("✅ Successfully parsed \(bets.count) bets")
+            return bets
+            
+        } catch let error as NSError {
+            print("❌ Detailed error: \(error)")
+            print("❌ Error domain: \(error.domain)")
+            print("❌ Error code: \(error.code)")
+            throw error
+        }
     }
     
     func cancelBet(_ betId: String) async throws {

@@ -2,7 +2,6 @@ import FirebaseCore
 import FirebaseFirestore
 import FirebaseAuth
 import FirebaseStorage
-import FirebaseAppCheck
 
 /// Manages Firebase configuration and initialization
 class FirebaseConfig {
@@ -18,22 +17,13 @@ class FirebaseConfig {
     private init() {
         // Check if Firebase is already configured
         if FirebaseApp.app() == nil {
-            // Configure App Check for Debug
-            #if DEBUG
-            let appCheckProviderFactory = AppCheckDebugProviderFactory()
-            AppCheck.setAppCheckProviderFactory(appCheckProviderFactory)
-            print("✅ Debug App Check provider configured")
-            #else
-
-            // For production, we'll use device check
-            if #available(iOS 14.0, *) {
-                let providerFactory = DeviceCheckProviderFactory()
-                AppCheck.setAppCheckProviderFactory(providerFactory)
-            }
-            #endif
-            
             // Configure Firebase
             FirebaseApp.configure()
+            print("✅ Firebase app configured")
+            
+            #if DEBUG
+            print("🔧 Running in DEBUG mode")
+            #endif
         }
         
         // Initialize Firebase services
@@ -47,7 +37,8 @@ class FirebaseConfig {
         settings.cacheSizeBytes = FirestoreCacheSizeUnlimited // Unlimited cache size
         self.db.settings = settings
         
-        print("✅ Firebase configuration completed")
+        print("✅ Firebase services initialized")
+        configureDebugSettings()
     }
     
     // MARK: - Collection References
@@ -77,15 +68,13 @@ class FirebaseConfig {
         return db.collection("settings")
     }
     
-    // MARK: - Development Configuration
-    #if DEBUG
-    func configureDevelopment() {
+    // MARK: - Debug Configuration
+    private func configureDebugSettings() {
+        #if DEBUG
         let settings = FirestoreSettings()
-        settings.host = "localhost:8080"
         settings.isPersistenceEnabled = false
-        settings.isSSLEnabled = false
         db.settings = settings
-        print("🔧 Firebase configured for development")
+        print("🔧 Debug settings configured for Firestore")
+        #endif
     }
-    #endif
 }
