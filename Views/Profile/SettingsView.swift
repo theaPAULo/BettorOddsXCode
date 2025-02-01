@@ -1,3 +1,11 @@
+//
+//  SettingsView.swift
+//  BettorOdds
+//
+//  Created by Claude on 1/31/25.
+//  Version: 2.0.0
+//
+
 import SwiftUI
 
 struct SettingsView: View {
@@ -7,11 +15,23 @@ struct SettingsView: View {
     // App Settings
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
+    @AppStorage("rememberMe") private var rememberMe = false
     
     // Security Settings
     @State private var requireBiometrics = true
     @State private var showingBiometricPrompt = false
     @State private var showingDisableBiometricsAlert = false
+    @State private var preferences: UserPreferences
+    
+    // MARK: - Initialization
+    init() {
+        // Initialize preferences from current user if available
+        if let currentUser = try? AuthenticationViewModel().user {
+            _preferences = State(initialValue: currentUser.preferences)
+        } else {
+            _preferences = State(initialValue: UserPreferences())
+        }
+    }
     
     var body: some View {
         NavigationView {
@@ -36,6 +56,24 @@ struct SettingsView: View {
                 // Security Section
                 if BiometricHelper.shared.canUseBiometrics {
                     Section {
+                        // Save Credentials Toggle
+                        HStack {
+                            Label("Save Login Credentials", systemImage: "key.fill")
+                                .foregroundColor(.textPrimary)
+                            Spacer()
+                            Toggle("", isOn: $preferences.saveCredentials)
+                                .tint(.primary)
+                        }
+                        
+                        // Remember Me Toggle
+                        HStack {
+                            Label("Remember Me", systemImage: "person.fill.checkmark")
+                                .foregroundColor(.textPrimary)
+                            Spacer()
+                            Toggle("", isOn: $preferences.rememberMe)
+                                .tint(.primary)
+                        }
+                        
                         HStack {
                             Label(
                                 "Require \(BiometricHelper.shared.biometricType.description)",
@@ -64,7 +102,7 @@ struct SettingsView: View {
                         Label("Enable Notifications", systemImage: "bell.fill")
                             .foregroundColor(.textPrimary)
                         Spacer()
-                        Toggle("", isOn: $notificationsEnabled)
+                        Toggle("", isOn: $preferences.notificationsEnabled)
                             .tint(.primary)
                     }
                 } header: {
@@ -124,6 +162,7 @@ struct SettingsView: View {
             .background(Color.backgroundPrimary)
             .scrollContentBackground(.hidden)
             .navigationBarItems(trailing: Button("Done") {
+                savePreferences()
                 dismiss()
             })
             .sheet(isPresented: $showingBiometricPrompt) {
@@ -163,19 +202,23 @@ struct SettingsView: View {
         }
     }
     
+    private func savePreferences() {
+        if let user = authViewModel.user {
+            Task {
+                await updateUserPreferences(for: user)
+            }
+        }
+    }
+    
     private func updateUserPreferences(for user: User) async {
         do {
-            let newPreferences = UserPreferences(
-                useBiometrics: requireBiometrics,
-                darkMode: isDarkMode,
-                notificationsEnabled: notificationsEnabled,
-                requireBiometricsForGreenCoins: requireBiometrics
-            )
-            
             var updatedUser = user
-            updatedUser.preferences = newPreferences
+            updatedUser.preferences = preferences
             
             try await authViewModel.updateUser(updatedUser)
+            
+            // Save remember me state
+            UserDefaults.standard.set(preferences.rememberMe, forKey: "rememberMe")
             
             await MainActor.run {
                 let generator = UINotificationFeedbackGenerator()

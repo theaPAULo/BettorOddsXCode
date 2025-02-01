@@ -2,18 +2,25 @@
 //  LoginView.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/26/25.
+//  Created by Claude on 1/31/25.
+//  Version: 2.0.0
 //
 
 import SwiftUI
 
 struct LoginView: View {
+    // MARK: - Properties
     @EnvironmentObject var authViewModel: AuthenticationViewModel
+    @AppStorage("rememberMe") private var rememberMe = false
+    
     @State private var email = ""
     @State private var password = ""
     @State private var showPassword = false
+    @State private var showingForgotPassword = false
+    @State private var emailError: String?
     @State private var isKeyboardVisible = false
     
+    // MARK: - Body
     var body: some View {
         NavigationView {
             ScrollView {
@@ -22,40 +29,56 @@ struct LoginView: View {
                     VStack(spacing: 8) {
                         Text("BettorOdds")
                             .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.primary)  // Using system primary color
+                            .foregroundColor(.primary)
                         
                         Text("Sign in to continue")
                             .font(.system(size: 16))
-                            .foregroundColor(.secondary)  // Using system secondary color
+                            .foregroundColor(.secondary)
                     }
                     .padding(.top, 60)
                     
                     // Login Form
                     VStack(spacing: 16) {
                         // Email Field
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Email")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            TextField("Enter your email", text: $email)  // Added placeholder text
+                            
+                            TextField("Enter your email", text: $email)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .textContentType(.emailAddress)
+                                .textContentType(.username)
                                 .keyboardType(.emailAddress)
                                 .autocapitalization(.none)
+                                .autocorrectionDisabled()
+                                .onChange(of: email) { _ in
+                                    emailError = EmailValidator.validationMessage(for: email)
+                                }
+                            
+                            if let error = emailError {
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                            }
                         }
                         
                         // Password Field
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Password")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
+                            
                             HStack {
                                 if showPassword {
-                                    TextField("Enter your password", text: $password)  // Added placeholder text
+                                    TextField("Enter your password", text: $password)
                                         .textContentType(.password)
+                                        .autocapitalization(.none)
+                                        .autocorrectionDisabled()
                                 } else {
-                                    SecureField("Enter your password", text: $password)  // Added placeholder text
+                                    SecureField("Enter your password", text: $password)
                                         .textContentType(.password)
+                                        .autocapitalization(.none)
+                                        .autocorrectionDisabled()
                                 }
                                 
                                 Button(action: { showPassword.toggle() }) {
@@ -65,6 +88,12 @@ struct LoginView: View {
                             }
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         }
+                        
+                        // Remember Me Toggle
+                        Toggle("Remember Me", isOn: $rememberMe)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
                     }
                     .padding(.horizontal, 24)
                     
@@ -78,9 +107,7 @@ struct LoginView: View {
                     }
                     
                     // Login Button
-                    Button(action: {
-                        authViewModel.signIn(email: email, password: password)
-                    }) {
+                    Button(action: handleLogin) {
                         if authViewModel.isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -91,19 +118,20 @@ struct LoginView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(Color("Primary"))  // Using Primary from asset catalog
+                    .background(isLoginEnabled ? Color("Primary") : Color.gray.opacity(0.3))
                     .foregroundColor(.white)
                     .cornerRadius(12)
                     .padding(.horizontal, 24)
-                    .disabled(authViewModel.isLoading)
+                    .disabled(!isLoginEnabled)
                     
                     // Forgot Password
-                    Button(action: {
-                        // Navigate to forgot password
-                    }) {
+                    Button(action: { showingForgotPassword = true }) {
                         Text("Forgot Password?")
-                            .foregroundColor(Color("Primary"))  // Using Primary from asset catalog
+                            .foregroundColor(Color("Primary"))
                             .font(.system(size: 16, weight: .medium))
+                    }
+                    .sheet(isPresented: $showingForgotPassword) {
+                        ForgotPasswordView()
                     }
                     
                     Spacer()
@@ -114,7 +142,7 @@ struct LoginView: View {
                             Text("Don't have an account?")
                                 .foregroundColor(.secondary)
                             Text("Sign Up")
-                                .foregroundColor(Color("Primary"))  // Using Primary from asset catalog
+                                .foregroundColor(Color("Primary"))
                                 .fontWeight(.medium)
                         }
                         .font(.system(size: 16))
@@ -126,15 +154,54 @@ struct LoginView: View {
         }
         .onAppear {
             setupKeyboardNotifications()
+            loadSavedEmail()
+        }
+    }
+    
+    // MARK: - Computed Properties
+    private var isLoginEnabled: Bool {
+        !email.isEmpty && !password.isEmpty && EmailValidator.isValid(email) && !authViewModel.isLoading
+    }
+    
+    // MARK: - Methods
+    private func handleLogin() {
+        guard isLoginEnabled else { return }
+        
+        // Save email if Remember Me is enabled
+        if rememberMe {
+            UserDefaults.standard.set(email, forKey: "savedEmail")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "savedEmail")
+        }
+        
+        // Attempt login
+        authViewModel.signIn(
+            email: email,
+            password: password,
+            saveCredentials: rememberMe
+        )
+    }
+    
+    private func loadSavedEmail() {
+        if rememberMe {
+            email = UserDefaults.standard.string(forKey: "savedEmail") ?? ""
         }
     }
     
     private func setupKeyboardNotifications() {
-        NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { _ in
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
             isKeyboardVisible = true
         }
         
-        NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillHideNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
             isKeyboardVisible = false
         }
     }

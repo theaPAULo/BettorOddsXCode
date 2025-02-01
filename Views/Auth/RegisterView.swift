@@ -1,6 +1,15 @@
+//
+//  RegisterView.swift
+//  BettorOdds
+//
+//  Created by Claude on 1/31/25.
+//  Version: 2.0.0
+//
+
 import SwiftUI
 
 struct RegisterView: View {
+    // MARK: - Properties
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @Environment(\.dismiss) var dismiss
     
@@ -12,10 +21,11 @@ struct RegisterView: View {
     @State private var showPassword = false
     @State private var showConfirmPassword = false
     @State private var isKeyboardVisible = false
+    @State private var emailError: String?
     
-    // Validation
+    // MARK: - Validation
     private var isFormValid: Bool {
-        let emailIsValid = email.contains("@") && email.contains(".")
+        let emailIsValid = EmailValidator.isValid(email)
         let passwordIsValid = password.count >= 8
         let passwordsMatch = password == confirmPassword
         return emailIsValid && passwordIsValid && passwordsMatch && isOver18
@@ -30,6 +40,7 @@ struct RegisterView: View {
         return ageComponents.year ?? 0 >= 18
     }
     
+    // MARK: - Body
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -56,6 +67,16 @@ struct RegisterView: View {
                             .textContentType(.emailAddress)
                             .keyboardType(.emailAddress)
                             .autocapitalization(.none)
+                            .autocorrectionDisabled()
+                            .onChange(of: email) { _ in
+                                emailError = EmailValidator.validationMessage(for: email)
+                            }
+                        
+                        if let error = emailError {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
                     }
                     
                     // Password Field
@@ -170,6 +191,7 @@ struct RegisterView: View {
         }
     }
     
+    // MARK: - Methods
     private func setupKeyboardNotifications() {
         NotificationCenter.default.addObserver(
             forName: UIResponder.keyboardWillShowNotification,
@@ -189,53 +211,29 @@ struct RegisterView: View {
     }
     
     private func handleRegistration() {
-        print("Starting registration process...")  // Debug log
-        
-        // Validate email
-        guard email.contains("@") && email.contains(".") else {
-            authViewModel.errorMessage = "Please enter a valid email address"
-            return
-        }
-        
-        // Validate password
-        guard password.count >= 6 else {
-            authViewModel.errorMessage = "Password must be at least 6 characters"
-            return
-        }
-        
-        // Validate passwords match
-        guard password == confirmPassword else {
-            authViewModel.errorMessage = "Passwords do not match"
-            return
-        }
-        
-        // Validate age
-        guard isOver18 else {
-            authViewModel.errorMessage = "You must be 18 or older to register"
-            return
-        }
-        
-        print("Validation passed, preparing user data...")  // Debug log
-        
-        let userData = [
-            "email": email,
-            "dateJoined": Date(),
-            "dateOfBirth": dateOfBirth,
-            "yellowCoins": 100,  // Starting bonus
-            "greenCoins": 0,
-            "dailyGreenCoinsUsed": 0,
-            "isPremium": false,
-            "lastBetDate": Date(),
-            "preferences": [
-                "useBiometrics": false,
-                "darkMode": false,
-                "notificationsEnabled": true,
-                "requireBiometricsForGreenCoins": true
+            guard isFormValid else { return }
+            
+            let userData: [String: Any] = [
+                "email": email,
+                "dateJoined": Date(),
+                "dateOfBirth": dateOfBirth,
+                "yellowCoins": 100,  // Starting bonus
+                "greenCoins": 0,
+                "dailyGreenCoinsUsed": 0,
+                "isPremium": false,
+                "lastBetDate": Date(),
+                "preferences": [
+                    "useBiometrics": false,
+                    "darkMode": false,
+                    "notificationsEnabled": true,
+                    "requireBiometricsForGreenCoins": true,
+                    "saveCredentials": true,
+                    "rememberMe": false
+                ]
             ]
-        ] as [String : Any]
-        
-        authViewModel.signUp(email: email, password: password, userData: userData)
-    }
+            
+            authViewModel.signUp(email: email, password: password, userData: userData)
+        }
 }
 
 #Preview {
