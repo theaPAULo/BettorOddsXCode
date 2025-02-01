@@ -107,22 +107,14 @@ struct LoginView: View {
                     }
                     
                     // Login Button
-                    Button(action: handleLogin) {
-                        if authViewModel.isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Text("Sign In")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(isLoginEnabled ? Color("Primary") : Color.gray.opacity(0.3))
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
+                    CustomButton(
+                        title: "Sign In",
+                        action: handleLogin,
+                        style: .primary,
+                        isLoading: authViewModel.isLoading,
+                        disabled: !isLoginEnabled
+                    )
                     .padding(.horizontal, 24)
-                    .disabled(!isLoginEnabled)
                     
                     // Forgot Password
                     Button(action: { showingForgotPassword = true }) {

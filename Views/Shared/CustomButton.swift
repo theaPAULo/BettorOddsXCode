@@ -67,16 +67,40 @@ struct CustomButton: View {
                         .font(.system(size: 16, weight: .semibold))
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity) // Add this line to make it full width
             .frame(height: 56)
             .foregroundColor(style.textColor)
-            .background(style.backgroundColor)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(style.borderColor, lineWidth: style == .outline ? 2 : 0)
+            .background(
+                Group {
+                    if !disabled {
+                        LinearGradient(
+                            colors: [
+                                style.backgroundColor,
+                                style.backgroundColor.opacity(0.8)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    } else {
+                        style.backgroundColor.opacity(0.3)
+                    }
+                }
             )
-            .opacity(disabled ? 0.6 : 1.0)
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(
+                                    style.borderColor.opacity(disabled ? 0.3 : 1.0),
+                                    lineWidth: style == .outline ? 2 : 1
+                                )
+                        )
+                        .shadow(
+                            color: disabled ? .clear : style.backgroundColor.opacity(0.3),
+                            radius: 8,
+                            x: 0,
+                            y: 4
+                        )
+                        .opacity(disabled ? 0.6 : 1.0)
         }
         .disabled(isLoading || disabled)
     }

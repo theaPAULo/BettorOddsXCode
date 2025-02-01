@@ -167,48 +167,14 @@ struct BetModal: View {
                         }
                         
                         // Place Bet Button
-                        Button(action: handlePlaceBet) {
-                            if viewModel.isProcessing {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("PLACE BET")
-                                    .font(.system(size: 18, weight: .heavy))
-                                    .tracking(0.5)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            Group {
-                                if viewModel.canPlaceBet && selectedTeam != nil {
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            .primary,
-                                            .primary.opacity(0.8)
-                                        ]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                } else {
-                                    Color.textSecondary.opacity(0.3)
-                                }
-                            }
-                        )
-                        .cornerRadius(16)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(Color.backgroundSecondary.opacity(0.2), lineWidth: 1)
-                        )
-                        .shadow(
-                            color: viewModel.canPlaceBet && selectedTeam != nil ?
-                                .primary.opacity(0.3) : .clear,
-                            radius: 8,
-                            x: 0,
-                            y: 4
-                        )
-                        .foregroundColor(.white)
-                        .disabled(!viewModel.canPlaceBet || selectedTeam == nil || viewModel.isProcessing)
+                        CustomButton(
+                                                    title: "PLACE BET",
+                                                    action: handlePlaceBet,
+                                                    style: .primary,
+                                                    isLoading: viewModel.isProcessing,
+                                                    disabled: !viewModel.canPlaceBet || selectedTeam == nil
+                                                )
+                                                .padding(.horizontal)
                     }
                     .padding()
                 }
