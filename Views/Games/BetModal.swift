@@ -25,13 +25,13 @@ struct BetModal: View {
         self._viewModel = StateObject(wrappedValue: BetModalViewModel(game: game, user: user))
     }
     
-    // Background gradient for the modal
+    // Background gradient colors
     private var backgroundGradient: LinearGradient {
         LinearGradient(
             gradient: Gradient(colors: [
-                .primary.opacity(0.1),
-                .backgroundPrimary.opacity(0.05),
-                .primary.opacity(0.1)
+                Color("Primary").opacity(0.2),
+                Color.white.opacity(0.1),
+                Color("Primary").opacity(0.2)
             ]),
             startPoint: .topLeading,
             endPoint: .bottomTrailing

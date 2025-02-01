@@ -123,7 +123,7 @@ struct BetCard: View {
             Button("Keep Bet", role: .cancel) {
                 print("❌ Cancellation cancelled")
             }
-            Button("Yes, Cancel Bet", role: .destructive) {
+            Button("Cancel Bet", role: .destructive) {
                 print("✅ User confirmed cancellation")
                 onCancelTapped()
             }

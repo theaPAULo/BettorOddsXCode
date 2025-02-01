@@ -49,7 +49,7 @@ class BetModalViewModel: ObservableObject {
     var potentialWinnings: String {
         guard let amount = Double(betAmount) else { return "0" }
         // Even odds: Bet amount equals winning amount
-        return String(format: "%.2f", amount)
+        return String(format: "%.0f", amount)
     }
     
     // MARK: - Initialization
@@ -131,7 +131,7 @@ class BetModalViewModel: ObservableObject {
         guard amount >= 1 else { return false }
         
         // Maximum bet amount (could be moved to settings)
-        guard amount <= 1000 else { return false }
+        guard amount <= 100 else { return false }
         
         // For green coins, check daily limit
         if selectedCoinType == .green {
