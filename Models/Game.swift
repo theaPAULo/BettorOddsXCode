@@ -21,6 +21,7 @@ struct Game: Identifiable, Codable {
     let homeTeamColors: TeamColors
     let awayTeamColors: TeamColors
     var isFeatured: Bool
+    var manuallyFeatured: Bool = false
     var isVisible: Bool
     var isLocked: Bool
     var lastUpdatedBy: String?
@@ -31,6 +32,7 @@ struct Game: Identifiable, Codable {
         case id, homeTeam, awayTeam, time, league, spread, totalBets
         case homeTeamColors, awayTeamColors, isFeatured, isVisible, isLocked
         case lastUpdatedBy, lastUpdatedAt
+        case manuallyFeatured
     }
     
     // MARK: - Computed Properties
@@ -60,6 +62,69 @@ struct Game: Identifiable, Codable {
         return formatter.string(from: time)
     }
     
+    // MARK: - Lock Timing Properties
+    static let lockBeforeGameMinutes: Double = 5
+    static let warningBeforeLockMinutes: Double = 1
+    static let visualIndicatorStartMinutes: Double = 15
+
+    /// Time until game starts
+    var timeUntilGame: TimeInterval {
+        return time.timeIntervalSinceNow
+    }
+
+    /// Time until game locks (5 minutes before game)
+    var timeUntilLock: TimeInterval {
+        return timeUntilGame - (Self.lockBeforeGameMinutes * 60)
+    }
+
+    /// Whether the game should be locked
+    var shouldBeLocked: Bool {
+        return timeUntilLock <= 0
+    }
+
+    /// Whether the game is approaching lock (within 1 minute of lock)
+    var isApproachingLock: Bool {
+        let warningTime = Self.warningBeforeLockMinutes * 60
+        return timeUntilLock > 0 && timeUntilLock <= warningTime
+    }
+
+    /// Whether the game needs visual indicators (within 15 minutes of lock)
+    var needsVisualIndicator: Bool {
+        let indicatorTime = Self.visualIndicatorStartMinutes * 60
+        return timeUntilLock > 0 && timeUntilLock <= indicatorTime
+    }
+
+    /// Visual intensity for animations (0.0 to 1.0)
+    var visualIntensity: Double {
+        guard needsVisualIndicator else { return 0.0 }
+        
+        let indicatorTime = Self.visualIndicatorStartMinutes * 60
+        let intensity = 1.0 - (timeUntilLock / indicatorTime)
+        return min(max(intensity, 0.0), 1.0)
+    }
+
+    /// Formatted time until lock
+    var formattedTimeUntilLock: String {
+        guard timeUntilLock > 0 else { return "Locked" }
+        
+        let minutes = Int(timeUntilLock / 60)
+        let seconds = Int(timeUntilLock.truncatingRemainder(dividingBy: 60))
+        
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+
+    /// Returns warning message if game is approaching lock
+    var lockWarningMessage: String? {
+        if isApproachingLock {
+            return "Game locking in \(formattedTimeUntilLock)"
+        }
+        return nil
+    }
+    
     // MARK: - Initialization
     init(id: String,
          homeTeam: String,
@@ -71,6 +136,7 @@ struct Game: Identifiable, Codable {
          homeTeamColors: TeamColors,
          awayTeamColors: TeamColors,
          isFeatured: Bool = false,
+         manuallyFeatured: Bool = false,
          isVisible: Bool = true,
          isLocked: Bool = false,
          lastUpdatedBy: String? = nil,
@@ -85,39 +151,40 @@ struct Game: Identifiable, Codable {
         self.homeTeamColors = homeTeamColors
         self.awayTeamColors = awayTeamColors
         self.isFeatured = isFeatured
+        self.manuallyFeatured = manuallyFeatured
         self.isVisible = isVisible
         self.isLocked = isLocked
         self.lastUpdatedBy = lastUpdatedBy
         self.lastUpdatedAt = lastUpdatedAt
     }
     
-    // MARK: - Sample Data
-    static var sampleGames: [Game] = [
-        Game(
-            id: "1",
-            homeTeam: "Orlando Magic",
-            awayTeam: "Portland Trail Blazers",
-            time: Calendar.current.date(bySettingHour: 18, minute: 10, second: 0, of: Date()) ?? Date(),
-            league: "NBA",
-            spread: 6.5,  // Magic favored by 6.5
-            totalBets: 1500,
-            homeTeamColors: TeamColors.getTeamColors("Magic"),
-            awayTeamColors: TeamColors.getTeamColors("Trail Blazers")
-        ),
-        Game(
-            id: "2",
-            homeTeam: "Atlanta Hawks",
-            awayTeam: "Toronto Raptors",
-            time: Calendar.current.date(bySettingHour: 18, minute: 40, second: 0, of: Date()) ?? Date(),
-            league: "NBA",
-            spread: 5.0,  // Hawks favored by 5
-            totalBets: 2000,
-            homeTeamColors: TeamColors.getTeamColors("Hawks"),
-            awayTeamColors: TeamColors.getTeamColors("Raptors")
-        )
-    ]
+    // MARK: - Codable Implementation
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Required fields
+        id = try container.decode(String.self, forKey: .id)
+        homeTeam = try container.decode(String.self, forKey: .homeTeam)
+        awayTeam = try container.decode(String.self, forKey: .awayTeam)
+        time = try container.decode(Date.self, forKey: .time)
+        league = try container.decode(String.self, forKey: .league)
+        spread = try container.decode(Double.self, forKey: .spread)
+        totalBets = try container.decode(Int.self, forKey: .totalBets)
+        isFeatured = try container.decode(Bool.self, forKey: .isFeatured)
+        isVisible = try container.decode(Bool.self, forKey: .isVisible)
+        isLocked = try container.decode(Bool.self, forKey: .isLocked)
+        lastUpdatedBy = try container.decodeIfPresent(String.self, forKey: .lastUpdatedBy)
+        lastUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .lastUpdatedAt)
+        
+        // Optional field with default value
+        manuallyFeatured = try container.decodeIfPresent(Bool.self, forKey: .manuallyFeatured) ?? false
+        
+        // Handle team colors
+        homeTeamColors = TeamColors.getTeamColors(homeTeam)
+        awayTeamColors = TeamColors.getTeamColors(awayTeam)
+    }
     
-    // MARK: - Firestore Conversion
+    // MARK: - Firestore Initialization
     init?(from document: DocumentSnapshot) {
         guard let data = document.data() else { return nil }
         
@@ -129,26 +196,18 @@ struct Game: Identifiable, Codable {
         self.spread = data["spread"] as? Double ?? 0.0
         self.totalBets = data["totalBets"] as? Int ?? 0
         self.isFeatured = data["isFeatured"] as? Bool ?? false
+        self.manuallyFeatured = data["manuallyFeatured"] as? Bool ?? false
         self.isVisible = data["isVisible"] as? Bool ?? true
         self.isLocked = data["isLocked"] as? Bool ?? false
         self.lastUpdatedBy = data["lastUpdatedBy"] as? String
         self.lastUpdatedAt = (data["lastUpdatedAt"] as? Timestamp)?.dateValue()
         
-        // Parse team colors
-        if let homeColors = data["homeTeamColors"] as? [String: Any] {
-            self.homeTeamColors = TeamColors.getTeamColors(self.homeTeam)
-        } else {
-            self.homeTeamColors = TeamColors.getTeamColors(self.homeTeam)
-        }
-        
-        if let awayColors = data["awayTeamColors"] as? [String: Any] {
-            self.awayTeamColors = TeamColors.getTeamColors(self.awayTeam)
-        } else {
-            self.awayTeamColors = TeamColors.getTeamColors(self.awayTeam)
-        }
+        // Always generate team colors from team names
+        self.homeTeamColors = TeamColors.getTeamColors(self.homeTeam)
+        self.awayTeamColors = TeamColors.getTeamColors(self.awayTeam)
     }
     
-    // Convert to dictionary for Firestore
+    // MARK: - Dictionary Conversion
     func toDictionary() -> [String: Any] {
         var dict: [String: Any] = [
             "id": id,
@@ -159,6 +218,7 @@ struct Game: Identifiable, Codable {
             "spread": spread,
             "totalBets": totalBets,
             "isFeatured": isFeatured,
+            "manuallyFeatured": manuallyFeatured,
             "isVisible": isVisible,
             "isLocked": isLocked
         ]
@@ -173,23 +233,8 @@ struct Game: Identifiable, Codable {
         
         return dict
     }
-}
-
-// MARK: - Game Sorting
-extension Array where Element == Game {
-    func sortedByPriority() -> [Game] {
-        self.sorted { game1, game2 in
-            if game1.sortPriority != game2.sortPriority {
-                return game1.sortPriority < game2.sortPriority
-            }
-            return game1.time < game2.time
-        }
-    }
-}
-
-// Add this extension at the bottom of your Game.swift file
-
-extension Game {
+    
+    // MARK: - Debug
     func debugDescription() -> String {
         return """
         Game ID: \(id)
@@ -204,71 +249,14 @@ extension Game {
     }
 }
 
-// Extension to Game model to add lock timing functionality
-extension Game {
-    // MARK: - Lock Timing Constants
-    static let lockBeforeGameMinutes: Double = 5
-    static let warningBeforeLockMinutes: Double = 1
-    static let visualIndicatorStartMinutes: Double = 15
-    
-    // MARK: - Computed Properties for Lock Status
-    
-    /// Time until game starts
-    var timeUntilGame: TimeInterval {
-        return time.timeIntervalSinceNow
-    }
-    
-    /// Time until game locks (5 minutes before game)
-    var timeUntilLock: TimeInterval {
-        return timeUntilGame - (Self.lockBeforeGameMinutes * 60)
-    }
-    
-    /// Whether the game should be locked
-    var shouldBeLocked: Bool {
-        return timeUntilLock <= 0
-    }
-    
-    /// Whether the game is approaching lock (within 1 minute of lock)
-    var isApproachingLock: Bool {
-        let warningTime = Self.warningBeforeLockMinutes * 60
-        return timeUntilLock > 0 && timeUntilLock <= warningTime
-    }
-    
-    /// Whether the game needs visual indicators (within 15 minutes of lock)
-    var needsVisualIndicator: Bool {
-        let indicatorTime = Self.visualIndicatorStartMinutes * 60
-        return timeUntilLock > 0 && timeUntilLock <= indicatorTime
-    }
-    
-    /// Visual intensity for animations (0.0 to 1.0)
-    var visualIntensity: Double {
-        guard needsVisualIndicator else { return 0.0 }
-        
-        let indicatorTime = Self.visualIndicatorStartMinutes * 60
-        let intensity = 1.0 - (timeUntilLock / indicatorTime)
-        return min(max(intensity, 0.0), 1.0)
-    }
-    
-    /// Formatted time until lock
-    var formattedTimeUntilLock: String {
-        guard timeUntilLock > 0 else { return "Locked" }
-        
-        let minutes = Int(timeUntilLock / 60)
-        let seconds = Int(timeUntilLock.truncatingRemainder(dividingBy: 60))
-        
-        if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
-        } else {
-            return "\(seconds)s"
+// MARK: - Game Sorting
+extension Array where Element == Game {
+    func sortedByPriority() -> [Game] {
+        self.sorted { game1, game2 in
+            if game1.sortPriority != game2.sortPriority {
+                return game1.sortPriority < game2.sortPriority
+            }
+            return game1.time < game2.time
         }
-    }
-    
-    /// Returns warning message if game is approaching lock
-    var lockWarningMessage: String? {
-        if isApproachingLock {
-            return "Game locking in \(formattedTimeUntilLock)"
-        }
-        return nil
     }
 }
-

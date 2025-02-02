@@ -344,3 +344,30 @@ struct BetModal: View {
                     isPresented: .constant(true)
                 )
             }
+// MARK: - Sample Data
+extension Game {
+    static var sampleGames: [Game] = [
+        Game(
+            id: "1",
+            homeTeam: "Orlando Magic",
+            awayTeam: "Portland Trail Blazers",
+            time: Calendar.current.date(bySettingHour: 18, minute: 10, second: 0, of: Date()) ?? Date(),
+            league: "NBA",
+            spread: 6.5,  // Magic favored by 6.5
+            totalBets: 1500,
+            homeTeamColors: TeamColors.getTeamColors("Magic"),
+            awayTeamColors: TeamColors.getTeamColors("Trail Blazers")
+        ),
+        Game(
+            id: "2",
+            homeTeam: "Atlanta Hawks",
+            awayTeam: "Toronto Raptors",
+            time: Calendar.current.date(bySettingHour: 18, minute: 40, second: 0, of: Date()) ?? Date(),
+            league: "NBA",
+            spread: 5.0,  // Hawks favored by 5
+            totalBets: 2000,
+            homeTeamColors: TeamColors.getTeamColors("Hawks"),
+            awayTeamColors: TeamColors.getTeamColors("Raptors")
+        )
+    ]
+}

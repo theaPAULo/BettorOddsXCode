@@ -23,9 +23,18 @@ struct AdminGameManagementView: View {
     var body: some View {
         List {
             // Featured Game Section
+            // Featured Game Section
             Section {
                 if let featuredGame = viewModel.games.first(where: { $0.isFeatured }) {
-                    FeaturedGameRow(game: featuredGame)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("\(featuredGame.homeTeam) vs \(featuredGame.awayTeam)")
+                            .font(.headline)
+                            .foregroundColor(.textPrimary)
+                        
+                        Text(featuredGame.time.formatted(date: .abbreviated, time: .shortened))
+                            .font(.subheadline)
+                            .foregroundColor(.textSecondary)
+                    }
                 } else {
                     Text("No featured game selected")
                         .foregroundColor(.textSecondary)
@@ -37,6 +46,9 @@ struct AdminGameManagementView: View {
                 .foregroundColor(AppTheme.Brand.primary)
             } header: {
                 Text("Featured Game")
+                    .foregroundColor(.textSecondary)
+            } footer: {
+                Text("Featured games appear at the top of the list.")
                     .foregroundColor(.textSecondary)
             }
             

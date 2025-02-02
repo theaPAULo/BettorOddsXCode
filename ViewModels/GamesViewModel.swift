@@ -19,10 +19,24 @@ class GamesViewModel: ObservableObject {
     // User balance info (would come from UserService in production)
     @Published var balance: Double = 1000.0
     @Published var dailyBetsTotal: Double = 0.0
+
+    private func updateFeaturedGame() {
+        // First check for manually featured game
+        if let manuallyFeatured = games.first(where: { $0.manuallyFeatured }) {
+            featuredGame = manuallyFeatured
+            return
+        }
+        
+        // Otherwise, select game with highest bet count
+        featuredGame = games
+            .filter { !$0.shouldBeLocked }  // Don't feature locked games
+            .max(by: { $0.totalBets < $1.totalBets })
+    }
     
     // MARK: - Private Properties
     private let refreshInterval: TimeInterval = 300 // 5 minutes
     private var refreshTask: Task<Void, Never>?
+
     
     // MARK: - Initialization
     init() {
@@ -30,6 +44,7 @@ class GamesViewModel: ObservableObject {
     }
     
     // MARK: - Public Methods
+    // Call this after loading games
     func refreshGames() async {
         isLoading = true
         error = nil
@@ -38,7 +53,7 @@ class GamesViewModel: ObservableObject {
             print("🔄 Fetching games...")
             games = try await OddsService.shared.fetchGames()
             print("✅ Fetched \(games.count) games")
-            updateFeaturedGame()
+            updateFeaturedGame()  // Update featured game after fetch
             
             if games.isEmpty {
                 print("⚠️ No games were fetched")
@@ -64,11 +79,6 @@ class GamesViewModel: ObservableObject {
                 try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
             }
         }
-    }
-    
-    private func updateFeaturedGame() {
-        // Select game with highest total bets as featured
-        featuredGame = games.max(by: { $0.totalBets < $1.totalBets })
     }
     
     // MARK: - Cleanup

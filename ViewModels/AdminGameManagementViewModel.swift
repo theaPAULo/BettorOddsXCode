@@ -73,6 +73,41 @@ class AdminGameManagementViewModel: ObservableObject {
         }
     }
     
+    func clearFeaturedGame() async {
+        await MainActor.run {
+            isLoading = true
+        }
+        
+        do {
+            if let currentFeatured = games.first(where: { $0.manuallyFeatured }) {
+                try await db.collection("games").document(currentFeatured.id)
+                    .updateData([
+                        "isFeatured": false,
+                        "manuallyFeatured": false,
+                        "lastUpdatedAt": Timestamp(date: Date()),
+                        "lastUpdatedBy": Auth.auth().currentUser?.uid ?? "unknown"
+                    ])
+                
+                await loadGames()
+                
+                await MainActor.run {
+                    self.successMessage = "Manual featured game selection cleared"
+                    self.showSuccess = true
+                }
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.showError = true
+            }
+        }
+        
+        await MainActor.run {
+            self.isLoading = false
+        }
+    }
+    
+    // In AdminGameManagementViewModel
     func setFeaturedGame(_ game: Game) async {
         await MainActor.run {
             isLoading = true
@@ -85,16 +120,17 @@ class AdminGameManagementViewModel: ObservableObject {
                 try await db.collection("games").document(currentFeatured.id)
                     .updateData([
                         "isFeatured": false,
+                        "manuallyFeatured": false,
                         "lastUpdatedAt": Timestamp(date: Date()),
                         "lastUpdatedBy": Auth.auth().currentUser?.uid ?? "unknown"
                     ])
             }
             
             print("⭐️ Setting new featured game: \(game.id)")
-            // Set the new featured game
             try await db.collection("games").document(game.id)
                 .updateData([
                     "isFeatured": true,
+                    "manuallyFeatured": true,
                     "lastUpdatedAt": Timestamp(date: Date()),
                     "lastUpdatedBy": Auth.auth().currentUser?.uid ?? "unknown"
                 ])
