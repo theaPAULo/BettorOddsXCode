@@ -27,6 +27,36 @@ struct GameCard: View {
         )
     }
     
+    // MARK: - Lock Status Components
+    private var lockOverlay: some View {
+        Group {
+            if game.shouldBeLocked {
+                // Full lock overlay
+                Rectangle()
+                    .fill(Color.black.opacity(0.5))
+                    .overlay(
+                        VStack {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else if game.isApproachingLock {
+                // Warning overlay
+                VStack {
+                    Text(game.lockWarningMessage ?? "")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(4)
+                        .background(Color.red.opacity(0.8))
+                        .cornerRadius(4)
+                }
+                .padding(.top)
+            }
+        }
+    }
+    
     private var cardBorder: some View {
         RoundedRectangle(cornerRadius: 16)
             .stroke(
@@ -130,6 +160,9 @@ struct GameCard: View {
             x: 0,
             y: 4
         )
+        .lockWarning(for: game)  // Add the warning animation
+        .overlay(lockOverlay)    // Add the lock overlay
+        .opacity(game.shouldBeLocked ? 0.7 : 1.0)  // Dim locked games
         .overlay(
             game.isLocked ?
             RoundedRectangle(cornerRadius: 16)

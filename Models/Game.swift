@@ -203,3 +203,72 @@ extension Game {
         """
     }
 }
+
+// Extension to Game model to add lock timing functionality
+extension Game {
+    // MARK: - Lock Timing Constants
+    static let lockBeforeGameMinutes: Double = 5
+    static let warningBeforeLockMinutes: Double = 1
+    static let visualIndicatorStartMinutes: Double = 15
+    
+    // MARK: - Computed Properties for Lock Status
+    
+    /// Time until game starts
+    var timeUntilGame: TimeInterval {
+        return time.timeIntervalSinceNow
+    }
+    
+    /// Time until game locks (5 minutes before game)
+    var timeUntilLock: TimeInterval {
+        return timeUntilGame - (Self.lockBeforeGameMinutes * 60)
+    }
+    
+    /// Whether the game should be locked
+    var shouldBeLocked: Bool {
+        return timeUntilLock <= 0
+    }
+    
+    /// Whether the game is approaching lock (within 1 minute of lock)
+    var isApproachingLock: Bool {
+        let warningTime = Self.warningBeforeLockMinutes * 60
+        return timeUntilLock > 0 && timeUntilLock <= warningTime
+    }
+    
+    /// Whether the game needs visual indicators (within 15 minutes of lock)
+    var needsVisualIndicator: Bool {
+        let indicatorTime = Self.visualIndicatorStartMinutes * 60
+        return timeUntilLock > 0 && timeUntilLock <= indicatorTime
+    }
+    
+    /// Visual intensity for animations (0.0 to 1.0)
+    var visualIntensity: Double {
+        guard needsVisualIndicator else { return 0.0 }
+        
+        let indicatorTime = Self.visualIndicatorStartMinutes * 60
+        let intensity = 1.0 - (timeUntilLock / indicatorTime)
+        return min(max(intensity, 0.0), 1.0)
+    }
+    
+    /// Formatted time until lock
+    var formattedTimeUntilLock: String {
+        guard timeUntilLock > 0 else { return "Locked" }
+        
+        let minutes = Int(timeUntilLock / 60)
+        let seconds = Int(timeUntilLock.truncatingRemainder(dividingBy: 60))
+        
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+    
+    /// Returns warning message if game is approaching lock
+    var lockWarningMessage: String? {
+        if isApproachingLock {
+            return "Game locking in \(formattedTimeUntilLock)"
+        }
+        return nil
+    }
+}
+
