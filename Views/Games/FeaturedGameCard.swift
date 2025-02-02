@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FeaturedGameCard: View {
+    // MARK: - Properties
     let game: Game
     let onSelect: () -> Void
     
@@ -8,6 +9,8 @@ struct FeaturedGameCard: View {
     @State private var showingDetails = false
     @State private var pulseAnimation = false
     @State private var gradientRotation: Double = 0
+    
+    // MARK: - Computed Properties
     
     // Animated gradient for the featured badge
     private var featuredGradient: LinearGradient {
@@ -22,20 +25,21 @@ struct FeaturedGameCard: View {
         )
     }
     
-    // Background gradient using team colors
+    // Enhanced background gradient using team colors
     private var backgroundGradient: LinearGradient {
         LinearGradient(
-            colors: [
-                game.homeTeamColors.primary.opacity(0.9),
-                game.homeTeamColors.secondary.opacity(0.7),
-                game.awayTeamColors.secondary.opacity(0.7),
-                game.awayTeamColors.primary.opacity(0.9)
-            ],
+            gradient: Gradient(colors: [
+                game.awayTeamColors.primary.opacity(0.95),
+                game.awayTeamColors.secondary.opacity(0.8),
+                game.homeTeamColors.secondary.opacity(0.8),
+                game.homeTeamColors.primary.opacity(0.95)
+            ].map { $0.saturated(by: 1.2) }), // Increase color vibrancy
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
     
+    // MARK: - Body
     var body: some View {
         Button(action: {
             hapticFeedback()
@@ -44,7 +48,7 @@ struct FeaturedGameCard: View {
             VStack(spacing: 20) {
                 // Featured Badge and Time
                 HStack {
-                    // Featured Badge
+                    // Enhanced Featured Badge
                     Label {
                         Text("Featured Game")
                             .font(.system(size: 14, weight: .semibold))
@@ -56,25 +60,47 @@ struct FeaturedGameCard: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(
-                        featuredGradient
-                            .rotationEffect(.degrees(gradientRotation))
-                            .animation(
-                                .linear(duration: 3.0)
-                                .repeatForever(autoreverses: false),
-                                value: gradientRotation
+                        ZStack {
+                            // Base gradient
+                            featuredGradient
+                                .rotationEffect(.degrees(gradientRotation))
+                            
+                            // Shimmering overlay
+                            LinearGradient(
+                                colors: [
+                                    .white.opacity(0),
+                                    .white.opacity(0.3),
+                                    .white.opacity(0)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
                             )
+                            .offset(x: -100)
+                            .mask(Capsule())
+                            .offset(x: pulseAnimation ? 200 : -200)
+                            .animation(
+                                .linear(duration: 2.0)
+                                .repeatForever(autoreverses: false),
+                                value: pulseAnimation
+                            )
+                        }
                     )
                     .clipShape(Capsule())
                     .shadow(color: .primary.opacity(0.3), radius: 4, x: 0, y: 2)
                     
                     Spacer()
                     
-                    // Game Time
+                    // Game Time with Lock Warning
                     HStack(spacing: 4) {
                         Image(systemName: "clock.fill")
                             .font(.system(size: 12))
                         Text(game.formattedTime)
                             .font(.system(size: 14, weight: .medium))
+                        
+                        if game.isApproachingLock {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.yellow)
+                        }
                     }
                     .foregroundColor(.white.opacity(0.9))
                     .padding(.horizontal, 12)
@@ -124,10 +150,26 @@ struct FeaturedGameCard: View {
             .padding(20)
             .background(
                 ZStack {
-                    // Base gradient background
+                    // Enhanced gradient background
                     backgroundGradient
+                        .opacity(0.95)
                     
-                    // Animated overlay for subtle movement
+                    // Dynamic light rays effect
+                    ForEach(0..<3) { index in
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0),
+                                .white.opacity(0.1),
+                                .white.opacity(0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .rotationEffect(.degrees(Double(index) * 45 + gradientRotation))
+                        .scaleEffect(1.5)
+                    }
+                    
+                    // Animated shimmer effect
                     Color.white.opacity(0.1)
                         .mask(
                             LinearGradient(
@@ -137,6 +179,7 @@ struct FeaturedGameCard: View {
                             )
                         )
                         .rotationEffect(.degrees(gradientRotation))
+                        .blendMode(.overlay)
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -163,6 +206,11 @@ struct FeaturedGameCard: View {
             )
             .scaleEffect(cardScale)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: cardScale)
+            // Add lock warning if needed
+            .lockWarning(for: game)
+            // Add lock overlay if game is locked
+            .overlay(game.shouldBeLocked ? lockOverlay : nil)
+            .opacity(game.shouldBeLocked ? 0.7 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
         .onAppear {
@@ -188,12 +236,51 @@ struct FeaturedGameCard: View {
         }, perform: {})
     }
     
+    // MARK: - Helper Views
+    
+    private var lockOverlay: some View {
+        Rectangle()
+            .fill(Color.black.opacity(0.5))
+            .overlay(
+                VStack {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.white)
+                    Text("Game Locked")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+    
+    // MARK: - Helper Methods
+    
     private func hapticFeedback() {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
 }
 
+// MARK: - Helper Extension for Color Saturation
+private extension Color {
+    func saturated(by factor: Double) -> Color {
+        let uiColor = UIColor(self)
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var brightness: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        uiColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        
+        return Color(UIColor(hue: hue,
+                           saturation: min(saturation * CGFloat(factor), 1.0),
+                           brightness: brightness,
+                           alpha: alpha))
+    }
+}
+
+// MARK: - Featured Team Column
 struct FeaturedTeamColumn: View {
     let name: String
     let spread: Double
