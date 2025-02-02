@@ -5,11 +5,10 @@
 import SwiftUI
 
 struct FeaturedGameCard: View {
-    // MARK: - Properties
     let game: Game
     let onSelect: () -> Void
     
-    @State private var isHovered = false
+    @State private var isGlowing = false // For animation
     
     var body: some View {
         GameCard(
@@ -19,43 +18,41 @@ struct FeaturedGameCard: View {
             globalSelectedTeam: .constant(nil)
         )
         .overlay(
-            // Featured badge
-            VStack(spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.yellow)
-                    
-                    Text("Featured")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            game.homeTeamColors.primary.opacity(0.9),
-                            game.homeTeamColors.secondary.opacity(0.9)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(16)
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+            // Featured badge with star
+            HStack(spacing: 6) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.yellow)
+                    .shadow(color: .yellow.opacity(0.5), radius: 2, x: 0, y: 0)
+                
+                Text("Featured")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
             }
-            .padding(8),
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color(hex: "#00E6CA").opacity(0.9), // Your app's primary color
+                        Color(hex: "#00E6CA").opacity(0.7)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+            .padding(12),
             alignment: .topLeading
         )
-        // Add a subtle border glow
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            game.homeTeamColors.primary.opacity(0.5),
-                            game.homeTeamColors.secondary.opacity(0.5)
+                            Color(hex: "#00E6CA").opacity(isGlowing ? 0.7 : 0.3),
+                            Color(hex: "#00E6CA").opacity(isGlowing ? 0.4 : 0.1)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -63,11 +60,16 @@ struct FeaturedGameCard: View {
                     lineWidth: 2
                 )
         )
-        // Add subtle hover effect
-        .scaleEffect(isHovered ? 1.02 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
-        .onHover { hovering in
-            isHovered = hovering
+        .shadow(
+            color: Color(hex: "#00E6CA").opacity(0.2),
+            radius: 8,
+            x: 0,
+            y: 4
+        )
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                isGlowing = true
+            }
         }
     }
 }
