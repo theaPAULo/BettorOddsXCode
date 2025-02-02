@@ -24,8 +24,10 @@ class AdminGameManagementViewModel: ObservableObject {
     private let db = Firestore.firestore()
     
     // Filtered games for the selector
+    // Filtered games for the selector
     var availableGames: [Game] {
-        games.filter { !$0.isFeatured }
+        games.filter { !$0.isFeatured && !$0.isFinished }
+            .sorted { $0.time < $1.time }
     }
     
     init() {
@@ -50,7 +52,12 @@ class AdminGameManagementViewModel: ObservableObject {
             let loadedGames = snapshot.documents.compactMap { document -> Game? in
                 do {
                     let game = try document.data(as: Game.self)
-                    print("✅ Successfully parsed game: \(game.id)")
+                    // Filter out finished games
+                    guard !game.isFinished else {
+                        print("⏭️ Skipping finished game in admin view: \(game.id)")
+                        return nil
+                    }
+                    print("✅ Successfully parsed active game: \(game.id)")
                     return game
                 } catch {
                     print("❌ Failed to parse game document: \(error)")
@@ -61,7 +68,7 @@ class AdminGameManagementViewModel: ObservableObject {
             await MainActor.run {
                 self.games = loadedGames
                 self.isLoading = false
-                print("🎯 Loaded \(loadedGames.count) games successfully")
+                print("🎯 Loaded \(loadedGames.count) active games")
             }
         } catch {
             print("❌ Error loading games: \(error)")

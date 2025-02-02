@@ -259,6 +259,8 @@ struct ScrollOffsetModifier: ViewModifier {
     }
 }
 
+
+
 // MARK: - Preview
 #Preview {
     GamesView()

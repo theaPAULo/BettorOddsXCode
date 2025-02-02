@@ -3,10 +3,11 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/27/25.
-//  Version: 1.0.0
+//  Version: 1.1.0
 //
 
 import SwiftUI
+import FirebaseFirestore
 
 @MainActor
 class GamesViewModel: ObservableObject {
@@ -20,23 +21,10 @@ class GamesViewModel: ObservableObject {
     @Published var balance: Double = 1000.0
     @Published var dailyBetsTotal: Double = 0.0
 
-    private func updateFeaturedGame() {
-        // First check for manually featured game
-        if let manuallyFeatured = games.first(where: { $0.manuallyFeatured }) {
-            featuredGame = manuallyFeatured
-            return
-        }
-        
-        // Otherwise, select game with highest bet count
-        featuredGame = games
-            .filter { !$0.shouldBeLocked }  // Don't feature locked games
-            .max(by: { $0.totalBets < $1.totalBets })
-    }
-    
     // MARK: - Private Properties
     private let refreshInterval: TimeInterval = 300 // 5 minutes
     private var refreshTask: Task<Void, Never>?
-
+    private let gameRepository = GameRepository()
     
     // MARK: - Initialization
     init() {
@@ -44,31 +32,69 @@ class GamesViewModel: ObservableObject {
     }
     
     // MARK: - Public Methods
-    // Call this after loading games
+    
+    /// Refreshes games data from The Odds API and syncs to Firestore
     func refreshGames() async {
         isLoading = true
         error = nil
         
         do {
-            print("🔄 Fetching games...")
+            print("🔄 Fetching games from The Odds API...")
             games = try await OddsService.shared.fetchGames()
-            print("✅ Fetched \(games.count) games")
-            updateFeaturedGame()  // Update featured game after fetch
+            print("✅ Fetched \(games.count) games from API")
+            
+            // Sync games to Firestore
+            do {
+                print("🔄 Starting Firestore sync...")
+                try await gameRepository.syncGames(games)
+                print("✅ Successfully synced games to Firestore")
+            } catch {
+                print("⚠️ Failed to sync games to Firestore: \(error.localizedDescription)")
+                // Don't fail the entire refresh if sync fails
+            }
+            
+            updateFeaturedGame()
             
             if games.isEmpty {
                 print("⚠️ No games were fetched")
             }
             
         } catch {
-            print("❌ Error fetching games: \(error)")
+            print("❌ Error fetching games: \(error.localizedDescription)")
             self.error = error.localizedDescription
         }
         
         isLoading = false
     }
-    
+
     // MARK: - Private Methods
+    
+    /// Updates the featured game selection
+    private func updateFeaturedGame() {
+        // First check for manually featured game
+        if let manuallyFeatured = games.first(where: { $0.manuallyFeatured }) {
+            print("📌 Using manually featured game: \(manuallyFeatured.id)")
+            featuredGame = manuallyFeatured
+            return
+        }
+        
+        // Otherwise, select game with highest bet count that isn't locked
+        print("🔍 Selecting featured game based on bet count...")
+        featuredGame = games
+            .filter { !$0.shouldBeLocked }
+            .max(by: { $0.totalBets < $1.totalBets })
+        
+        if let selected = featuredGame {
+            print("✅ Selected featured game: \(selected.id) with \(selected.totalBets) bets")
+        } else {
+            print("⚠️ No featured game selected")
+        }
+    }
+    
+    /// Sets up automatic refresh timer
     private func setupRefreshTimer() {
+        print("⏰ Setting up refresh timer with interval: \(refreshInterval) seconds")
+        
         // Cancel any existing refresh task
         refreshTask?.cancel()
         
@@ -83,6 +109,7 @@ class GamesViewModel: ObservableObject {
     
     // MARK: - Cleanup
     deinit {
+        print("🧹 Cleaning up GamesViewModel")
         refreshTask?.cancel()
     }
 }
