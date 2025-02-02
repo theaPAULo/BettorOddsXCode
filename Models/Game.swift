@@ -185,8 +185,13 @@ struct Game: Identifiable, Codable {
     }
     
     // MARK: - Firestore Initialization
+    // In Game.swift, update the Firestore initialization
+
     init?(from document: DocumentSnapshot) {
         guard let data = document.data() else { return nil }
+        
+        print("🎲 Parsing game document: \(document.documentID)")
+        print("📄 Game data: \(data)")  // Add this debug line
         
         self.id = document.documentID
         self.homeTeam = data["homeTeam"] as? String ?? ""
@@ -195,14 +200,24 @@ struct Game: Identifiable, Codable {
         self.league = data["league"] as? String ?? ""
         self.spread = data["spread"] as? Double ?? 0.0
         self.totalBets = data["totalBets"] as? Int ?? 0
+        
+        // Explicitly parse boolean flags with debug logging
         self.isFeatured = data["isFeatured"] as? Bool ?? false
+        print("🌟 isFeatured: \(self.isFeatured)")
+        
         self.manuallyFeatured = data["manuallyFeatured"] as? Bool ?? false
-        self.isVisible = data["isVisible"] as? Bool ?? true
+        print("📌 manuallyFeatured: \(self.manuallyFeatured)")
+        
+        self.isVisible = data["isVisible"] as? Bool ?? true  // Default to true
+        print("👁️ isVisible: \(self.isVisible)")
+        
         self.isLocked = data["isLocked"] as? Bool ?? false
+        print("🔒 isLocked: \(self.isLocked)")
+        
         self.lastUpdatedBy = data["lastUpdatedBy"] as? String
         self.lastUpdatedAt = (data["lastUpdatedAt"] as? Timestamp)?.dateValue()
         
-        // Always generate team colors from team names
+        // Generate team colors
         self.homeTeamColors = TeamColors.getTeamColors(self.homeTeam)
         self.awayTeamColors = TeamColors.getTeamColors(self.awayTeam)
     }

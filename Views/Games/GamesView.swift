@@ -91,26 +91,42 @@ struct GamesView: View {
                 
                 // Games List
                 ScrollView {
+                    // In GamesView.swift, update how we display games
+
                     LazyVStack(spacing: 16) {
+                        // Display featured game first if it exists
+                        if let featured = viewModel.featuredGame {
+                            FeaturedGameCard(
+                                game: featured,
+                                onSelect: {
+                                    selectedGame = featured
+                                    showBetModal = true
+                                }
+                            )
+                            .padding(.horizontal)
+                        }
+                        
                         // Sort and filter games
                         ForEach(viewModel.games
-                            .filter { $0.league == selectedLeague }
+                            .filter { $0.league == selectedLeague && $0.isVisible }
+                            .filter { game in
+                                // Don't show featured game twice
+                                viewModel.featuredGame?.id != game.id
+                            }
                             .sorted {
-                                // If first game is locked and second isn't, move first game down
+                                // Sort by lock status and time
                                 if $0.isLocked && !$1.isLocked {
                                     return false
                                 }
-                                // If first game isn't locked and second is, keep first game up
                                 if !$0.isLocked && $1.isLocked {
                                     return true
                                 }
-                                // If both games have same lock status, sort by time
                                 return $0.time < $1.time
                             }
                         ) { game in
                             GameCard(
                                 game: game,
-                                isFeatured: game.id == viewModel.featuredGame?.id,
+                                isFeatured: false,
                                 onSelect: {
                                     selectedGame = game
                                     showBetModal = true

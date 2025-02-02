@@ -17,15 +17,15 @@ class GamesViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var error: String?
     
-    // User balance info (would come from UserService in production)
-    @Published var balance: Double = 1000.0
-    @Published var dailyBetsTotal: Double = 0.0
-
     // MARK: - Private Properties
     private let refreshInterval: TimeInterval = 300 // 5 minutes
     private var refreshTask: Task<Void, Never>?
     private let gameRepository = GameRepository()
     
+    // User balance info (would come from UserService in production)
+    @Published var balance: Double = 1000.0
+    @Published var dailyBetsTotal: Double = 0.0
+
     // MARK: - Initialization
     init() {
         setupRefreshTimer()
@@ -33,63 +33,67 @@ class GamesViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Refreshes games data from The Odds API and syncs to Firestore
+    /// Refreshes games data from Firestore
     func refreshGames() async {
         isLoading = true
         error = nil
         
         do {
-            print("🔄 Fetching games from The Odds API...")
-            games = try await OddsService.shared.fetchGames()
-            print("✅ Fetched \(games.count) games from API")
+            print("🔄 Starting games refresh")
             
-            // Sync games to Firestore
-            do {
-                print("🔄 Starting Firestore sync...")
-                try await gameRepository.syncGames(games)
-                print("✅ Successfully synced games to Firestore")
-            } catch {
-                print("⚠️ Failed to sync games to Firestore: \(error.localizedDescription)")
-                // Don't fail the entire refresh if sync fails
+            // Use FirebaseConfig.shared.db instead of direct db access
+            let snapshot = try await FirebaseConfig.shared.db.collection("games")
+                .order(by: "time", descending: false)
+                .getDocuments()
+            
+            print("📚 Got \(snapshot.documents.count) total games")
+            
+            var loadedGames: [Game] = []
+            for document in snapshot.documents {
+                if let game = Game(from: document) {
+                    // Only add visible games
+                    if game.isVisible {
+                        loadedGames.append(game)
+                        print("✅ Added visible game: \(game.id)")
+                    } else {
+                        print("⚠️ Skipped invisible game: \(game.id)")
+                    }
+                }
             }
             
-            updateFeaturedGame()
-            
-            if games.isEmpty {
-                print("⚠️ No games were fetched")
+            await MainActor.run {
+                self.games = loadedGames
+                self.updateFeaturedGame()
+                print("🎯 Updated games list with \(loadedGames.count) visible games")
             }
             
         } catch {
-            print("❌ Error fetching games: \(error.localizedDescription)")
+            print("❌ Error refreshing games: \(error.localizedDescription)")
             self.error = error.localizedDescription
         }
         
         isLoading = false
     }
-
-    // MARK: - Private Methods
-    
-    /// Updates the featured game selection
-    private func updateFeaturedGame() {
-        // First check for manually featured game
-        if let manuallyFeatured = games.first(where: { $0.manuallyFeatured }) {
-            print("📌 Using manually featured game: \(manuallyFeatured.id)")
-            featuredGame = manuallyFeatured
-            return
-        }
         
-        // Otherwise, select game with highest bet count that isn't locked
-        print("🔍 Selecting featured game based on bet count...")
-        featuredGame = games
-            .filter { !$0.shouldBeLocked }
-            .max(by: { $0.totalBets < $1.totalBets })
-        
-        if let selected = featuredGame {
-            print("✅ Selected featured game: \(selected.id) with \(selected.totalBets) bets")
-        } else {
-            print("⚠️ No featured game selected")
+        private func updateFeaturedGame() {
+            print("🔍 Looking for featured game...")
+            if let manuallyFeatured = games.first(where: { $0.manuallyFeatured }) {
+                print("⭐️ Found manually featured game: \(manuallyFeatured.id)")
+                featuredGame = manuallyFeatured
+                return
+            }
+            
+            print("📊 No manually featured game, selecting by bet count")
+            featuredGame = games
+                .filter { !$0.shouldBeLocked && !$0.isLocked }
+                .max(by: { $0.totalBets < $1.totalBets })
+            
+            if let selected = featuredGame {
+                print("✨ Selected featured game: \(selected.id)")
+            } else {
+                print("❌ No featured game selected")
+            }
         }
-    }
     
     /// Sets up automatic refresh timer
     private func setupRefreshTimer() {

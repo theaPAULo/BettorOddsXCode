@@ -30,8 +30,7 @@ struct GameCard: View {
     // MARK: - Lock Status Components
     private var lockOverlay: some View {
         Group {
-            if game.shouldBeLocked {
-                // Full lock overlay
+            if game.shouldBeLocked || game.isLocked {
                 Rectangle()
                     .fill(Color.black.opacity(0.5))
                     .overlay(
@@ -39,20 +38,12 @@ struct GameCard: View {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 24))
                                 .foregroundColor(.white)
+                            Text("Game Locked")
+                                .font(.caption)
+                                .foregroundColor(.white)
                         }
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-            } else if game.isApproachingLock {
-                // Warning overlay
-                VStack {
-                    Text(game.lockWarningMessage ?? "")
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .padding(4)
-                        .background(Color.red.opacity(0.8))
-                        .cornerRadius(4)
-                }
-                .padding(.top)
             }
         }
     }
@@ -160,20 +151,15 @@ struct GameCard: View {
             x: 0,
             y: 4
         )
-        .lockWarning(for: game)  // Add the warning animation
-        .overlay(lockOverlay)    // Add the lock overlay
-        .opacity(game.shouldBeLocked ? 0.7 : 1.0)  // Dim locked games
-        .overlay(
-            game.isLocked ?
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.backgroundPrimary.opacity(0.7))
-                .overlay(
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.white)
-                )
-            : nil
-        )
+        .lockWarning(for: game)
+        .overlay(lockOverlay)
+        .opacity(game.shouldBeLocked || game.isLocked ? 0.7 : 1.0)
+        .disabled(game.shouldBeLocked || game.isLocked) // Add this line
+        .onTapGesture {
+            if !game.shouldBeLocked && !game.isLocked {
+                onSelect()
+            }
+        }
     }
     
     private func hapticFeedback() {
