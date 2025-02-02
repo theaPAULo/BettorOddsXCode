@@ -41,7 +41,6 @@ class GamesViewModel: ObservableObject {
         do {
             print("🔄 Starting games refresh")
             
-            // Use FirebaseConfig.shared.db instead of direct db access
             let snapshot = try await FirebaseConfig.shared.db.collection("games")
                 .order(by: "time", descending: false)
                 .getDocuments()
@@ -54,17 +53,25 @@ class GamesViewModel: ObservableObject {
                     // Only add visible games
                     if game.isVisible {
                         loadedGames.append(game)
-                        print("✅ Added visible game: \(game.id)")
+                        print("✅ Added visible game: \(game.id), isFeatured: \(game.isFeatured), manuallyFeatured: \(game.manuallyFeatured)")
                     } else {
-                        print("⚠️ Skipped invisible game: \(game.id)")
+                        print("⚠️ Skipping invisible game: \(game.id)")
                     }
                 }
             }
             
+            // Update games and find featured game
             await MainActor.run {
                 self.games = loadedGames
-                self.updateFeaturedGame()
-                print("🎯 Updated games list with \(loadedGames.count) visible games")
+                
+                // Find featured game
+                if let featured = loadedGames.first(where: { $0.manuallyFeatured }) {
+                    print("⭐️ Setting featured game: \(featured.id)")
+                    self.featuredGame = featured
+                } else {
+                    print("❌ No featured game found")
+                    self.featuredGame = nil
+                }
             }
             
         } catch {
@@ -74,7 +81,7 @@ class GamesViewModel: ObservableObject {
         
         isLoading = false
     }
-        
+    
         private func updateFeaturedGame() {
             print("🔍 Looking for featured game...")
             if let manuallyFeatured = games.first(where: { $0.manuallyFeatured }) {

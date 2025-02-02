@@ -14,7 +14,7 @@ struct GamesView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @State private var selectedGame: Game?
     @State private var showBetModal = false
-    @State private var hasSelectedGame = false  // Track if a game has been selected
+    @State private var hasSelectedGame = false
     @State private var selectedLeague = "NBA"
     @State private var globalSelectedTeam: (gameId: String, team: TeamSelection)?
     @State private var scrollOffset: CGFloat = 0
@@ -70,7 +70,7 @@ struct GamesView: View {
                 }
                 .padding(.top)
                 
-                // League Selector with enhanced styling
+                // League Selector
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 20) {
                         ForEach(leagues, id: \.self) { league in
@@ -91,10 +91,8 @@ struct GamesView: View {
                 
                 // Games List
                 ScrollView {
-                    // In GamesView.swift, update how we display games
-
                     LazyVStack(spacing: 16) {
-                        // Display featured game first if it exists
+                        // Display featured game first if exists
                         if let featured = viewModel.featuredGame {
                             FeaturedGameCard(
                                 game: featured,
@@ -106,24 +104,16 @@ struct GamesView: View {
                             .padding(.horizontal)
                         }
                         
-                        // Sort and filter games
-                        ForEach(viewModel.games
-                            .filter { $0.league == selectedLeague && $0.isVisible }
-                            .filter { game in
-                                // Don't show featured game twice
-                                viewModel.featuredGame?.id != game.id
-                            }
-                            .sorted {
-                                // Sort by lock status and time
-                                if $0.isLocked && !$1.isLocked {
-                                    return false
-                                }
-                                if !$0.isLocked && $1.isLocked {
-                                    return true
-                                }
-                                return $0.time < $1.time
-                            }
-                        ) { game in
+                        // Display rest of the games
+                        ForEach(viewModel.games.filter { game in
+                            // Filter conditions:
+                            // 1. Must be visible
+                            // 2. Must match selected league
+                            // 3. Must not be the featured game
+                            game.isVisible &&
+                            game.league == selectedLeague &&
+                            game.id != viewModel.featuredGame?.id
+                        }.sorted { $0.time < $1.time }) { game in
                             GameCard(
                                 game: game,
                                 isFeatured: false,
@@ -134,10 +124,13 @@ struct GamesView: View {
                                 globalSelectedTeam: $globalSelectedTeam
                             )
                             .padding(.horizontal)
-                            .offset(y: -scrollOffset * 0.1) // Parallax effect
                         }
                     }
                     .padding(.vertical)
+                }
+                .refreshable {
+                    print("♻️ Pull-to-refresh triggered")
+                    await viewModel.refreshGames()
                 }
                 .modifier(ScrollOffsetModifier(coordinateSpace: "scroll", offset: $scrollOffset))
                 .coordinateSpace(name: "scroll")
@@ -155,126 +148,137 @@ struct GamesView: View {
                 )
             }
         }
-    }
-}
-
-// MARK: - Supporting Views
-
-struct CoinBalanceView: View {
-    let emoji: String
-    let amount: Int
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Text(emoji)
-                .font(.system(size: 18))
-            Text("\(amount)")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.primary)
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(Color.white.opacity(0.15))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-    }
-}
-
-struct DailyLimitProgressView: View {
-    let used: Int
-    let limit: Int = 100
-    
-    var progress: CGFloat {
-        min(CGFloat(used) / CGFloat(limit), 1.0)
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Daily Limit")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-            
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.2))
-                    
-                    Rectangle()
-                        .fill(Color("Primary"))
-                        .frame(width: geometry.size.width * progress)
-                }
+        .onAppear {
+            print("📱 Games screen appeared - refreshing data")
+            Task {
+                await viewModel.refreshGames()
             }
-            .frame(height: 4)
-            .cornerRadius(2)
-            
-            Text("💚 \(used)/\(limit)")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
         }
-        .frame(height: 40)
-    }
-}
-
-struct LeagueButton: View {
-    let league: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(league)
-                .font(.system(size: 16, weight: .semibold))
-                .padding(.horizontal, 24)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(isSelected ? Color("Primary") : Color.gray.opacity(0.1))
-                        .shadow(color: isSelected ? Color("Primary").opacity(0.5) : .clear, radius: 6, x: 0, y: 3)
-                )
-                .foregroundColor(isSelected ? .white : Color("Primary"))
-                .overlay(
-                    Capsule()
-                        .stroke(isSelected ? Color.clear : Color("Primary").opacity(0.3), lineWidth: 1)
-                )
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            print("📱 App entering foreground - refreshing games")
+            Task {
+                await viewModel.refreshGames()
+            }
         }
-        .buttonStyle(ScaleButtonStyle())
     }
 }
-
-struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
     
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-// Helper view modifier to track scroll offset
-struct ScrollOffsetModifier: ViewModifier {
-    let coordinateSpace: String
-    @Binding var offset: CGFloat
+    // MARK: - Supporting Views
     
-    func body(content: Content) -> some View {
-        content
+    struct CoinBalanceView: View {
+        let emoji: String
+        let amount: Int
+        
+        var body: some View {
+            HStack(spacing: 4) {
+                Text(emoji)
+                    .font(.system(size: 18))
+                Text("\(amount)")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.primary)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(Color.white.opacity(0.15))
+            .cornerRadius(12)
             .overlay(
-                GeometryReader { proxy in
-                    Color.clear
-                        .preference(
-                            key: ScrollOffsetPreferenceKey.self,
-                            value: proxy.frame(in: .named(coordinateSpace)).minY
-                        )
-                }
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
             )
-            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                offset = value
-            }
+            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        }
     }
-}
-
+    
+    struct DailyLimitProgressView: View {
+        let used: Int
+        let limit: Int = 100
+        
+        var progress: CGFloat {
+            min(CGFloat(used) / CGFloat(limit), 1.0)
+        }
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Daily Limit")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.2))
+                        
+                        Rectangle()
+                            .fill(Color("Primary"))
+                            .frame(width: geometry.size.width * progress)
+                    }
+                }
+                .frame(height: 4)
+                .cornerRadius(2)
+                
+                Text("💚 \(used)/\(limit)")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .frame(height: 40)
+        }
+    }
+    
+    struct LeagueButton: View {
+        let league: String
+        let isSelected: Bool
+        let action: () -> Void
+        
+        var body: some View {
+            Button(action: action) {
+                Text(league)
+                    .font(.system(size: 16, weight: .semibold))
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(isSelected ? Color("Primary") : Color.gray.opacity(0.1))
+                            .shadow(color: isSelected ? Color("Primary").opacity(0.5) : .clear, radius: 6, x: 0, y: 3)
+                    )
+                    .foregroundColor(isSelected ? .white : Color("Primary"))
+                    .overlay(
+                        Capsule()
+                            .stroke(isSelected ? Color.clear : Color("Primary").opacity(0.3), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(ScaleButtonStyle())
+        }
+    }
+    
+    struct ScrollOffsetPreferenceKey: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+            value = nextValue()
+        }
+    }
+    
+    // Helper view modifier to track scroll offset
+    struct ScrollOffsetModifier: ViewModifier {
+        let coordinateSpace: String
+        @Binding var offset: CGFloat
+        
+        func body(content: Content) -> some View {
+            content
+                .overlay(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(
+                                key: ScrollOffsetPreferenceKey.self,
+                                value: proxy.frame(in: .named(coordinateSpace)).minY
+                            )
+                    }
+                )
+                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                    offset = value
+                }
+        }
+    }
 
 
 // MARK: - Preview
