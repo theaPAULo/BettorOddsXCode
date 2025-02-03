@@ -1,3 +1,11 @@
+//
+//  GameCard.swift
+//  BettorOdds
+//
+//  Created by Claude on 2/2/25
+//  Version: 2.1.0
+//
+
 import SwiftUI
 
 struct GameCard: View {
@@ -32,15 +40,14 @@ struct GameCard: View {
         Group {
             if game.shouldBeLocked || game.isLocked {
                 Rectangle()
-                    .fill(Color.black.opacity(0.5))
+                    .fill(Color.black.opacity(0.8))
                     .overlay(
                         VStack {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 24))
                                 .foregroundColor(.white)
-                            Text("Game Locked")
-                                .font(.caption)
-                                .foregroundColor(.white)
+                                .padding(.top, 40)  // Add padding to move it down
+
                         }
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -80,11 +87,11 @@ struct GameCard: View {
                     
                     Spacer()
                     
-                    // Game Time with Icon
+                    // Game Time with Icon and Date
                     HStack(spacing: 4) {
                         Image(systemName: "clock.fill")
                             .font(.system(size: 12))
-                        Text(game.formattedTime)
+                        Text(game.formattedDateTime)
                             .font(.system(size: 14))
                     }
                     .foregroundColor(.white.opacity(0.9))
@@ -154,7 +161,7 @@ struct GameCard: View {
         .lockWarning(for: game)
         .overlay(lockOverlay)
         .opacity(game.shouldBeLocked || game.isLocked ? 0.7 : 1.0)
-        .disabled(game.shouldBeLocked || game.isLocked) // Add this line
+        .disabled(game.shouldBeLocked || game.isLocked)
         .onTapGesture {
             if !game.shouldBeLocked && !game.isLocked {
                 onSelect()
@@ -264,7 +271,6 @@ extension View {
         GameCard(
             game: {
                 var game = Game.sampleGames[0]
-                // Assuming we add isLocked property to Game model
                 return game
             }(),
             isFeatured: false,

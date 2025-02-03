@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Claude on 1/30/25
-//  Version: 2.0.0
+//  Version: 2.1.0
 //
 
 import SwiftUI
@@ -62,39 +62,39 @@ struct Game: Identifiable, Codable {
         return formatter.string(from: time)
     }
     
+    var formattedDateTime: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d • h:mm a" // Shows like "Feb 2 • 7:40 PM"
+        return formatter.string(from: time)
+    }
+    
     // MARK: - Lock Timing Properties
     static let lockBeforeGameMinutes: Double = 5
     static let warningBeforeLockMinutes: Double = 1
     static let visualIndicatorStartMinutes: Double = 15
 
-    /// Time until game starts
     var timeUntilGame: TimeInterval {
         return time.timeIntervalSinceNow
     }
 
-    /// Time until game locks (5 minutes before game)
     var timeUntilLock: TimeInterval {
         return timeUntilGame - (Self.lockBeforeGameMinutes * 60)
     }
 
-    /// Whether the game should be locked
     var shouldBeLocked: Bool {
         return timeUntilLock <= 0
     }
 
-    /// Whether the game is approaching lock (within 1 minute of lock)
     var isApproachingLock: Bool {
         let warningTime = Self.warningBeforeLockMinutes * 60
         return timeUntilLock > 0 && timeUntilLock <= warningTime
     }
 
-    /// Whether the game needs visual indicators (within 15 minutes of lock)
     var needsVisualIndicator: Bool {
         let indicatorTime = Self.visualIndicatorStartMinutes * 60
         return timeUntilLock > 0 && timeUntilLock <= indicatorTime
     }
 
-    /// Visual intensity for animations (0.0 to 1.0)
     var visualIntensity: Double {
         guard needsVisualIndicator else { return 0.0 }
         
@@ -103,7 +103,6 @@ struct Game: Identifiable, Codable {
         return min(max(intensity, 0.0), 1.0)
     }
 
-    /// Formatted time until lock
     var formattedTimeUntilLock: String {
         guard timeUntilLock > 0 else { return "Locked" }
         
@@ -117,7 +116,6 @@ struct Game: Identifiable, Codable {
         }
     }
 
-    /// Returns warning message if game is approaching lock
     var lockWarningMessage: String? {
         if isApproachingLock {
             return "Game locking in \(formattedTimeUntilLock)"
@@ -162,7 +160,6 @@ struct Game: Identifiable, Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Required fields
         id = try container.decode(String.self, forKey: .id)
         homeTeam = try container.decode(String.self, forKey: .homeTeam)
         awayTeam = try container.decode(String.self, forKey: .awayTeam)
@@ -175,18 +172,13 @@ struct Game: Identifiable, Codable {
         isLocked = try container.decode(Bool.self, forKey: .isLocked)
         lastUpdatedBy = try container.decodeIfPresent(String.self, forKey: .lastUpdatedBy)
         lastUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .lastUpdatedAt)
-        
-        // Optional field with default value
         manuallyFeatured = try container.decodeIfPresent(Bool.self, forKey: .manuallyFeatured) ?? false
         
-        // Handle team colors
         homeTeamColors = TeamColors.getTeamColors(homeTeam)
         awayTeamColors = TeamColors.getTeamColors(awayTeam)
     }
     
     // MARK: - Firestore Initialization
-    // In Game.swift, update the Firestore initialization
-
     init?(from document: DocumentSnapshot) {
         guard let data = document.data() else { return nil }
         
@@ -200,10 +192,9 @@ struct Game: Identifiable, Codable {
         self.spread = data["spread"] as? Double ?? 0.0
         self.totalBets = data["totalBets"] as? Int ?? 0
         
-        // Explicitly parse boolean flags
         self.isFeatured = data["isFeatured"] as? Bool ?? false
         self.manuallyFeatured = data["manuallyFeatured"] as? Bool ?? false
-        self.isVisible = data["isVisible"] as? Bool ?? true  // Default to true
+        self.isVisible = data["isVisible"] as? Bool ?? true
         self.isLocked = data["isLocked"] as? Bool ?? false
         
         print("""
@@ -217,7 +208,6 @@ struct Game: Identifiable, Codable {
         self.lastUpdatedBy = data["lastUpdatedBy"] as? String
         self.lastUpdatedAt = (data["lastUpdatedAt"] as? Timestamp)?.dateValue()
         
-        // Generate team colors
         self.homeTeamColors = TeamColors.getTeamColors(self.homeTeam)
         self.awayTeamColors = TeamColors.getTeamColors(self.awayTeam)
     }
