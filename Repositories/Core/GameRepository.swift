@@ -20,7 +20,7 @@ class GameRepository: Repository {
     
     // MARK: - Repository Protocol Methods
     
-    func fetch(id: String) async throws -> Game {
+    func fetch(id: String) async throws -> Game? {
         // Try cache first
         if let cachedGame = cachedGames[id], isCacheValid() {
             return cachedGame
@@ -28,13 +28,21 @@ class GameRepository: Repository {
         
         // If not in cache or cache invalid, fetch from network
         guard NetworkMonitor.shared.isConnected else {
-            throw DatabaseError.networkError
+            throw RepositoryError.networkError
         }
         
-        let game = try await gameService.fetchGame(gameId: id)
-        cachedGames[id] = game
-        try saveCachedGames()
-        return game
+        do {
+            let game = try await gameService.fetchGame(gameId: id)
+            cachedGames[id] = game
+            try saveCachedGames()
+            return game
+        } catch {
+            // If not found, return nil instead of throwing
+            if case RepositoryError.itemNotFound = error {
+                return nil
+            }
+            throw error
+        }
     }
     
     func save(_ game: Game) async throws {

@@ -15,8 +15,6 @@ class BetRepository: Repository {
     let cacheFilename = "bets.cache"
     let cacheExpiryTime: TimeInterval = 1800 // 30 minutes
     private let betService: BetService
-    
-    // Cache container
     private var cachedBets: [String: Bet] = [:]
     private var pendingBets: [Bet] = []
     
@@ -31,8 +29,8 @@ class BetRepository: Repository {
     
     /// Fetches a bet by ID
     /// - Parameter id: The bet's ID
-    /// - Returns: The bet
-    func fetch(id: String) async throws -> Bet {
+    /// - Returns: The bet if found, nil otherwise
+    func fetch(id: String) async throws -> Bet? {
         // Try cache first
         if let cachedBet = cachedBets[id], isCacheValid() {
             return cachedBet
@@ -43,13 +41,22 @@ class BetRepository: Repository {
             throw RepositoryError.networkError
         }
         
-        let bet = try await betService.fetchBet(betId: id)
-        
-        // Save to cache
-        cachedBets[id] = bet
-        try saveCachedBets()
-        
-        return bet
+        do {
+            // Fetch bet and handle non-optional return
+            let bet = try await betService.fetchBet(betId: id)
+            
+            // Save to cache
+            cachedBets[id] = bet
+            try saveCachedBets()
+            
+            return bet
+        } catch {
+            // If the error is "not found", return nil instead of throwing
+            if case RepositoryError.itemNotFound = error {
+                return nil
+            }
+            throw error
+        }
     }
     
     /// Places a new bet

@@ -24,11 +24,18 @@ class TransactionRepository: Repository {
     }
     
     // MARK: - Repository Protocol Methods
-    func fetch(id: String) async throws -> Transaction {
-        guard let transaction = try? await transactionService.fetchTransaction(transactionId: id) else {
-            throw RepositoryError.itemNotFound
+    
+    func fetch(id: String) async throws -> Transaction? {
+        do {
+            let transaction = try await transactionService.fetchTransaction(transactionId: id)
+            return transaction
+        } catch {
+            // If not found, return nil instead of throwing
+            if case RepositoryError.itemNotFound = error {
+                return nil
+            }
+            throw error
         }
-        return transaction
     }
     
     func save(_ transaction: Transaction) async throws {

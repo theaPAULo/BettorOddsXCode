@@ -25,12 +25,9 @@ class UserRepository: Repository {
         loadCachedUsers()
     }
     
-    // MARK: - Repository Methods
+    // MARK: - Repository Protocol Methods
     
-    /// Fetches a user by ID
-    /// - Parameter id: The user's ID
-    /// - Returns: The user
-    func fetch(id: String) async throws -> User {
+    func fetch(id: String) async throws -> User? {
         // Try cache first
         if let cachedUser = cachedUsers[id], isCacheValid() {
             return cachedUser
@@ -41,13 +38,39 @@ class UserRepository: Repository {
             throw RepositoryError.networkError
         }
         
-        let user = try await userService.fetchUser(userId: id)
-        
-        // Save to cache
-        cachedUsers[id] = user
-        try saveCachedUsers()
-        
-        return user
+        do {
+            let user = try await userService.fetchUser(userId: id)
+            
+            // Save to cache
+            cachedUsers[id] = user
+            try saveCachedUsers()
+            
+            return user
+        } catch {
+            // If not found, return nil instead of throwing
+            if case RepositoryError.itemNotFound = error {
+                return nil
+            }
+            throw error
+        }
+    }
+    
+    // MARK: - Cache Methods
+    
+    private func loadCachedUsers() {
+        do {
+            let data = try loadFromCache()
+            let container = try JSONDecoder().decode(CacheContainer<User>.self, from: data)
+            cachedUsers = container.items
+        } catch {
+            cachedUsers = [:]
+        }
+    }
+    
+    private func saveCachedUsers() throws {
+        let container = CacheContainer(items: cachedUsers)
+        let data = try JSONEncoder().encode(container)
+        try saveToCache(data)
     }
     
     /// Saves a user
@@ -86,23 +109,6 @@ class UserRepository: Repository {
         try saveCachedUsers()
     }
     
-    // MARK: - Cache Methods
-    
-    private func loadCachedUsers() {
-        do {
-            let data = try loadFromCache()
-            let container = try JSONDecoder().decode(CacheContainer<User>.self, from: data)
-            cachedUsers = container.items
-        } catch {
-            cachedUsers = [:]
-        }
-    }
-    
-    private func saveCachedUsers() throws {
-        let container = CacheContainer(items: cachedUsers)
-        let data = try JSONEncoder().encode(container)
-        try saveToCache(data)
-    }
     
     // MARK: - Additional Methods
     

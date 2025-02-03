@@ -121,19 +121,16 @@ struct MyBetsView: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .hueRotation(.degrees(scrollOffset / 2))
+                .hueRotation(.degrees(scrollOffset / 2)) // Add animated hue rotation
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Enhanced Header
-                    VStack(spacing: 8) {
-                        Text("My Bets")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(Color("Primary"))
-                            .shadow(color: Color("Primary").opacity(0.3), radius: 2, x: 0, y: 2)
-                            .padding(.top, -60)  // Using a negative value to pull everything up higher
-
-                    }
+                    Text("My Bets")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.textPrimary)
+                        .padding(.top, -60)
+                        .padding(.bottom, 4)
+                    
                     // Filter Picker
                     Picker("Filter", selection: $selectedFilter) {
                         ForEach(BetFilter.allCases, id: \.self) { filter in

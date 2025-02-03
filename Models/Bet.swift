@@ -3,26 +3,48 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/27/25.
-//  Version: 1.0
+//  Version: 2.0.0 - Added P2P support
 //
 
 import SwiftUI
-import Foundation
 import FirebaseFirestore
+
+// MARK: - Bet Match Model
+struct BetMatch: Identifiable, Codable {
+    let id: String
+    let betId: String           // Original bet ID
+    let matchedBetId: String    // Opposing bet ID
+    let amount: Double          // Amount matched between these two bets
+    let createdAt: Date
+    
+    // Convert to Firestore data
+    func toDictionary() -> [String: Any] {
+        return [
+            "betId": betId,
+            "matchedBetId": matchedBetId,
+            "amount": amount,
+            "createdAt": Timestamp(date: createdAt)
+        ]
+    }
+}
 
 // MARK: - Bet Status Enum
 enum BetStatus: String, Codable, CaseIterable {
-    case pending = "Pending"   // Initial state when bet is placed
-    case active = "Active"     // Bet has been matched
-    case cancelled = "Cancelled" // Bet was cancelled (by user or system)
-    case won = "Won"          // Bet was successful
-    case lost = "Lost"        // Bet was unsuccessful
+    case pending = "Pending"         // Initial state when bet is placed, waiting for match
+    case partiallyMatched = "Partially Matched" // Some portion matched, some still pending
+    case fullyMatched = "Matched"    // Completely matched with opposing bet(s)
+    case active = "Active"           // Match complete, game in progress
+    case cancelled = "Cancelled"     // Bet was cancelled (by user, spread change, or game lock)
+    case won = "Won"                 // Bet was successful
+    case lost = "Lost"               // Bet was unsuccessful
     
     var color: Color {
         switch self {
         case .pending:
             return .orange
-        case .active:
+        case .partiallyMatched:
+            return .yellow
+        case .fullyMatched, .active:
             return .blue
         case .cancelled:
             return .gray
@@ -40,16 +62,23 @@ struct Bet: Identifiable, Codable {
     let userId: String
     let gameId: String
     let coinType: CoinType
-    let amount: Int
+    let amount: Int               // Total bet amount
     let initialSpread: Double
     let currentSpread: Double
     var status: BetStatus
     let createdAt: Date
     var updatedAt: Date
-    let team: String  // Team bet on
+    let team: String             // Team bet on
     let isHomeTeam: Bool
+    var matches: [BetMatch]      // Array of matches for this bet
+    var remainingAmount: Int     // Amount still needing to be matched
     
     // MARK: - Computed Properties
+    
+    /// Amount of this bet that has been matched
+    var matchedAmount: Int {
+        matches.reduce(0) { $0 + Int($1.amount) }
+    }
     
     /// Calculates potential winnings based on bet amount
     var potentialWinnings: Int {
@@ -58,17 +87,16 @@ struct Bet: Identifiable, Codable {
     }
     
     /// Checks if spread has changed enough to trigger cancellation
-    var shouldCancelDueToSpreadChange: Bool {
+    var spreadHasChangedSignificantly: Bool {
         return abs(currentSpread - initialSpread) >= 1.0
     }
     
-    /// Checks if bet can be cancelled (only pending bets)
+    /// Checks if bet can be cancelled (only pending or partially matched bets)
     var canBeCancelled: Bool {
-        return status == .pending
+        return status == .pending || status == .partiallyMatched
     }
     
     // MARK: - Initialization
-    
     init(id: String = UUID().uuidString,
          userId: String,
          gameId: String,
@@ -89,6 +117,8 @@ struct Bet: Identifiable, Codable {
         self.updatedAt = Date()
         self.team = team
         self.isHomeTeam = isHomeTeam
+        self.matches = []
+        self.remainingAmount = amount  // Initially, all amount needs matching
     }
     
     // MARK: - Firestore Conversion
@@ -101,6 +131,7 @@ struct Bet: Identifiable, Codable {
         self.userId = data["userId"] as? String ?? ""
         self.gameId = data["gameId"] as? String ?? ""
         self.amount = data["amount"] as? Int ?? 0
+        self.remainingAmount = data["remainingAmount"] as? Int ?? 0
         self.initialSpread = data["initialSpread"] as? Double ?? 0.0
         self.currentSpread = data["currentSpread"] as? Double ?? 0.0
         self.team = data["team"] as? String ?? ""
@@ -123,15 +154,34 @@ struct Bet: Identifiable, Codable {
         
         self.createdAt = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
         self.updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue() ?? Date()
+        
+        // Load matches if they exist
+        if let matchesData = data["matches"] as? [[String: Any]] {
+            self.matches = matchesData.compactMap { matchData in
+                guard let id = matchData["id"] as? String,
+                      let betId = matchData["betId"] as? String,
+                      let matchedBetId = matchData["matchedBetId"] as? String,
+                      let amount = matchData["amount"] as? Double,
+                      let createdAt = (matchData["createdAt"] as? Timestamp)?.dateValue()
+                else {
+                    return nil
+                }
+                return BetMatch(id: id, betId: betId, matchedBetId: matchedBetId,
+                              amount: amount, createdAt: createdAt)
+            }
+        } else {
+            self.matches = []
+        }
     }
     
     /// Convert to dictionary for Firestore
     func toDictionary() -> [String: Any] {
-        return [
+        var dict: [String: Any] = [
             "userId": userId,
             "gameId": gameId,
             "coinType": coinType.rawValue,
             "amount": amount,
+            "remainingAmount": remainingAmount,
             "initialSpread": initialSpread,
             "currentSpread": currentSpread,
             "status": status.rawValue,
@@ -140,6 +190,13 @@ struct Bet: Identifiable, Codable {
             "team": team,
             "isHomeTeam": isHomeTeam
         ]
+        
+        // Add matches if they exist
+        if !matches.isEmpty {
+            dict["matches"] = matches.map { $0.toDictionary() }
+        }
+        
+        return dict
     }
     
     // MARK: - Validation

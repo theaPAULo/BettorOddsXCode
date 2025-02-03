@@ -3,15 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/30/25.
-//
-
-
-//
-//  StatusBadge.swift
-//  BettorOdds
-//
-//  Created by Claude on 1/30/25
-//  Version: 1.0.0
+//  Version: 1.1.0
 //
 
 import SwiftUI
@@ -23,7 +15,9 @@ struct StatusBadge: View {
         switch status {
         case .pending:
             return .statusWarning
-        case .active:
+        case .partiallyMatched:
+            return .yellow
+        case .fullyMatched, .active:
             return .primary
         case .cancelled:
             return .textSecondary
@@ -48,6 +42,8 @@ struct StatusBadge: View {
 #Preview {
     HStack {
         StatusBadge(status: .pending)
+        StatusBadge(status: .partiallyMatched)
+        StatusBadge(status: .fullyMatched)
         StatusBadge(status: .active)
         StatusBadge(status: .won)
         StatusBadge(status: .lost)

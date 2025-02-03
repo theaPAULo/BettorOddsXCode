@@ -10,8 +10,10 @@ protocol Repository {
     /// Time to keep items in cache (in seconds)
     var cacheExpiryTime: TimeInterval { get }
     
-    /// Fetches an item by its ID
-    func fetch(id: String) async throws -> T
+    /// Fetches an item by its ID. Returns nil if not found.
+    /// - Parameter id: The item's ID
+    /// - Returns: The item if found, nil otherwise
+    func fetch(id: String) async throws -> T?  // Changed to optional return type
     
     /// Saves an item
     func save(_ item: T) async throws
@@ -22,6 +24,8 @@ protocol Repository {
     /// Clears all cached data
     func clearCache() throws
 }
+
+// Rest of Repository.swift remains the same...
 
 // MARK: - Cache Configuration
 extension Repository {

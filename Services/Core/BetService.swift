@@ -2,17 +2,22 @@ import Foundation
 import FirebaseFirestore
 
 class BetService {
-    private let db = Firestore.firestore()
+    private let db = FirebaseConfig.shared.db
     
+    /// Fetches a bet by ID
+    /// - Parameter betId: The bet's ID
+    /// - Returns: The bet
+    /// - Throws: RepositoryError.itemNotFound if bet doesn't exist
     func fetchBet(betId: String) async throws -> Bet {
-        let doc = try await db.collection("bets").document(betId).getDocument()
+        let document = try await db.collection("bets").document(betId).getDocument()
         
-        guard let bet = Bet(document: doc) else {
+        guard let bet = Bet(document: document) else {
             throw RepositoryError.itemNotFound
         }
         
         return bet
     }
+    
     
     func fetchUserBets(userId: String) async throws -> [Bet] {
         let snapshot = try await db.collection("bets")
