@@ -91,9 +91,24 @@ struct GamesView: View {
                 
                 // Games List
                 ScrollView {
+                    // Debug Logging
+                    let _ = print("🎮 Total games before filtering: \(viewModel.games.count)")
+                    let _ = viewModel.games.forEach { game in
+                        print("""
+                            🏟️ Game: \(game.homeTeam) vs \(game.awayTeam)
+                            ⏰ Time: \(game.time)
+                            🔒 Should be locked: \(game.shouldBeLocked)
+                            🔐 Is locked: \(game.isLocked)
+                            👀 Is visible: \(game.isVisible)
+                            🏈 League: \(game.league)
+                            ⭐️ Is featured: \(game.id == viewModel.featuredGame?.id)
+                            """)
+                    }
+                    
                     LazyVStack(spacing: 16) {
                         // Display featured game first if exists
                         if let featured = viewModel.featuredGame {
+                            let _ = print("⭐️ Featured game: \(featured.homeTeam) vs \(featured.awayTeam)")
                             FeaturedGameCard(
                                 game: featured,
                                 onSelect: {
@@ -105,15 +120,25 @@ struct GamesView: View {
                         }
                         
                         // Display rest of the games
-                        ForEach(viewModel.games.filter { game in
-                            // Filter conditions:
-                            // 1. Must be visible
-                            // 2. Must match selected league
-                            // 3. Must not be the featured game
-                            game.isVisible &&
+                        let filteredGames = viewModel.games.filter { game in
+                            let shouldShow = game.isVisible &&
                             game.league == selectedLeague &&
                             game.id != viewModel.featuredGame?.id
-                        }.sorted { $0.time < $1.time }) { game in
+                            
+                            print("""
+                                🎯 Filtering game: \(game.homeTeam) vs \(game.awayTeam)
+                                ✅ Is visible: \(game.isVisible)
+                                🏈 League match: \(game.league == selectedLeague)
+                                ⭐️ Not featured: \(game.id != viewModel.featuredGame?.id)
+                                📍 Final show decision: \(shouldShow)
+                                """)
+                            
+                            return shouldShow
+                        }.sorted { $0.sortPriority == $1.sortPriority ?
+                            $0.time < $1.time :
+                            $0.sortPriority < $1.sortPriority }
+                        
+                        ForEach(filteredGames) { game in
                             GameCard(
                                 game: game,
                                 isFeatured: false,

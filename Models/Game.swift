@@ -43,7 +43,9 @@ struct Game: Identifiable, Codable {
     }
     
     var isFinished: Bool {
-        return time < Date()
+        // This will be determined by presence in The Odds API
+        // Default to false - the sync process will handle cleanup
+        return false
     }
     
     var homeSpread: String {
@@ -82,7 +84,10 @@ struct Game: Identifiable, Codable {
     }
 
     var shouldBeLocked: Bool {
-        return timeUntilLock <= 0
+        // Lock if:
+        // 1. Within 5 minutes of start time OR
+        // 2. Game has started
+        return timeUntilLock <= 0 || time <= Date()
     }
 
     var isApproachingLock: Bool {
