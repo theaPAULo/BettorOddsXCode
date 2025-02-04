@@ -27,6 +27,22 @@ struct Game: Identifiable, Codable {
     var lastUpdatedBy: String?
     var lastUpdatedAt: Date?
     
+    var score: GameScore?
+
+    // Add computed property for status
+    var status: GameStatus {
+        if let _ = score { // We'll need to add a way to access the score
+            return .completed
+        }
+        if isLocked {
+            return .locked
+        }
+        if time <= Date() {
+            return .inProgress
+        }
+        return .upcoming
+    }
+    
     // MARK: - Coding Keys
     private enum CodingKeys: String, CodingKey {
         case id, homeTeam, awayTeam, time, league, spread, totalBets

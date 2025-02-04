@@ -87,18 +87,21 @@ struct GameCard: View {
                     
                     Spacer()
                     
-                    // Game Time with Icon and Date
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 12))
-                        Text(game.formattedDateTime)
-                            .font(.system(size: 14))
+                    // Game Status Badge
+                    GameStatusBadge(status: game.status)
+                    
+                    // Game Time
+                    if game.status == .upcoming {
+                        HStack(spacing: 4) {
+                            Text(game.formattedDateTime)
+                                .font(.system(size: 14))
+                        }
+                        .foregroundColor(.white.opacity(0.9))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.2))
+                        .cornerRadius(8)
                     }
-                    .foregroundColor(.white.opacity(0.9))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.black.opacity(0.2))
-                    .cornerRadius(8)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -111,14 +114,17 @@ struct GameCard: View {
                         teamName: game.awayTeam,
                         spread: game.awaySpread,
                         isSelected: selectedTeam == .away,
-                        teamColors: game.awayTeamColors
-                    ) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            globalSelectedTeam = (game.id, .away)
+                        teamColors: game.awayTeamColors,
+                        score: game.score,
+                        isHomeTeam: false,
+                        action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                globalSelectedTeam = (game.id, .away)
+                            }
+                            hapticFeedback()
+                            onSelect()
                         }
-                        hapticFeedback()
-                        onSelect()
-                    }
+                    )
                     
                     // VS Badge
                     Text("@")
@@ -136,14 +142,17 @@ struct GameCard: View {
                         teamName: game.homeTeam,
                         spread: game.homeSpread,
                         isSelected: selectedTeam == .home,
-                        teamColors: game.homeTeamColors
-                    ) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            globalSelectedTeam = (game.id, .home)
+                        teamColors: game.homeTeamColors,
+                        score: game.score,
+                        isHomeTeam: true,
+                        action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                globalSelectedTeam = (game.id, .home)
+                            }
+                            hapticFeedback()
+                            onSelect()
                         }
-                        hapticFeedback()
-                        onSelect()
-                    }
+                    )
                 }
                 .padding(.horizontal, 12)
                 .padding(.bottom, 16)
@@ -180,9 +189,9 @@ struct TeamButton: View {
     let spread: String
     let isSelected: Bool
     let teamColors: TeamColors
+    let score: GameScore?
+    let isHomeTeam: Bool
     let action: () -> Void
-    
-    @State private var isPressed = false
     
     var body: some View {
         Button(action: action) {
@@ -195,11 +204,16 @@ struct TeamButton: View {
                     .lineLimit(2, reservesSpace: true)
                     .minimumScaleFactor(0.8)
                 
-                // Spread
-                Text(spread)
-                    .font(.system(size: 22, weight: .heavy))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                if let score = score {
+                    // Show score for completed games
+                    ScoreDisplay(score: score, isHomeTeam: isHomeTeam)
+                } else {
+                    // Show spread for upcoming games
+                    Text(spread)
+                        .font(.system(size: 22, weight: .heavy))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
@@ -219,13 +233,8 @@ struct TeamButton: View {
                         lineWidth: 2
                     )
             )
-            .scaleEffect(isPressed ? 0.98 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
-        .pressEvents(
-            onPress: { withAnimation(.easeInOut(duration: 0.2)) { isPressed = true }},
-            onRelease: { withAnimation(.easeInOut(duration: 0.2)) { isPressed = false }}
-        )
     }
 }
 
