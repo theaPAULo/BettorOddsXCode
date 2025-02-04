@@ -12,52 +12,98 @@ import SwiftUI
 import FirebaseFirestore
 
 class ScoreService {
+    // MARK: - Properties
     static let shared = ScoreService()
-    private let apiKey = "YOUR_API_KEY" // We should move this to a config file
-    
+    private let apiKey = "aec5b19b654411a05206d9d67dfb7764" // We should move this to a config file
     private let baseUrl = "https://api.the-odds-api.com/v4/sports"
     private let gameRepository: GameRepository
     
+    // MARK: - Initialization
     private init() {
         self.gameRepository = GameRepository()
     }
     
+    // MARK: - Public Methods
     func fetchScores(sport: String, daysFrom: Int = 1) async throws {
-        print("🎯 Fetching scores for \(sport)")
+        print("🎯 Fetching scores for \(sport), looking back \(daysFrom) days")
         
         let url = "\(baseUrl)/\(sport)/scores/?apiKey=\(apiKey)&daysFrom=\(daysFrom)"
         
         guard let url = URL(string: url) else {
-            throw URLError(.badURL)
+            throw ScoreError.apiError("Invalid URL")
         }
         
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let scores = try JSONDecoder().decode([OddsAPIScore].self, from: data)
+        let (data, response) = try await URLSession.shared.data(from: url)
         
-        print("📊 Received \(scores.count) scores from API")
-        
-        // Process each completed game
-        for score in scores where score.completed {
-            guard let homeScore = score.scores.first(where: { $0.name == score.homeTeam })?.score,
-                  let awayScore = score.scores.first(where: { $0.name == score.awayTeam })?.score,
-                  let homeScoreInt = Int(homeScore),
-                  let awayScoreInt = Int(awayScore) else {
-                print("⚠️ Invalid score data for game \(score.id)")
-                continue
+        // Log API usage
+        if let httpResponse = response as? HTTPURLResponse {
+            print("""
+                📊 API Response Headers:
+                - Remaining requests: \(httpResponse.value(forHTTPHeaderField: "x-requests-remaining") ?? "unknown")
+                - Requests used: \(httpResponse.value(forHTTPHeaderField: "x-requests-used") ?? "unknown")
+                """)
+            
+            // Check for API errors
+            guard (200...299).contains(httpResponse.statusCode) else {
+                throw ScoreError.apiError("API returned status code \(httpResponse.statusCode)")
             }
-            
-            let gameScore = GameScore(
-                gameId: score.id,
-                homeScore: homeScoreInt,
-                awayScore: awayScoreInt,
-                finalizedAt: score.lastUpdate ?? Date(),
-                verifiedAt: nil
-            )
-            
-            try await gameRepository.saveScore(gameScore)
+        }
+        
+        let scores = try JSONDecoder().decode([OddsAPIScore].self, from: data)
+        print("📦 Received \(scores.count) games from API")
+        
+        // Process completed games
+        for score in scores where score.completed {
+            do {
+                try await processScore(score)
+            } catch {
+                print("⚠️ Error processing score for game \(score.id): \(error.localizedDescription)")
+            }
         }
         
         print("✅ Finished processing scores")
+    }
+    
+    // MARK: - Private Methods
+    private func processScore(_ score: OddsAPIScore) async throws {
+        print("🎲 Processing score for: \(score.homeTeam) vs \(score.awayTeam)")
+        
+        guard let homeScore = score.scores.first(where: { $0.name == score.homeTeam })?.score,
+              let awayScore = score.scores.first(where: { $0.name == score.awayTeam })?.score,
+              let homeScoreInt = Int(homeScore),
+              let awayScoreInt = Int(awayScore) else {
+            throw ScoreError.invalidScoreData
+        }
+        
+        let gameScore = GameScore(
+            gameId: score.id,
+            homeScore: homeScoreInt,
+            awayScore: awayScoreInt,
+            finalizedAt: score.lastUpdate ?? Date(),
+            verifiedAt: nil
+        )
+        
+        try await gameRepository.saveScore(gameScore)
+        print("""
+            ✅ Saved score:
+            - Game: \(score.homeTeam) vs \(score.awayTeam)
+            - Final: \(homeScoreInt)-\(awayScoreInt)
+            """)
+    }
+    
+    // MARK: - Errors
+    enum ScoreError: Error {
+        case invalidScoreData
+        case apiError(String)
+        
+        var localizedDescription: String {
+            switch self {
+            case .invalidScoreData:
+                return "Invalid score data received"
+            case .apiError(let message):
+                return "API Error: \(message)"
+            }
+        }
     }
 }
 
