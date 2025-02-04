@@ -25,6 +25,8 @@ class GamesViewModel: ObservableObject {
     // User balance info (would come from UserService in production)
     @Published var balance: Double = 1000.0
     @Published var dailyBetsTotal: Double = 0.0
+    
+    private let oddsService = OddsService.shared
 
     // MARK: - Initialization
     init() {
@@ -33,54 +35,63 @@ class GamesViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Refreshes games data from Firestore
-    func refreshGames() async {
-        isLoading = true
-        error = nil
-        
-        do {
-            print("🔄 Starting games refresh")
+    /// Refreshes games data from The Odds API and syncs to Firebase
+        func refreshGames() async {
+            isLoading = true
+            error = nil
             
-            let snapshot = try await FirebaseConfig.shared.db.collection("games")
-                .order(by: "time", descending: false)
-                .getDocuments()
-            
-            print("📚 Got \(snapshot.documents.count) total games")
-            
-            var loadedGames: [Game] = []
-            for document in snapshot.documents {
-                if let game = Game(from: document) {
-                    // Only add visible games
-                    if game.isVisible {
-                        loadedGames.append(game)
-                        print("✅ Added visible game: \(game.id), isFeatured: \(game.isFeatured), manuallyFeatured: \(game.manuallyFeatured)")
-                    } else {
-                        print("⚠️ Skipping invisible game: \(game.id)")
+            do {
+                print("🔄 Starting games refresh from The Odds API")
+                
+                // 1. Fetch fresh games from The Odds API
+                let freshGames = try await oddsService.fetchGames()
+                print("📊 Fetched \(freshGames.count) games from The Odds API")
+                
+                // 2. Sync games to Firebase
+                print("💾 Syncing games to Firebase")
+                try await gameRepository.syncGames(freshGames)
+                
+                // 3. Fetch games from Firebase (includes admin settings like featured status)
+                let snapshot = try await FirebaseConfig.shared.db.collection("games")
+                    .order(by: "time", descending: false)
+                    .getDocuments()
+                
+                print("📚 Got \(snapshot.documents.count) total games from Firebase")
+                
+                var loadedGames: [Game] = []
+                for document in snapshot.documents {
+                    if let game = Game(from: document) {
+                        // Only add visible games
+                        if game.isVisible {
+                            loadedGames.append(game)
+                            print("✅ Added visible game: \(game.id), isFeatured: \(game.isFeatured), manuallyFeatured: \(game.manuallyFeatured)")
+                        } else {
+                            print("⚠️ Skipping invisible game: \(game.id)")
+                        }
                     }
                 }
-            }
-            
-            // Update games and find featured game
-            await MainActor.run {
-                self.games = loadedGames
                 
-                // Find featured game
-                if let featured = loadedGames.first(where: { $0.manuallyFeatured }) {
-                    print("⭐️ Setting featured game: \(featured.id)")
-                    self.featuredGame = featured
-                } else {
-                    print("❌ No featured game found")
-                    self.featuredGame = nil
+                // 4. Update games and find featured game
+                await MainActor.run {
+                    self.games = loadedGames
+                    
+                    // Find featured game
+                    if let featured = loadedGames.first(where: { $0.manuallyFeatured }) {
+                        print("⭐️ Setting featured game: \(featured.id)")
+                        self.featuredGame = featured
+                    } else {
+                        print("❌ No featured game found")
+                        self.featuredGame = nil
+                    }
                 }
+                
+            } catch {
+                print("❌ Error refreshing games: \(error.localizedDescription)")
+                self.error = error.localizedDescription
             }
             
-        } catch {
-            print("❌ Error refreshing games: \(error.localizedDescription)")
-            self.error = error.localizedDescription
+            isLoading = false
         }
-        
-        isLoading = false
-    }
     
         private func updateFeaturedGame() {
             print("🔍 Looking for featured game...")
