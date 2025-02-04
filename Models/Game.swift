@@ -259,6 +259,40 @@ struct Game: Identifiable, Codable {
     }
 }
 
+enum GameStatus: String, Codable {
+    case upcoming     // Not started, accepting bets
+    case locked      // About to start, not accepting bets
+    case inProgress  // Game is live
+    case completed   // Game finished
+    
+    var sortPriority: Int {
+        switch self {
+        case .upcoming: return 0     // Show first
+        case .inProgress: return 1   // Show second
+        case .locked: return 2       // Show third
+        case .completed: return 3    // Show last
+        }
+    }
+    
+    var statusColor: Color {
+        switch self {
+        case .upcoming: return .primary
+        case .locked: return .gray
+        case .inProgress: return .green
+        case .completed: return .secondary
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .upcoming: return "clock"
+        case .locked: return "lock.fill"
+        case .inProgress: return "play.fill"
+        case .completed: return "checkmark.circle.fill"
+        }
+    }
+}
+
 // MARK: - Game Sorting
 extension Array where Element == Game {
     func sortedByPriority() -> [Game] {

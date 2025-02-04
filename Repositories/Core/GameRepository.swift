@@ -11,6 +11,8 @@ class GameRepository: Repository {
     private let gameService: GameService
     private var listeners: [String: ListenerRegistration] = [:]
     private var cachedGames: [String: Game] = [:]
+    private var scoreCache: [String: GameScore] = [:]
+
     
     // MARK: - Initialization
     init() {
@@ -132,82 +134,82 @@ class GameRepository: Repository {
 
     /// Syncs games from The Odds API to Firestore and removes expired games
     /// - Parameter games: Array of games to sync
+    /// Syncs games and updates statuses based on The Odds API data
     func syncGames(_ games: [Game]) async throws {
-        print("🔄 Starting game sync to Firestore with \(games.count) games")
-        let firestore = FirebaseConfig.shared.db
-        let batch = firestore.batch()
+        print("🔄 Starting game sync with \(games.count) games")
+        let batch = FirebaseConfig.shared.db.batch()
         
-        // Get all existing games
-        let snapshot = try await firestore.collection("games").getDocuments()
+        // Get existing games
+        let snapshot = try await FirebaseConfig.shared.db.collection("games").getDocuments()
         print("📚 Found \(snapshot.documents.count) existing games in Firestore")
         
-        // Create set of game IDs from The Odds API (these are the active games)
+        // Get active game IDs
         let activeGameIds = Set(games.map { $0.id })
-        print("🎮 Active game IDs from The Odds API: \(activeGameIds.count)")
         
-        // Track games to remove
+        // Track removed games
         var removedGameCount = 0
         
-        // First, process existing games
+        // First pass - handle existing games
         for document in snapshot.documents {
             let gameId = document.documentID
+            let gameRef = FirebaseConfig.shared.db.collection("games").document(gameId)
             
-            // If game is no longer in The Odds API, remove it
             if !activeGameIds.contains(gameId) {
-                print("🗑️ Removing finished game: \(gameId) (no longer in The Odds API)")
-                let gameRef = firestore.collection("games").document(gameId)
+                // Game no longer in API - check if we need to keep it for score resolution
+                if let scoreDoc = try? await FirebaseConfig.shared.db.collection("scores")
+                    .document(gameId)
+                    .getDocument(),
+                   let score = GameScore.from(scoreDoc),
+                   !score.shouldRemove {
+                    // Keep game for score resolution
+                    print("🎲 Keeping completed game \(gameId) for score resolution")
+                    continue
+                }
+                
+                // Game is done and resolved - remove it
+                print("🗑️ Removing finished game: \(gameId)")
                 batch.deleteDocument(gameRef)
+                
+                // Also remove score if it exists
+                let scoreRef = FirebaseConfig.shared.db.collection("scores").document(gameId)
+                batch.deleteDocument(scoreRef)
+                
                 removedGameCount += 1
             }
         }
         
-        // Now process current games from The Odds API
+        // Second pass - update current games
         for game in games {
-            print("""
-                📥 Processing game from API:
-                - ID: \(game.id)
-                - Teams: \(game.homeTeam) vs \(game.awayTeam)
-                - Start Time: \(game.time)
-                - Should be locked: \(game.shouldBeLocked)
-                """)
-            
-            let gameRef = firestore.collection("games").document(game.id)
+            print("📥 Processing game: \(game.id)")
+            let gameRef = FirebaseConfig.shared.db.collection("games").document(game.id)
             var gameData = game.toDictionary()
             
-            // If game exists, preserve admin settings
             if let existingDoc = snapshot.documents.first(where: { $0.documentID == game.id }) {
                 let existingData = existingDoc.data()
                 
-                // Preserve manual settings
-                if let manuallyFeatured = existingData["manuallyFeatured"] as? Bool {
-                    gameData["manuallyFeatured"] = manuallyFeatured
+                // Preserve spread if game is locked
+                if let isLocked = existingData["isLocked"] as? Bool,
+                   isLocked == true,
+                   let lockedSpread = existingData["spread"] as? Double {
+                    gameData["spread"] = lockedSpread
+                    print("🔒 Preserved locked spread \(lockedSpread) for game \(game.id)")
                 }
-                if let isFeatured = existingData["isFeatured"] as? Bool {
-                    gameData["isFeatured"] = isFeatured
-                }
-                if let isVisible = existingData["isVisible"] as? Bool {
-                    gameData["isVisible"] = isVisible
-                }
-                if let lastUpdatedBy = existingData["lastUpdatedBy"] as? String {
-                    gameData["lastUpdatedBy"] = lastUpdatedBy
-                }
-                if let lastUpdatedAt = existingData["lastUpdatedAt"] {
-                    gameData["lastUpdatedAt"] = lastUpdatedAt
-                }
+                
+                // Preserve admin settings
+                preserveAdminSettings(existingData: existingData, gameData: &gameData)
             }
             
-            // Add to batch
             batch.setData(gameData, forDocument: gameRef, merge: true)
         }
         
-        // Commit the batch
         try await batch.commit()
         print("""
             ✅ Sync completed:
             - Active games synced: \(games.count)
-            - Finished games removed: \(removedGameCount)
+            - Games removed: \(removedGameCount)
             """)
     }
+
     
     // MARK: - Real-time Updates
     
@@ -262,6 +264,61 @@ class GameRepository: Repository {
         }
         
         return try Data(contentsOf: cacheURL)
+    }
+    
+    func saveScore(_ score: GameScore) async throws {
+        print("💾 Saving score for game \(score.gameId)...")
+        
+        try await FirebaseConfig.shared.db.collection("scores")
+            .document(score.gameId)
+            .setData(score.toDictionary())
+        
+        // Update cache
+        scoreCache[score.gameId] = score
+        
+        print("✅ Successfully saved score")
+    }
+
+    func getScore(for gameId: String) async throws -> GameScore? {
+        // Check cache first
+        if let cached = scoreCache[gameId] {
+            return cached
+        }
+        
+        print("🔍 Looking up score for game \(gameId)")
+        
+        // Try Firestore
+        let snapshot = try await FirebaseConfig.shared.db.collection("scores")
+            .document(gameId)
+            .getDocument()
+        
+        guard let score = GameScore.from(snapshot) else {
+            print("⚠️ No score found for game \(gameId)")
+            return nil
+        }
+        
+        // Update cache
+        scoreCache[gameId] = score
+        
+        print("✅ Found score: Home \(score.homeScore) - Away \(score.awayScore)")
+        return score
+    }
+    
+    private func preserveAdminSettings(existingData: [String: Any], gameData: inout [String: Any]) {
+        // Preserve manual settings we want to keep
+        let settingsToPreserve = [
+            "manuallyFeatured",
+            "isFeatured",
+            "isVisible",
+            "lastUpdatedBy",
+            "lastUpdatedAt"
+        ]
+        
+        for setting in settingsToPreserve {
+            if let value = existingData[setting] {
+                gameData[setting] = value
+            }
+        }
     }
     
     /// Removes a specific game listener
