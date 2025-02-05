@@ -1,6 +1,9 @@
-// ContentView.swift
-// Version: 1.1.0
-// Description: Root view of the application that handles authentication state and navigation
+//
+//  ContentView.swift
+//  BettorOdds
+//
+//  Version: 1.2.0 - Added phone verification support
+//
 
 import SwiftUI
 
@@ -30,6 +33,16 @@ struct ContentView: View {
                 // Show login screen when user is not authenticated
                 LoginView()
                     .environmentObject(authViewModel)
+                
+            case .phoneVerification:
+                // Show phone verification screen
+                PhoneVerificationView()
+                    .environmentObject(authViewModel)
+                
+            case .pendingPhoneVerification:
+                // Keep showing phone verification screen but in code entry state
+                PhoneVerificationView()
+                    .environmentObject(authViewModel)
             }
         }
         .onChange(of: scenePhase) { newPhase in
@@ -41,7 +54,7 @@ struct ContentView: View {
     }
 }
 
-// Loading view with animation
+// Keep existing LoadingView struct unchanged
 struct LoadingView: View {
     var body: some View {
         VStack(spacing: 20) {
@@ -58,7 +71,6 @@ struct LoadingView: View {
     }
 }
 
-// Preview provider for SwiftUI canvas
 #Preview {
     ContentView()
 }

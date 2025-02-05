@@ -1,9 +1,9 @@
-//
+
 //  AuthenticationViewModel.swift
 //  BettorOdds
 //
 //  Created by Claude on 1/31/25.
-//  Version: 2.1.0
+//  Version: 2.2.0 - Added phone verification support
 //
 
 import Foundation
@@ -20,12 +20,116 @@ class AuthenticationViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
+    // Phone verification properties
+    @Published var verificationID: String?
+    @Published var isPhoneVerified = false
+    private var resendTimer: Timer?
+    private var resendCountdown: Int = 30
+    
     // MARK: - Private Properties
     private let db = Firestore.firestore()
     
     // MARK: - Initialization
     init() {
         checkAuthState()
+    }
+    
+    // MARK: - Phone Verification Methods
+    
+    /// Sends verification code to provided phone number
+    /// - Parameter phoneNumber: Phone number in E.164 format (+1XXXXXXXXXX)
+    func sendVerificationCode(to phoneNumber: String) async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            print("📱 Attempting to send verification code to: \(phoneNumber)")
+            
+            let verificationID = try await PhoneAuthProvider.provider()
+                .verifyPhoneNumber(phoneNumber, uiDelegate: nil)
+            
+            self.verificationID = verificationID
+            self.authState = .pendingPhoneVerification
+            print("✉️ Verification code sent successfully")
+            
+        } catch {
+            print("❌ Error sending verification code: \(error.localizedDescription)")
+            errorMessage = handlePhoneAuthError(error)
+        }
+        
+        isLoading = false
+    }
+    
+    /// Verifies the code entered by user
+    /// - Parameter code: 6-digit verification code
+    func verifyCode(_ code: String) async {
+        guard let verificationID = verificationID else {
+            errorMessage = "Please request a new verification code"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            print("🔍 Verifying phone code...")
+            
+            let credential = PhoneAuthProvider.provider().credential(
+                withVerificationID: verificationID,
+                verificationCode: code
+            )
+            
+            let authResult = try await Auth.auth().signIn(with: credential)
+            try await handlePhoneAuthSuccess(userId: authResult.user.uid)
+            
+            self.isPhoneVerified = true
+            self.authState = .signedIn
+            print("✅ Phone verification successful")
+            
+        } catch {
+            print("❌ Error verifying code: \(error.localizedDescription)")
+            errorMessage = handlePhoneAuthError(error)
+        }
+        
+        isLoading = false
+    }
+    
+    /// Handles successful phone authentication
+    private func handlePhoneAuthSuccess(userId: String) async throws {
+        print("👤 Handling successful phone auth for user: \(userId)")
+        
+        let userDoc = try await db.collection("users").document(userId).getDocument()
+        
+        if userDoc.exists {
+            try await fetchUser(userId: userId)
+            print("✅ Existing user document fetched")
+        } else {
+            let newUser = User(
+                id: userId,
+                email: "",
+                phoneNumber: self.verificationID
+            )
+            
+            try await db.collection("users").document(userId).setData(newUser.toDictionary())
+            self.user = newUser
+            print("✅ New user document created")
+        }
+    }
+    
+    private func handlePhoneAuthError(_ error: Error) -> String {
+        let nsError = error as NSError
+        switch nsError.code {
+        case AuthErrorCode.invalidPhoneNumber.rawValue:
+            return "Please enter a valid phone number"
+        case AuthErrorCode.quotaExceeded.rawValue:
+            return "Too many attempts. Please try again later"
+        case AuthErrorCode.invalidVerificationCode.rawValue:
+            return "Invalid verification code. Please try again"
+        case AuthErrorCode.sessionExpired.rawValue:
+            return "Code expired. Please request a new one"
+        default:
+            return "An error occurred. Please try again"
+        }
     }
     
     // MARK: - Public Methods
@@ -281,12 +385,21 @@ class AuthenticationViewModel: ObservableObject {
                         }
                         
                         try await Auth.auth().sendPasswordReset(withEmail: email)
-                    }
-                }
+                        
 
-                // MARK: - Auth State Enum
-                enum AuthState {
-                    case signedIn
-                    case signedOut
-                    case loading
-                }
+                    }
+    deinit {
+        resendTimer?.invalidate()
+    }
+}
+
+
+
+// MARK: - Auth State Enum
+enum AuthState {
+    case signedIn
+    case signedOut
+    case loading
+    case phoneVerification
+    case pendingPhoneVerification
+}

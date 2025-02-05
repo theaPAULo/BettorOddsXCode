@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Claude on 1/31/25.
-//  Version: 2.0.0
+//  Version: 2.1.0 - Added phone verification support
 //
 
 import Foundation
@@ -59,22 +59,24 @@ struct User: Codable, Identifiable {
     var adminRole: AdminRole
     var isEmailVerified: Bool
     var lastAdminAction: Date?
+    // New properties for phone verification
+    var phoneNumber: String?
+    var isPhoneVerified: Bool
+    var remainingDailyGreenCoins: Int {
+        let dailyLimit = 100
+        return max(0, dailyLimit - dailyGreenCoinsUsed)
+    }
     
     // MARK: - Coding Keys
     private enum CodingKeys: String, CodingKey {
         case id, email, dateJoined, yellowCoins, greenCoins
         case dailyGreenCoinsUsed, isPremium, lastBetDate
         case preferences, adminRole, isEmailVerified, lastAdminAction
-    }
-    
-    // MARK: - Computed Properties
-    var remainingDailyGreenCoins: Int {
-        let dailyLimit = 100
-        return max(0, dailyLimit - dailyGreenCoinsUsed)
+        case phoneNumber, isPhoneVerified
     }
     
     // MARK: - Initialization
-    init(id: String, email: String) {
+    init(id: String, email: String, phoneNumber: String? = nil) {
         self.id = id
         self.email = email
         self.dateJoined = Date()
@@ -87,6 +89,8 @@ struct User: Codable, Identifiable {
         self.adminRole = .none
         self.isEmailVerified = false
         self.lastAdminAction = nil
+        self.phoneNumber = phoneNumber
+        self.isPhoneVerified = phoneNumber != nil
     }
     
     // MARK: - Firestore Initialization
@@ -103,6 +107,8 @@ struct User: Codable, Identifiable {
         self.lastBetDate = (data["lastBetDate"] as? Timestamp)?.dateValue()
         self.isEmailVerified = data["isEmailVerified"] as? Bool ?? false
         self.lastAdminAction = (data["lastAdminAction"] as? Timestamp)?.dateValue()
+        self.phoneNumber = data["phoneNumber"] as? String
+        self.isPhoneVerified = data["isPhoneVerified"] as? Bool ?? false
         
         // Parse admin role
         if let adminRoleString = data["adminRole"] as? String {
@@ -139,6 +145,8 @@ struct User: Codable, Identifiable {
             "adminRole": adminRole.rawValue,
             "isEmailVerified": isEmailVerified,
             "lastAdminAction": lastAdminAction.map { Timestamp(date: $0) } as Any,
+            "phoneNumber": phoneNumber as Any,
+            "isPhoneVerified": isPhoneVerified,
             "preferences": [
                 "useBiometrics": preferences.useBiometrics,
                 "darkMode": preferences.darkMode,

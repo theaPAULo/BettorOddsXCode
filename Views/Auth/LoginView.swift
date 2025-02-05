@@ -19,6 +19,8 @@ struct LoginView: View {
     @State private var showingForgotPassword = false
     @State private var emailError: String?
     @State private var isKeyboardVisible = false
+    @State private var showPhoneVerification = false
+
     
     // MARK: - Body
     var body: some View {
@@ -115,6 +117,26 @@ struct LoginView: View {
                         disabled: !isLoginEnabled
                     )
                     .padding(.horizontal, 24)
+                    
+                    // Phone Sign In Button
+                    Button(action: {
+                        withAnimation {
+                            showPhoneVerification = true
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "phone.fill")
+                            Text("Sign in with Phone")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .sheet(isPresented: $showPhoneVerification) {
+                        PhoneVerificationView()
+                    }
                     
                     // Forgot Password
                     Button(action: { showingForgotPassword = true }) {
