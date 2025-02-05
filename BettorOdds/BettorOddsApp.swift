@@ -3,8 +3,10 @@ import FirebaseCore
 
 @main
 struct BettorOddsApp: App {
+    @State private var showLaunch = true
+    
     init() {
-        // Initialize Firebase configuration
+        // Keep existing Firebase initialization
         FirebaseConfig.shared
         
         #if DEBUG
@@ -14,7 +16,22 @@ struct BettorOddsApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ZStack {
+                ContentView()
+                
+                if showLaunch {
+                    LaunchScreen()
+                        .transition(.opacity)
+                        .zIndex(1)
+                }
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    withAnimation {
+                        showLaunch = false
+                    }
+                }
+            }
         }
     }
 }
