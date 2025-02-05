@@ -49,6 +49,8 @@ struct Game: Identifiable, Codable {
         case homeTeamColors, awayTeamColors, isFeatured, isVisible, isLocked
         case lastUpdatedBy, lastUpdatedAt
         case manuallyFeatured
+        case score  // Add this
+
     }
     
     // MARK: - Computed Properties
@@ -159,7 +161,8 @@ struct Game: Identifiable, Codable {
          isVisible: Bool = true,
          isLocked: Bool = false,
          lastUpdatedBy: String? = nil,
-         lastUpdatedAt: Date? = nil) {
+         lastUpdatedAt: Date? = nil,
+        score: GameScore? = nil) {  // Add this parameter{
         self.id = id
         self.homeTeam = homeTeam
         self.awayTeam = awayTeam
@@ -231,6 +234,20 @@ struct Game: Identifiable, Codable {
         
         self.homeTeamColors = TeamColors.getTeamColors(self.homeTeam)
         self.awayTeamColors = TeamColors.getTeamColors(self.awayTeam)
+        
+        // Parse score if it exists in the document
+        if let scoreData = data["score"] as? [String: Any] {
+            self.score = GameScore(
+                gameId: document.documentID,
+                homeScore: scoreData["homeScore"] as? Int ?? 0,
+                awayScore: scoreData["awayScore"] as? Int ?? 0,
+                finalizedAt: (scoreData["finalizedAt"] as? Timestamp)?.dateValue() ?? Date(),
+                verifiedAt: (scoreData["verifiedAt"] as? Timestamp)?.dateValue()
+            )
+            print("📊 Parsed score from document data")
+        } else {
+            self.score = nil
+        }
     }
     
     // MARK: - Dictionary Conversion
@@ -248,6 +265,10 @@ struct Game: Identifiable, Codable {
             "isVisible": isVisible,
             "isLocked": isLocked
         ]
+        // Add score if available
+        if let score = score {
+            dict["score"] = score.toDictionary()
+        }
         
         if let lastUpdatedBy = lastUpdatedBy {
             dict["lastUpdatedBy"] = lastUpdatedBy
@@ -320,3 +341,4 @@ extension Array where Element == Game {
         }
     }
 }
+

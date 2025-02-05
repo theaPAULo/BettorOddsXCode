@@ -30,7 +30,7 @@ struct FeaturedGameCard: View {
                     .foregroundColor(.white)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.vertical, 10)
             .background(
                 LinearGradient(
                     colors: [

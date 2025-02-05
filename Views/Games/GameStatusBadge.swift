@@ -27,10 +27,10 @@ struct GameStatusBadge: View {
 extension GameStatus {
     var displayText: String {
         switch self {
-        case .upcoming: return "Upcoming"
-        case .locked: return "Starting Soon"
-        case .inProgress: return "Live"
-        case .completed: return "Final"
+        case .upcoming: return "UPCOMING"
+        case .locked: return "STARTING SOON"
+        case .inProgress: return "LIVE"
+        case .completed: return "FINAL"
         }
     }
     

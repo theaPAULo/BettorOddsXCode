@@ -36,6 +36,7 @@ class GamesViewModel: ObservableObject {
     // MARK: - Public Methods
     
     /// Refreshes games data from The Odds API and syncs to Firebase
+    /// Refreshes games data from The Odds API and syncs to Firebase
     func refreshGames() async {
         isLoading = true
         error = nil
@@ -51,7 +52,12 @@ class GamesViewModel: ObservableObject {
             print("💾 Syncing games to Firebase")
             try await gameRepository.syncGames(freshGames)
             
-            // 3. Fetch games from Firebase (includes admin settings like featured status)
+            // NEW: 3. Fetch scores for completed games
+            print("🎯 Fetching scores from The Odds API")
+            let scoreService = ScoreService.shared
+            try await scoreService.fetchScores(sport: "basketball_nba") // TODO: Make sport dynamic
+            
+            // 4. Fetch games from Firebase (includes admin settings like featured status and scores)
             let snapshot = try await FirebaseConfig.shared.db.collection("games")
                 .order(by: "time", descending: false)
                 .getDocuments()
@@ -70,11 +76,39 @@ class GamesViewModel: ObservableObject {
                         - isVisible: \(game.isVisible)
                         - isLocked: \(game.isLocked)
                         - shouldBeLocked: \(game.shouldBeLocked)
+                        - hasScore: \(game.score != nil)
                         """)
                     
+                    // Check for score if game might be completed
+                    var gameToAdd = game
+                    if game.time <= Date() {
+                        if let score = try? await gameRepository.getScore(for: game.id) {
+                            // Create new game instance with score
+                            gameToAdd = Game(
+                                id: game.id,
+                                homeTeam: game.homeTeam,
+                                awayTeam: game.awayTeam,
+                                time: game.time,
+                                league: game.league,
+                                spread: game.spread,
+                                totalBets: game.totalBets,
+                                homeTeamColors: game.homeTeamColors,
+                                awayTeamColors: game.awayTeamColors,
+                                isFeatured: game.isFeatured,
+                                manuallyFeatured: game.manuallyFeatured,
+                                isVisible: game.isVisible,
+                                isLocked: game.isLocked,
+                                lastUpdatedBy: game.lastUpdatedBy,
+                                lastUpdatedAt: game.lastUpdatedAt,
+                                score: score
+                            )
+                            print("✅ Found score: Home \(score.homeScore) - Away \(score.awayScore)")
+                        }
+                    }
+                    
                     // Only add visible games
-                    if game.isVisible {
-                        loadedGames.append(game)
+                    if gameToAdd.isVisible {
+                        loadedGames.append(gameToAdd)
                         print("✅ Added visible game: \(game.id)")
                     } else {
                         print("⚠️ Skipping invisible game: \(game.id)")
@@ -84,7 +118,7 @@ class GamesViewModel: ObservableObject {
                 }
             }
             
-            // 4. Update games and find featured game
+            // 5. Update games and find featured game
             await MainActor.run {
                 self.games = loadedGames
                 print("📱 Updated games array with \(loadedGames.count) games")

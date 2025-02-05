@@ -127,7 +127,8 @@ struct MyBetsView: View {
                 VStack(spacing: 0) {
                     Text("My Bets")
                         .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(Color("Primary"))
+                        .shadow(color: Color("Primary").opacity(0.3), radius: 2, x: 0, y: 2)
                         .padding(.top, -60)
                         .padding(.bottom, 4)
                     

@@ -24,7 +24,8 @@ actor GameService {
             throw DatabaseError.documentNotFound
         }
         
-        return Game(
+        // Create game object with optional score
+        var game = Game(
             id: id,
             homeTeam: homeTeam,
             awayTeam: awayTeam,
@@ -35,6 +36,14 @@ actor GameService {
             homeTeamColors: TeamColors.getTeamColors(homeTeam),
             awayTeamColors: TeamColors.getTeamColors(awayTeam)
         )
+        
+        // Try to get score if it exists
+        if let scoreData = try? await db.collection("scores").document(id).getDocument(),
+           let score = GameScore.from(scoreData) {
+            game.score = score
+        }
+        
+        return game
     }
     
     /// Fetches games for a specific league
@@ -44,35 +53,83 @@ actor GameService {
             .order(by: "time")
             .getDocuments()
         
-        return try snapshot.documents.map { document -> Game in
-            let data = document.data()
-            guard let id = data["id"] as? String,
-                  let homeTeam = data["homeTeam"] as? String,
-                  let awayTeam = data["awayTeam"] as? String,
-                  let time = (data["time"] as? Timestamp)?.dateValue(),
-                  let league = data["league"] as? String,
-                  let spread = data["spread"] as? Double,
-                  let totalBets = data["totalBets"] as? Int else {
-                throw DatabaseError.documentNotFound
+        return try await withThrowingTaskGroup(of: Game.self) { group in
+            var games: [Game] = []
+            
+            for document in snapshot.documents {
+                group.addTask {
+                    let data = document.data()
+                    guard let id = data["id"] as? String,
+                          let homeTeam = data["homeTeam"] as? String,
+                          let awayTeam = data["awayTeam"] as? String,
+                          let time = (data["time"] as? Timestamp)?.dateValue(),
+                          let league = data["league"] as? String,
+                          let spread = data["spread"] as? Double,
+                          let totalBets = data["totalBets"] as? Int else {
+                        throw DatabaseError.documentNotFound
+                    }
+                    
+                    var game = Game(
+                        id: id,
+                        homeTeam: homeTeam,
+                        awayTeam: awayTeam,
+                        time: time,
+                        league: league,
+                        spread: spread,
+                        totalBets: totalBets,
+                        homeTeamColors: TeamColors.getTeamColors(homeTeam),
+                        awayTeamColors: TeamColors.getTeamColors(awayTeam)
+                    )
+                    
+                    // Try to get score
+                    if let scoreData = try? await self.db.collection("scores").document(id).getDocument(),
+                       let score = GameScore.from(scoreData) {
+                        game.score = score
+                    }
+                    
+                    return game
+                }
             }
             
-            return Game(
-                id: id,
-                homeTeam: homeTeam,
-                awayTeam: awayTeam,
-                time: time,
-                league: league,
-                spread: spread,
-                totalBets: totalBets,
-                homeTeamColors: TeamColors.getTeamColors(homeTeam),
-                awayTeamColors: TeamColors.getTeamColors(awayTeam)
-            )
+            // Collect results
+            for try await game in group {
+                games.append(game)
+            }
+            
+            return games.sorted { $0.time < $1.time }
         }
+    }
+    
+    /// Fetches scores for completed games
+    func fetchScores(for sport: String) async throws {
+        print("🎯 Starting score fetch for \(sport)")
+        
+        // First fetch scores from The Odds API
+        let scoreService = ScoreService.shared
+        try await scoreService.fetchScores(sport: sport)
+        
+        // Now fetch games that need score resolution
+        let games = try await fetchGames(league: sport)
+        print("📊 Found \(games.count) games to check for scores")
+        
+        for game in games {
+            if let score = try? await db.collection("scores").document(game.id).getDocument(),
+               let gameScore = GameScore.from(score) {
+                print("✅ Found score for game \(game.id): \(gameScore.homeScore)-\(gameScore.awayScore)")
+                
+                // Update game with score
+                var updatedGame = game
+                updatedGame.score = gameScore
+                try await saveGame(updatedGame)
+            }
+        }
+        
+        print("✅ Completed score update cycle")
     }
     
     /// Saves a game to the database
     func saveGame(_ game: Game) async throws {
-        let gameData: [String: Any] = [
+        var gameData: [String: Any] = [
             "id": game.id,
             "homeTeam": game.homeTeam,
             "awayTeam": game.awayTeam,
@@ -81,6 +138,11 @@ actor GameService {
             "spread": game.spread,
             "totalBets": game.totalBets
         ]
+        
+        // Include score if available
+        if let score = game.score {
+            gameData["score"] = score.toDictionary()
+        }
         
         try await db.collection("games").document(game.id).setData(gameData, merge: true)
     }

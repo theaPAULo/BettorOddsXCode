@@ -16,16 +16,11 @@ class ScoreService {
     static let shared = ScoreService()
     private let apiKey = "aec5b19b654411a05206d9d67dfb7764" // We should move this to a config file
     private let baseUrl = "https://api.the-odds-api.com/v4/sports"
-    private let gameRepository: GameRepository
+    private let db = FirebaseConfig.shared.db
     
-    // MARK: - Initialization
-    private init() {
-        self.gameRepository = GameRepository()
-    }
-    
-    // MARK: - Public Methods
+    // MARK: - Methods
     func fetchScores(sport: String, daysFrom: Int = 1) async throws {
-        print("🎯 Fetching scores for \(sport), looking back \(daysFrom) days")
+        print("🎯 Fetching scores for \(sport)")
         
         let url = "\(baseUrl)/\(sport)/scores/?apiKey=\(apiKey)&daysFrom=\(daysFrom)"
         
@@ -35,7 +30,7 @@ class ScoreService {
         
         let (data, response) = try await URLSession.shared.data(from: url)
         
-        // Log API usage
+        // Log API usage and response
         if let httpResponse = response as? HTTPURLResponse {
             print("""
                 📊 API Response Headers:
@@ -43,52 +38,70 @@ class ScoreService {
                 - Requests used: \(httpResponse.value(forHTTPHeaderField: "x-requests-used") ?? "unknown")
                 """)
             
-            // Check for API errors
             guard (200...299).contains(httpResponse.statusCode) else {
                 throw ScoreError.apiError("API returned status code \(httpResponse.statusCode)")
             }
         }
         
-        let scores = try JSONDecoder().decode([OddsAPIScore].self, from: data)
-        print("📦 Received \(scores.count) games from API")
+        // Debug: Print raw response
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("📝 Raw API Response: \(jsonString)")
+        }
         
-        // Process completed games
-        for score in scores where score.completed {
-            do {
-                try await processScore(score)
-            } catch {
-                print("⚠️ Error processing score for game \(score.id): \(error.localizedDescription)")
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601  // Add this line for date parsing
+        
+        do {
+            let scores = try decoder.decode([OddsAPIScore].self, from: data)
+            print("📦 Received \(scores.count) games from API")
+            
+            // Process completed games
+            for score in scores where score.completed {
+                // Skip if no scores available
+                guard let gameScores = score.scores else {
+                    print("⚠️ No scores available for game \(score.id)")
+                    continue
+                }
+                
+                guard let homeScore = gameScores.first(where: { $0.name == score.homeTeam })?.score,
+                      let awayScore = gameScores.first(where: { $0.name == score.awayTeam })?.score,
+                      let homeScoreInt = Int(homeScore),
+                      let awayScoreInt = Int(awayScore) else {
+                    print("⚠️ Invalid score data for game \(score.id)")
+                    continue
+                }
+                
+                let gameScore = GameScore(
+                    gameId: score.id,
+                    homeScore: homeScoreInt,
+                    awayScore: awayScoreInt,
+                    finalizedAt: score.lastUpdate ?? Date(),
+                    verifiedAt: nil
+                )
+                
+                try await db.collection("scores").document(score.id).setData(gameScore.toDictionary())
+                print("✅ Saved score for \(score.homeTeam) vs \(score.awayTeam): \(homeScoreInt)-\(awayScoreInt)")
             }
+            
+            print("✅ Finished processing scores")
+        } catch {
+            print("❌ Decoding error: \(error)")
+            if let decodingError = error as? DecodingError {
+                switch decodingError {
+                case .dataCorrupted(let context):
+                    print("Data corrupted: \(context.debugDescription)")
+                case .keyNotFound(let key, let context):
+                    print("Key not found: \(key.stringValue) - \(context.debugDescription)")
+                case .typeMismatch(let type, let context):
+                    print("Type mismatch: expected \(type) - \(context.debugDescription)")
+                case .valueNotFound(let type, let context):
+                    print("Value not found: expected \(type) - \(context.debugDescription)")
+                @unknown default:
+                    print("Unknown decoding error")
+                }
+            }
+            throw error
         }
-        
-        print("✅ Finished processing scores")
-    }
-    
-    // MARK: - Private Methods
-    private func processScore(_ score: OddsAPIScore) async throws {
-        print("🎲 Processing score for: \(score.homeTeam) vs \(score.awayTeam)")
-        
-        guard let homeScore = score.scores.first(where: { $0.name == score.homeTeam })?.score,
-              let awayScore = score.scores.first(where: { $0.name == score.awayTeam })?.score,
-              let homeScoreInt = Int(homeScore),
-              let awayScoreInt = Int(awayScore) else {
-            throw ScoreError.invalidScoreData
-        }
-        
-        let gameScore = GameScore(
-            gameId: score.id,
-            homeScore: homeScoreInt,
-            awayScore: awayScoreInt,
-            finalizedAt: score.lastUpdate ?? Date(),
-            verifiedAt: nil
-        )
-        
-        try await gameRepository.saveScore(gameScore)
-        print("""
-            ✅ Saved score:
-            - Game: \(score.homeTeam) vs \(score.awayTeam)
-            - Final: \(homeScoreInt)-\(awayScoreInt)
-            """)
     }
     
     // MARK: - Errors
@@ -107,6 +120,8 @@ class ScoreService {
     }
 }
 
+// Rest of your models remain the same...
+
 
 
 // Models for The Odds API response
@@ -118,7 +133,7 @@ private struct OddsAPIScore: Codable {
     let completed: Bool
     let homeTeam: String
     let awayTeam: String
-    let scores: [TeamScore]
+    let scores: [TeamScore]?  // Make optional
     let lastUpdate: Date?
     
     private enum CodingKeys: String, CodingKey {
