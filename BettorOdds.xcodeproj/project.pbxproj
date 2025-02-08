@@ -50,7 +50,7 @@
 			);
 			target = E494E2AE2D4704330020327A /* BettorOdds */;
 		};
-		E44A7DB62D4C4494006DC12C /* Exceptions for "BettorOdds" folder in "BettorOdds" target */ = {
+		E494B3A52D57CE930042A4C5 /* Exceptions for "BettorOdds" folder in "BettorOdds" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -98,7 +98,7 @@
 		E494E2B12D4704330020327A /* BettorOdds */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				E44A7DB62D4C4494006DC12C /* Exceptions for "BettorOdds" folder in "BettorOdds" target */,
+				E494B3A52D57CE930042A4C5 /* Exceptions for "BettorOdds" folder in "BettorOdds" target */,
 			);
 			path = BettorOdds;
 			sourceTree = "<group>";
