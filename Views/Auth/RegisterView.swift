@@ -1,10 +1,6 @@
-//
-//  RegisterView.swift
-//  BettorOdds
-//
-//  Created by Claude on 1/31/25.
-//  Version: 2.0.0
-//
+// RegisterView.swift
+// Version: 3.0.0 - Added phone registration support
+// Updated: February 2025
 
 import SwiftUI
 
@@ -17,18 +13,31 @@ struct RegisterView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var confirmPassword = ""
+    @State private var phoneNumber = ""
     @State private var dateOfBirth = Date()
     @State private var showPassword = false
     @State private var showConfirmPassword = false
     @State private var isKeyboardVisible = false
     @State private var emailError: String?
+    @State private var registrationType: RegistrationType = .email
+    
+    // MARK: - Enums
+    enum RegistrationType {
+        case email
+        case phone
+    }
     
     // MARK: - Validation
     private var isFormValid: Bool {
-        let emailIsValid = EmailValidator.isValid(email)
-        let passwordIsValid = password.count >= 8
-        let passwordsMatch = password == confirmPassword
-        return emailIsValid && passwordIsValid && passwordsMatch && isOver18
+        switch registrationType {
+        case .email:
+            let emailIsValid = EmailValidator.isValid(email)
+            let passwordIsValid = password.count >= 8
+            let passwordsMatch = password == confirmPassword
+            return emailIsValid && passwordIsValid && passwordsMatch && isOver18
+        case .phone:
+            return phoneNumber.filter { $0.isNumber }.count == 10 && isOver18
+        }
     }
     
     // Age verification
@@ -55,73 +64,25 @@ struct RegisterView: View {
                 }
                 .padding(.top, 40)
                 
+                // Registration Type Picker
+                Picker("Registration Type", selection: $registrationType) {
+                    Text("Email").tag(RegistrationType.email)
+                    Text("Phone").tag(RegistrationType.phone)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.horizontal)
+                
                 // Form Fields
                 VStack(spacing: 16) {
-                    // Email Field
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Email")
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                        TextField("Enter your email", text: $email)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .textContentType(.emailAddress)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .autocorrectionDisabled()
-                            .onChange(of: email) { _ in
-                                emailError = EmailValidator.validationMessage(for: email)
-                            }
-                        
-                        if let error = emailError {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
+                    if registrationType == .email {
+                        // Email Fields
+                        emailRegistrationFields
+                    } else {
+                        // Phone Fields
+                        phoneRegistrationFields
                     }
                     
-                    // Password Field
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Password")
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                        HStack {
-                            if showPassword {
-                                TextField("Enter your password", text: $password)
-                                    .textContentType(.newPassword)
-                            } else {
-                                SecureField("Enter your password", text: $password)
-                                    .textContentType(.newPassword)
-                            }
-                            Button(action: { showPassword.toggle() }) {
-                                Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
-                                    .foregroundColor(.textSecondary)
-                            }
-                        }
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    // Confirm Password Field
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Confirm Password")
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                        HStack {
-                            if showConfirmPassword {
-                                TextField("Confirm your password", text: $confirmPassword)
-                                    .textContentType(.newPassword)
-                            } else {
-                                SecureField("Confirm your password", text: $confirmPassword)
-                                    .textContentType(.newPassword)
-                            }
-                            Button(action: { showConfirmPassword.toggle() }) {
-                                Image(systemName: showConfirmPassword ? "eye.slash.fill" : "eye.fill")
-                                    .foregroundColor(.textSecondary)
-                            }
-                        }
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    // Date of Birth
+                    // Date of Birth (common for both)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Date of Birth")
                             .font(.caption)
@@ -186,54 +147,151 @@ struct RegisterView: View {
             }
         }
         .background(Color.backgroundPrimary.ignoresSafeArea())
-        .onAppear {
-            setupKeyboardNotifications()
+    }
+    
+    // MARK: - Form Field Views
+    private var emailRegistrationFields: some View {
+        Group {
+            // Email Field
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Email")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                TextField("Enter your email", text: $email)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+                    .onChange(of: email) { _ in
+                        emailError = EmailValidator.validationMessage(for: email)
+                    }
+                
+                if let error = emailError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+            }
+            
+            // Password Fields
+            passwordFields
         }
     }
     
-    // MARK: - Methods
-    private func setupKeyboardNotifications() {
-        NotificationCenter.default.addObserver(
-            forName: UIResponder.keyboardWillShowNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            isKeyboardVisible = true
+    private var phoneRegistrationFields: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Phone Number")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+            TextField("(555) 555-5555", text: $phoneNumber)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .keyboardType(.phonePad)
+                .onChange(of: phoneNumber) { newValue in
+                    phoneNumber = formatPhoneNumber(newValue)
+                }
         }
+    }
+    
+    private var passwordFields: some View {
+        Group {
+            // Password Field
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Password")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                HStack {
+                    if showPassword {
+                        TextField("Enter your password", text: $password)
+                            .textContentType(.newPassword)
+                    } else {
+                        SecureField("Enter your password", text: $password)
+                            .textContentType(.newPassword)
+                    }
+                    Button(action: { showPassword.toggle() }) {
+                        Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
+                            .foregroundColor(.textSecondary)
+                    }
+                }
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            }
+            
+            // Confirm Password Field
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Confirm Password")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                HStack {
+                    if showConfirmPassword {
+                        TextField("Confirm your password", text: $confirmPassword)
+                            .textContentType(.newPassword)
+                    } else {
+                        SecureField("Confirm your password", text: $confirmPassword)
+                            .textContentType(.newPassword)
+                    }
+                    Button(action: { showConfirmPassword.toggle() }) {
+                        Image(systemName: showConfirmPassword ? "eye.slash.fill" : "eye.fill")
+                            .foregroundColor(.textSecondary)
+                    }
+                }
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func formatPhoneNumber(_ number: String) -> String {
+        let cleaned = number.filter { $0.isNumber }
+        guard cleaned.count <= 10 else { return phoneNumber }
         
-        NotificationCenter.default.addObserver(
-            forName: UIResponder.keyboardWillHideNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            isKeyboardVisible = false
+        var result = ""
+        for (index, char) in cleaned.enumerated() {
+            if index == 0 {
+                result = "(" + String(char)
+            } else if index == 3 {
+                result += ") " + String(char)
+            } else if index == 6 {
+                result += "-" + String(char)
+            } else {
+                result += String(char)
+            }
         }
+        return result
     }
     
     private func handleRegistration() {
-            guard isFormValid else { return }
-            
-            let userData: [String: Any] = [
-                "email": email,
-                "dateJoined": Date(),
-                "dateOfBirth": dateOfBirth,
-                "yellowCoins": 100,  // Starting bonus
-                "greenCoins": 0,
-                "dailyGreenCoinsUsed": 0,
-                "isPremium": false,
-                "lastBetDate": Date(),
-                "preferences": [
-                    "useBiometrics": false,
-                    "darkMode": false,
-                    "notificationsEnabled": true,
-                    "requireBiometricsForGreenCoins": true,
-                    "saveCredentials": true,
-                    "rememberMe": false
-                ]
+        guard isFormValid else { return }
+        
+        let userData: [String: Any] = [
+            "dateJoined": Date(),
+            "dateOfBirth": dateOfBirth,
+            "yellowCoins": 100,  // Starting bonus
+            "greenCoins": 0,
+            "dailyGreenCoinsUsed": 0,
+            "isPremium": false,
+            "lastBetDate": Date(),
+            "preferences": [
+                "useBiometrics": false,
+                "darkMode": false,
+                "notificationsEnabled": true,
+                "requireBiometricsForGreenCoins": true,
+                "saveCredentials": true,
+                "rememberMe": false
             ]
-            
+        ]
+        
+        switch registrationType {
+        case .email:
+            // Email registration
             authViewModel.signUp(email: email, password: password, userData: userData)
+        case .phone:
+            // Phone registration
+            let formattedNumber = "+1" + phoneNumber.filter { $0.isNumber }
+            Task {
+                await authViewModel.sendVerificationCode(to: formattedNumber)
+            }
         }
+    }
 }
 
 #Preview {

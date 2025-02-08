@@ -17,9 +17,19 @@ class FirebaseConfig {
     private init() {
         // Check if Firebase is already configured
         if FirebaseApp.app() == nil {
-            // Configure Firebase
+            // Configure Firebase only if not already configured
             FirebaseApp.configure()
             print("✅ Firebase app configured")
+            
+            // Request notification permissions
+            let center = UNUserNotificationCenter.current()
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                if let error = error {
+                    print("❌ Notification permission error: \(error)")
+                } else {
+                    print("✅ Notification permission granted: \(granted)")
+                }
+            }
             
             #if DEBUG
             print("🔧 Running in DEBUG mode")

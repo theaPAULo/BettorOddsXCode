@@ -37,7 +37,10 @@ class GamesViewModel: ObservableObject {
     
     /// Refreshes games data from The Odds API and syncs to Firebase
     /// Refreshes games data from The Odds API and syncs to Firebase
+    /// Refreshes games data from The Odds API and syncs to Firebase
     func refreshGames() async {
+        guard !isLoading else { return }  // Prevent multiple simultaneous refreshes
+        
         isLoading = true
         error = nil
         
@@ -81,28 +84,24 @@ class GamesViewModel: ObservableObject {
                     
                     // Check for score if game might be completed
                     var gameToAdd = game
+                    // Check for score if game might be completed
+
+                    // Check for score if game might be completed
                     if game.time <= Date() {
+                        // Load score in a way that won't cause infinite loops
                         if let score = try? await gameRepository.getScore(for: game.id) {
                             // Create new game instance with score
-                            gameToAdd = Game(
-                                id: game.id,
-                                homeTeam: game.homeTeam,
-                                awayTeam: game.awayTeam,
-                                time: game.time,
-                                league: game.league,
-                                spread: game.spread,
-                                totalBets: game.totalBets,
-                                homeTeamColors: game.homeTeamColors,
-                                awayTeamColors: game.awayTeamColors,
-                                isFeatured: game.isFeatured,
-                                manuallyFeatured: game.manuallyFeatured,
-                                isVisible: game.isVisible,
-                                isLocked: game.isLocked,
-                                lastUpdatedBy: game.lastUpdatedBy,
-                                lastUpdatedAt: game.lastUpdatedAt,
-                                score: score
-                            )
-                            print("✅ Found score: Home \(score.homeScore) - Away \(score.awayScore)")
+                            var updatedGame = game
+                            updatedGame.score = score
+                            
+                            // If the game is completed, update the game document with the score
+                            try? await FirebaseConfig.shared.db.collection("games").document(game.id).updateData([
+                                "score": score.toDictionary(),
+                                "isVisible": false  // Hide completed games
+                            ])
+                            
+                            gameToAdd = updatedGame
+                            print("✅ Found score for \(game.homeTeam) vs \(game.awayTeam): \(score.homeScore)-\(score.awayScore)")
                         }
                     }
                     

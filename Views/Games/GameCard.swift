@@ -2,13 +2,13 @@
 //  GameCard.swift
 //  BettorOdds
 //
-//  Created by Claude on 2/2/25
-//  Version: 2.1.0
-//
+//  Version: 2.1.0 - Added completed game handling
+//  Updated: February 2025
 
 import SwiftUI
 
 struct GameCard: View {
+    // MARK: - Properties
     let game: Game
     let isFeatured: Bool
     let onSelect: () -> Void
@@ -39,6 +39,7 @@ struct GameCard: View {
     private var lockOverlay: some View {
         Group {
             if game.shouldBeLocked || game.isLocked {
+                // Show lock overlay for locked games
                 Rectangle()
                     .fill(Color.black.opacity(0.8))
                     .overlay(
@@ -46,8 +47,24 @@ struct GameCard: View {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 24))
                                 .foregroundColor(.white)
-                                .padding(.top, 40)  // Add padding to move it down
-
+                                .padding(.top, 40)
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else if game.isCompleted {
+                // Show completion overlay for finished games
+                Rectangle()
+                    .fill(Color.black.opacity(0.6))
+                    .overlay(
+                        VStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.green)
+                                .padding(.top, 40)
+                            
+                            Text("Final")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
                         }
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -70,6 +87,7 @@ struct GameCard: View {
             )
     }
 
+    // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
             // Main Card Content
@@ -169,10 +187,10 @@ struct GameCard: View {
         )
         .lockWarning(for: game)
         .overlay(lockOverlay)
-        .opacity(game.shouldBeLocked || game.isLocked ? 0.7 : 1.0)
-        .disabled(game.shouldBeLocked || game.isLocked)
+        .opacity(game.shouldBeLocked || game.isLocked || game.isCompleted ? 0.7 : 1.0)
+        .disabled(game.shouldBeLocked || game.isLocked || game.isCompleted)
         .onTapGesture {
-            if !game.shouldBeLocked && !game.isLocked {
+            if !game.shouldBeLocked && !game.isLocked && !game.isCompleted {
                 onSelect()
             }
         }
@@ -259,6 +277,7 @@ extension View {
     }
 }
 
+// MARK: - Preview Provider
 #Preview {
     VStack(spacing: 20) {
         GameCard(

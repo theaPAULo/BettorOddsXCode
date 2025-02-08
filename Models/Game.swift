@@ -61,9 +61,16 @@ struct Game: Identifiable, Codable {
     }
     
     var isFinished: Bool {
-        // This will be determined by presence in The Odds API
-        // Default to false - the sync process will handle cleanup
+        // A game is finished if it has a score and the time has passed
+        if let _ = score, time <= Date() {
+            return true
+        }
         return false
+    }
+    
+    // Add a property to track completion status
+    var isCompleted: Bool {
+        return score != nil
     }
     
     var homeSpread: String {
