@@ -94,10 +94,11 @@ class GamesViewModel: ObservableObject {
                             var updatedGame = game
                             updatedGame.score = score
                             
-                            // If the game is completed, update the game document with the score
+                            // Update game document with score and preserve spread
                             try? await FirebaseConfig.shared.db.collection("games").document(game.id).updateData([
                                 "score": score.toDictionary(),
-                                "isVisible": false  // Hide completed games
+                                "spread": game.isLocked ? game.spread : updatedGame.spread, // Preserve spread if locked
+                                "isLocked": true  // Lock game when completed
                             ])
                             
                             gameToAdd = updatedGame

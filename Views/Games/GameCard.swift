@@ -2,7 +2,7 @@
 //  GameCard.swift
 //  BettorOdds
 //
-//  Version: 2.1.0 - Added completed game handling
+//  Version: 2.2.0 - Added winning team and score display
 //  Updated: February 2025
 
 import SwiftUI
@@ -51,23 +51,6 @@ struct GameCard: View {
                         }
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-            } else if game.isCompleted {
-                // Show completion overlay for finished games
-                Rectangle()
-                    .fill(Color.black.opacity(0.6))
-                    .overlay(
-                        VStack(spacing: 12) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.green)
-                                .padding(.top, 40)
-                            
-                            Text("Final")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
         }
     }
@@ -87,7 +70,6 @@ struct GameCard: View {
             )
     }
 
-    // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
             // Main Card Content
@@ -129,6 +111,7 @@ struct GameCard: View {
                 HStack(spacing: 0) {
                     // Away Team
                     TeamButton(
+                        game: game,
                         teamName: game.awayTeam,
                         spread: game.awaySpread,
                         isSelected: selectedTeam == .away,
@@ -157,6 +140,7 @@ struct GameCard: View {
                     
                     // Home Team
                     TeamButton(
+                        game: game,
                         teamName: game.homeTeam,
                         spread: game.homeSpread,
                         isSelected: selectedTeam == .home,
@@ -187,10 +171,10 @@ struct GameCard: View {
         )
         .lockWarning(for: game)
         .overlay(lockOverlay)
-        .opacity(game.shouldBeLocked || game.isLocked || game.isCompleted ? 0.7 : 1.0)
-        .disabled(game.shouldBeLocked || game.isLocked || game.isCompleted)
+        .opacity(game.shouldBeLocked || game.isLocked ? 0.7 : 1.0)
+        .disabled(game.shouldBeLocked || game.isLocked)
         .onTapGesture {
-            if !game.shouldBeLocked && !game.isLocked && !game.isCompleted {
+            if !game.shouldBeLocked && !game.isLocked {
                 onSelect()
             }
         }
@@ -202,7 +186,10 @@ struct GameCard: View {
     }
 }
 
+// MARK: - Team Button Component
 struct TeamButton: View {
+    // MARK: - Properties
+    let game: Game  // Added game property
     let teamName: String
     let spread: String
     let isSelected: Bool
@@ -214,17 +201,28 @@ struct TeamButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
-                // Team Name
-                Text(teamName)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2, reservesSpace: true)
-                    .minimumScaleFactor(0.8)
+                // Team Name with potential winning checkmark
+                HStack(spacing: 4) {
+                    Text(teamName)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2, reservesSpace: true)
+                        .minimumScaleFactor(0.8)
+                    
+                    if game.isCompleted && game.winningTeam == teamName {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 16))
+                    }
+                }
                 
                 if let score = score {
-                    // Show score for completed games
-                    ScoreDisplay(score: score, isHomeTeam: isHomeTeam)
+                    // Show final score
+                    Text("\(isHomeTeam ? score.homeScore : score.awayScore)")
+                        .font(.system(size: 22, weight: .heavy))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                 } else {
                     // Show spread for upcoming games
                     Text(spread)

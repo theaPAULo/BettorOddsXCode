@@ -349,3 +349,54 @@ extension Array where Element == Game {
     }
 }
 
+
+extension Game {
+    // In Game.swift
+    var shouldBeVisible: Bool {
+        // If game is not completed, follow isVisible flag
+        if !isCompleted {
+            return isVisible
+        }
+        
+        // For completed games, check if it's past 4am CT the next day
+        let calendar = Calendar.current
+        let timeZone = TimeZone(identifier: "America/Chicago")!
+        let nowCT = Date().convertTo(timeZone: timeZone)
+        
+        // Create 4am threshold for the next day
+        var components = calendar.dateComponents([.year, .month, .day], from: nowCT)
+        components.hour = 4
+        components.minute = 0
+        components.second = 0
+        
+        guard let cutoffTime = calendar.date(from: components) else {
+            return false
+        }
+        
+        // If current time is before 4am, add 1 day to cutoffTime
+        if nowCT < cutoffTime {
+            return true
+        }
+        
+        // Hide if we're past the cutoff time
+        return false
+    }
+    
+    var winningTeam: String? {
+        guard let score = score else { return nil }
+        if score.homeScore > score.awayScore {
+            return homeTeam
+        } else if score.awayScore > score.homeScore {
+            return awayTeam
+        }
+        return nil  // Tie game
+    }
+}
+
+// Helper extension for timezone conversion
+extension Date {
+    func convertTo(timeZone: TimeZone) -> Date {
+        let delta = TimeInterval(timeZone.secondsFromGMT(for: self))
+        return addingTimeInterval(delta)
+    }
+}
