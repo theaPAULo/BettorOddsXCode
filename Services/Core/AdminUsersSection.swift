@@ -1,9 +1,9 @@
 //
-//  AdminSections.swift
+//  AdminUsersSection.swift
 //  BettorOdds
 //
 //  Created by Claude on 1/30/25
-//  Version: 1.0.0
+//  Version: 2.0.0 - Updated for Google/Apple Sign-In (no email field)
 //
 
 import SwiftUI
@@ -26,17 +26,48 @@ struct AdminUserRow: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(user.email)
+            // Display name or fallback to "Unknown User"
+            Text(user.displayName ?? "Unknown User")
                 .font(.headline)
                 .foregroundColor(.textPrimary)
             
-            Text("Joined: \(user.dateJoined.formatted())")
-                .font(.caption)
-                .foregroundColor(.textSecondary)
+            // Show auth provider and user ID
+            HStack {
+                // Auth provider badge
+                HStack(spacing: 4) {
+                    Image(systemName: user.authProvider == "google.com" ? "globe" : "applelogo")
+                        .font(.system(size: 12))
+                    Text(user.authProvider == "google.com" ? "Google" : "Apple")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.backgroundSecondary)
+                .cornerRadius(8)
+                
+                Spacer()
+                
+                Text("Joined: \(user.dateJoined.formatted(.dateTime.month().day().year()))")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+            }
             
             HStack(spacing: 16) {
                 CoinInfoView(emoji: "🟡", amount: user.yellowCoins)
                 CoinInfoView(emoji: "💚", amount: user.greenCoins)
+                
+                Spacer()
+                
+                // Admin badge if applicable
+                if user.adminRole == .admin {
+                    Text("ADMIN")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.red)
+                        .cornerRadius(4)
+                }
             }
             .padding(.top, 4)
         }

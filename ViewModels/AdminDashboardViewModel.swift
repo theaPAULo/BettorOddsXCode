@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Claude on 1/30/25
-//  Version: 1.0.1
+//  Version: 2.0.0 - Updated for Google/Apple Sign-In (no email field)
 //
 
 import SwiftUI
@@ -128,12 +128,15 @@ final class AdminDashboardViewModel: ObservableObject {
             ))
         }
         
-        // Add recent user activity
+        // Add recent user activity - FIXED: Use displayName instead of email
         users.prefix(5).forEach { user in
             if let lastBet = user.lastBetDate {
+                let userName = user.displayName ?? "Unknown User"
+                let providerName = user.authProvider == "google.com" ? "Google" : "Apple"
+                
                 activity.append(ActivityItem(
                     type: .user,
-                    description: "User bet activity: \(user.email)",
+                    description: "User activity: \(userName) (\(providerName))",
                     time: formatTime(lastBet)
                 ))
             }

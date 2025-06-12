@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Claude on 1/31/25.
-//  Version: 2.1.0 - Added phone verification support
+//  Version: 3.0.0 - Updated for Google/Apple Sign-In authentication
 //
 
 import Foundation
@@ -26,29 +26,25 @@ struct UserPreferences: Codable {
     var darkMode: Bool
     var notificationsEnabled: Bool
     var requireBiometricsForGreenCoins: Bool
-    var saveCredentials: Bool
-    var rememberMe: Bool
     
     init(useBiometrics: Bool = false,
          darkMode: Bool = false,
          notificationsEnabled: Bool = true,
-         requireBiometricsForGreenCoins: Bool = true,
-         saveCredentials: Bool = true,
-         rememberMe: Bool = false) {
+         requireBiometricsForGreenCoins: Bool = true) {
         self.useBiometrics = useBiometrics
         self.darkMode = darkMode
         self.notificationsEnabled = notificationsEnabled
         self.requireBiometricsForGreenCoins = requireBiometricsForGreenCoins
-        self.saveCredentials = saveCredentials
-        self.rememberMe = rememberMe
     }
 }
 
 // MARK: - User Model
 struct User: Codable, Identifiable {
     // MARK: - Properties
-    var id: String
-    var email: String
+    var id: String                      // Firebase UID from Google/Apple Sign-In
+    var displayName: String?            // Optional display name from provider
+    var profileImageURL: String?        // Optional profile image from provider
+    var authProvider: String            // "google.com" or "apple.com"
     var dateJoined: Date
     var yellowCoins: Int
     var greenCoins: Int
@@ -57,11 +53,8 @@ struct User: Codable, Identifiable {
     var lastBetDate: Date?
     var preferences: UserPreferences
     var adminRole: AdminRole
-    var isEmailVerified: Bool
     var lastAdminAction: Date?
-    // New properties for phone verification
-    var phoneNumber: String?
-    var isPhoneVerified: Bool
+    
     var remainingDailyGreenCoins: Int {
         let dailyLimit = 100
         return max(0, dailyLimit - dailyGreenCoinsUsed)
@@ -69,16 +62,18 @@ struct User: Codable, Identifiable {
     
     // MARK: - Coding Keys
     private enum CodingKeys: String, CodingKey {
-        case id, email, dateJoined, yellowCoins, greenCoins
+        case id, displayName, profileImageURL, authProvider
+        case dateJoined, yellowCoins, greenCoins
         case dailyGreenCoinsUsed, isPremium, lastBetDate
-        case preferences, adminRole, isEmailVerified, lastAdminAction
-        case phoneNumber, isPhoneVerified
+        case preferences, adminRole, lastAdminAction
     }
     
     // MARK: - Initialization
-    init(id: String, email: String, phoneNumber: String? = nil) {
+    init(id: String, displayName: String? = nil, profileImageURL: String? = nil, authProvider: String) {
         self.id = id
-        self.email = email
+        self.displayName = displayName
+        self.profileImageURL = profileImageURL
+        self.authProvider = authProvider
         self.dateJoined = Date()
         self.yellowCoins = 100  // Starting bonus
         self.greenCoins = 0
@@ -87,10 +82,7 @@ struct User: Codable, Identifiable {
         self.lastBetDate = Date()
         self.preferences = UserPreferences()
         self.adminRole = .none
-        self.isEmailVerified = false
         self.lastAdminAction = nil
-        self.phoneNumber = phoneNumber
-        self.isPhoneVerified = phoneNumber != nil
     }
     
     // MARK: - Firestore Initialization
@@ -98,17 +90,16 @@ struct User: Codable, Identifiable {
         guard let data = document.data() else { return nil }
         
         self.id = document.documentID
-        self.email = data["email"] as? String ?? ""
+        self.displayName = data["displayName"] as? String
+        self.profileImageURL = data["profileImageURL"] as? String
+        self.authProvider = data["authProvider"] as? String ?? "unknown"
         self.dateJoined = (data["dateJoined"] as? Timestamp)?.dateValue() ?? Date()
         self.yellowCoins = data["yellowCoins"] as? Int ?? 0
         self.greenCoins = data["greenCoins"] as? Int ?? 0
         self.dailyGreenCoinsUsed = data["dailyGreenCoinsUsed"] as? Int ?? 0
         self.isPremium = data["isPremium"] as? Bool ?? false
         self.lastBetDate = (data["lastBetDate"] as? Timestamp)?.dateValue()
-        self.isEmailVerified = data["isEmailVerified"] as? Bool ?? false
         self.lastAdminAction = (data["lastAdminAction"] as? Timestamp)?.dateValue()
-        self.phoneNumber = data["phoneNumber"] as? String
-        self.isPhoneVerified = data["isPhoneVerified"] as? Bool ?? false
         
         // Parse admin role
         if let adminRoleString = data["adminRole"] as? String {
@@ -123,9 +114,7 @@ struct User: Codable, Identifiable {
                 useBiometrics: prefsData["useBiometrics"] as? Bool ?? false,
                 darkMode: prefsData["darkMode"] as? Bool ?? false,
                 notificationsEnabled: prefsData["notificationsEnabled"] as? Bool ?? true,
-                requireBiometricsForGreenCoins: prefsData["requireBiometricsForGreenCoins"] as? Bool ?? true,
-                saveCredentials: prefsData["saveCredentials"] as? Bool ?? true,
-                rememberMe: prefsData["rememberMe"] as? Bool ?? false
+                requireBiometricsForGreenCoins: prefsData["requireBiometricsForGreenCoins"] as? Bool ?? true
             )
         } else {
             self.preferences = UserPreferences()
@@ -135,7 +124,9 @@ struct User: Codable, Identifiable {
     // MARK: - Firestore Conversion
     func toDictionary() -> [String: Any] {
         return [
-            "email": email,
+            "displayName": displayName as Any,
+            "profileImageURL": profileImageURL as Any,
+            "authProvider": authProvider,
             "dateJoined": Timestamp(date: dateJoined),
             "yellowCoins": yellowCoins,
             "greenCoins": greenCoins,
@@ -143,17 +134,12 @@ struct User: Codable, Identifiable {
             "isPremium": isPremium,
             "lastBetDate": lastBetDate.map { Timestamp(date: $0) } as Any,
             "adminRole": adminRole.rawValue,
-            "isEmailVerified": isEmailVerified,
             "lastAdminAction": lastAdminAction.map { Timestamp(date: $0) } as Any,
-            "phoneNumber": phoneNumber as Any,
-            "isPhoneVerified": isPhoneVerified,
             "preferences": [
                 "useBiometrics": preferences.useBiometrics,
                 "darkMode": preferences.darkMode,
                 "notificationsEnabled": preferences.notificationsEnabled,
-                "requireBiometricsForGreenCoins": preferences.requireBiometricsForGreenCoins,
-                "saveCredentials": preferences.saveCredentials,
-                "rememberMe": preferences.rememberMe
+                "requireBiometricsForGreenCoins": preferences.requireBiometricsForGreenCoins
             ]
         ]
     }

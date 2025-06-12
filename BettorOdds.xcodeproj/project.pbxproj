@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		E403D4E22DFB8F49005C5148 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = E403D4E12DFB8F49005C5148 /* GoogleSignIn */; };
 		E403D4E42DFB8F49005C5148 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E403D4E32DFB8F49005C5148 /* GoogleSignInSwift */; };
+		E403D4E72DFB998B005C5148 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E403D4E62DFB998B005C5148 /* AuthenticationServices.framework */; };
 		E433BEC22D4714F9002FFF2F /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = E433BEC12D4714F9002FFF2F /* FirebaseAnalytics */; };
 		E433BEC62D4714F9002FFF2F /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = E433BEC52D4714F9002FFF2F /* FirebaseAnalyticsWithoutAdIdSupport */; };
 		E433BEC82D4714F9002FFF2F /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = E433BEC72D4714F9002FFF2F /* FirebaseAppCheck */; };
@@ -37,6 +38,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E403D4E62DFB998B005C5148 /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		E433BECB2D47160D002FFF2F /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		E46093122D50868600917F60 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		E46093182D51084A00917F60 /* BettorOddsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BettorOddsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -149,6 +151,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E403D4E72DFB998B005C5148 /* AuthenticationServices.framework in Frameworks */,
 				E403D4E42DFB8F49005C5148 /* GoogleSignInSwift in Frameworks */,
 				E433BEE02D471AB6002FFF2F /* FirebaseDatabase in Frameworks */,
 				E433BEC82D4714F9002FFF2F /* FirebaseAppCheck in Frameworks */,
@@ -180,6 +183,7 @@
 		E46093112D50868500917F60 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E403D4E62DFB998B005C5148 /* AuthenticationServices.framework */,
 				E46093282D510EC400917F60 /* BettorOdds.xcodeproj */,
 				E46093122D50868600917F60 /* XCTest.framework */,
 			);

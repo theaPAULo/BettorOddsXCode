@@ -1,15 +1,16 @@
-
+//
 //  AuthenticationViewModel.swift
 //  BettorOdds
 //
 //  Created by Claude on 1/31/25.
-//  Version: 2.2.0 - Added phone verification support
+//  Version: 3.0.0 - Completely rewritten for Google/Apple Sign-In
 //
 
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
-import Combine
+import GoogleSignIn
+import AuthenticationServices
 import SwiftUI
 
 @MainActor
@@ -20,12 +21,6 @@ class AuthenticationViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    // Phone verification properties
-    @Published var verificationID: String?
-    @Published var isPhoneVerified = false
-    private var resendTimer: Timer?
-    private var resendCountdown: Int = 30
-    
     // MARK: - Private Properties
     private let db = Firestore.firestore()
     
@@ -34,167 +29,180 @@ class AuthenticationViewModel: ObservableObject {
         checkAuthState()
     }
     
-    // MARK: - Phone Verification Methods
+    // MARK: - Google Sign-In
     
-    /// Sends verification code to provided phone number
-    /// - Parameter phoneNumber: Phone number in E.164 format (+1XXXXXXXXXX)
-    func sendVerificationCode(to phoneNumber: String) async {
+    /// Signs in with Google
+    func signInWithGoogle() {
         isLoading = true
         errorMessage = nil
         
-        do {
-            print("📱 Attempting to send verification code to: \(phoneNumber)")
-            
-            let verificationID = try await PhoneAuthProvider.provider()
-                .verifyPhoneNumber(phoneNumber, uiDelegate: nil)
-            
-            self.verificationID = verificationID
-            self.authState = .pendingPhoneVerification
-            print("✉️ Verification code sent successfully")
-            
-        } catch {
-            print("❌ Error sending verification code: \(error.localizedDescription)")
-            errorMessage = handlePhoneAuthError(error)
-        }
-        
-        isLoading = false
-    }
-    
-    /// Verifies the code entered by user
-    /// - Parameter code: 6-digit verification code
-    func verifyCode(_ code: String) async {
-        guard let verificationID = verificationID else {
-            errorMessage = "Please request a new verification code"
+        // Get the root view controller
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            errorMessage = "Unable to find root view controller"
+            isLoading = false
             return
         }
         
+        // Configure Google Sign-In
+        guard let clientID = getGoogleClientID() else {
+            errorMessage = "Google Sign-In configuration error"
+            isLoading = false
+            return
+        }
+        
+        // Create Google Sign-In configuration
+        let config = GIDConfiguration(clientID: clientID)
+        GIDSignIn.sharedInstance.configuration = config
+        
+        // Start the sign-in flow
+        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { [weak self] result, error in
+            Task { @MainActor in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    self.errorMessage = "Google Sign-In failed: \(error.localizedDescription)"
+                    self.isLoading = false
+                    return
+                }
+                
+                guard let user = result?.user,
+                      let idToken = user.idToken?.tokenString else {
+                    self.errorMessage = "Failed to get Google user information"
+                    self.isLoading = false
+                    return
+                }
+                
+                // Create Firebase credential
+                let credential = GoogleAuthProvider.credential(
+                    withIDToken: idToken,
+                    accessToken: user.accessToken.tokenString
+                )
+                
+                // Sign in to Firebase
+                do {
+                    let authResult = try await Auth.auth().signIn(with: credential)
+                    try await self.handleAuthenticationSuccess(
+                        firebaseUser: authResult.user,
+                        authProvider: "google.com"
+                    )
+                } catch {
+                    self.errorMessage = "Firebase authentication failed: \(error.localizedDescription)"
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    // MARK: - Apple Sign-In
+    
+    /// Signs in with Apple
+    func signInWithApple() {
         isLoading = true
         errorMessage = nil
         
-        do {
-            print("🔍 Verifying phone code...")
-            
-            let credential = PhoneAuthProvider.provider().credential(
-                withVerificationID: verificationID,
-                verificationCode: code
-            )
-            
-            let authResult = try await Auth.auth().signIn(with: credential)
-            try await handlePhoneAuthSuccess(userId: authResult.user.uid)
-            
-            self.isPhoneVerified = true
-            self.authState = .signedIn
-            print("✅ Phone verification successful")
-            
-        } catch {
-            print("❌ Error verifying code: \(error.localizedDescription)")
-            errorMessage = handlePhoneAuthError(error)
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        
+        let authorizationController = ASAuthorizationController(authorizationRequests: [request])
+        
+        // Create a coordinator to handle the Apple Sign-In flow
+        let coordinator = AppleSignInCoordinator { [weak self] result in
+            Task { @MainActor in
+                guard let self = self else { return }
+                
+                switch result {
+                case .success(let authResult):
+                    do {
+                        try await self.handleAuthenticationSuccess(
+                            firebaseUser: authResult,
+                            authProvider: "apple.com"
+                        )
+                    } catch {
+                        self.errorMessage = "Firebase authentication failed: \(error.localizedDescription)"
+                        self.isLoading = false
+                    }
+                    
+                case .failure(let error):
+                    self.errorMessage = "Apple Sign-In failed: \(error.localizedDescription)"
+                    self.isLoading = false
+                }
+            }
         }
         
-        isLoading = false
+        authorizationController.delegate = coordinator
+        authorizationController.presentationContextProvider = coordinator
+        authorizationController.performRequests()
+        
+        // Keep coordinator alive
+        self.appleSignInCoordinator = coordinator
     }
     
-    /// Handles successful phone authentication
-    private func handlePhoneAuthSuccess(userId: String) async throws {
-        print("👤 Handling successful phone auth for user: \(userId)")
+    // Keep reference to coordinator
+    private var appleSignInCoordinator: AppleSignInCoordinator?
+    
+    // MARK: - Common Authentication Handling
+    
+    /// Handles successful authentication from either provider
+    private func handleAuthenticationSuccess(firebaseUser: FirebaseAuth.User, authProvider: String) async throws {
+        print("🔐 Authentication successful with provider: \(authProvider)")
+        print("🆔 User ID: \(firebaseUser.uid)")
         
-        let userDoc = try await db.collection("users").document(userId).getDocument()
+        // Check if user already exists in Firestore
+        let userDoc = try await db.collection("users").document(firebaseUser.uid).getDocument()
         
         if userDoc.exists {
-            try await fetchUser(userId: userId)
-            print("✅ Existing user document fetched")
+            // Existing user - fetch their data
+            print("👤 Existing user found")
+            try await fetchUser(userId: firebaseUser.uid)
         } else {
-            let newUser = User(
-                id: userId,
-                email: "",
-                phoneNumber: self.verificationID
-            )
-            
-            try await db.collection("users").document(userId).setData(newUser.toDictionary())
-            self.user = newUser
-            print("✅ New user document created")
+            // New user - create their profile
+            print("👤 New user - creating profile")
+            try await createNewUser(firebaseUser: firebaseUser, authProvider: authProvider)
         }
-    }
-    
-    private func handlePhoneAuthError(_ error: Error) -> String {
-        let nsError = error as NSError
-        switch nsError.code {
-        case AuthErrorCode.invalidPhoneNumber.rawValue:
-            return "Please enter a valid phone number"
-        case AuthErrorCode.quotaExceeded.rawValue:
-            return "Too many attempts. Please try again later"
-        case AuthErrorCode.invalidVerificationCode.rawValue:
-            return "Invalid verification code. Please try again"
-        case AuthErrorCode.sessionExpired.rawValue:
-            return "Code expired. Please request a new one"
-        default:
-            return "An error occurred. Please try again"
-        }
-    }
-    
-    // MARK: - Public Methods
-    
-    /// Signs in a user with email and password
-    /// - Parameters:
-    ///   - email: User's email
-    ///   - password: User's password
-    ///   - saveCredentials: Whether to save credentials to keychain
-    func signIn(email: String, password: String, saveCredentials: Bool = false) {
-        isLoading = true
-        errorMessage = nil
         
-        Task {
-            do {
-                // Validate email
-                if !EmailValidator.isValid(email) {
-                    throw NSError(domain: "", code: -1, userInfo: [
-                        NSLocalizedDescriptionKey: "Please enter a valid email address"
-                    ])
-                }
-                
-                // Attempt sign in
-                let authResult = try await Auth.auth().signIn(withEmail: email, password: password)
-                try await fetchUser(userId: authResult.user.uid)
-                
-                // Save credentials if requested
-                if saveCredentials {
-                    try KeychainHelper.shared.saveCredentials(email: email, password: password)
-                }
-                
-                authState = .signedIn
-                
-            } catch {
-                errorMessage = error.localizedDescription
-                authState = .signedOut
-            }
-            isLoading = false
-        }
+        authState = .signedIn
+        isLoading = false
+        print("✅ Authentication flow completed successfully")
     }
     
-    /// Signs out the current user
-    func signOut() {
-        do {
-            try Auth.auth().signOut()
-            
-            // Clear saved credentials
-            try? KeychainHelper.shared.deleteCredentials()
-            
-            // Clear user data
-            user = nil
-            authState = .signedOut
-            
-            // Clear Remember Me if not enabled
-            if !UserDefaults.standard.bool(forKey: "rememberMe") {
-                UserDefaults.standard.removeObject(forKey: "savedEmail")
-            }
-            
-        } catch {
-            errorMessage = error.localizedDescription
+    /// Creates a new user profile in Firestore
+    private func createNewUser(firebaseUser: FirebaseAuth.User, authProvider: String) async throws {
+        let newUser = User(
+            id: firebaseUser.uid,
+            displayName: firebaseUser.displayName,
+            profileImageURL: firebaseUser.photoURL?.absoluteString,
+            authProvider: authProvider
+        )
+        
+        // Save to Firestore
+        try await db.collection("users").document(firebaseUser.uid).setData(newUser.toDictionary())
+        
+        // Set local user
+        self.user = newUser
+        
+        print("✅ New user profile created successfully")
+    }
+    
+    // MARK: - User Management
+    
+    /// Fetches user data from Firestore
+    private func fetchUser(userId: String) async throws {
+        print("🔍 Fetching user data for ID: \(userId)")
+        let document = try await db.collection("users").document(userId).getDocument()
+        
+        if let user = User(document: document) {
+            self.user = user
+            print("👤 User data fetched successfully")
+        } else {
+            print("❌ Failed to parse user data")
+            throw NSError(domain: "", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to parse user data"
+            ])
         }
     }
     
     /// Updates user data in Firestore
-    /// - Parameter updatedUser: The updated user object
     func updateUser(_ updatedUser: User) async throws {
         isLoading = true
         defer { isLoading = false }
@@ -203,91 +211,42 @@ class AuthenticationViewModel: ObservableObject {
             let data = updatedUser.toDictionary()
             try await db.collection("users").document(updatedUser.id).updateData(data)
             self.user = updatedUser
+            print("✅ User data updated successfully")
         } catch {
             errorMessage = "Failed to update user: \(error.localizedDescription)"
             throw error
         }
     }
-    /// Signs up a new user
-        func signUp(email: String, password: String, userData: [String: Any]) {
-            isLoading = true
+    
+    // MARK: - Sign Out
+    
+    /// Signs out the current user
+    func signOut() {
+        do {
+            // Sign out from Firebase
+            try Auth.auth().signOut()
+            
+            // Sign out from Google if needed
+            GIDSignIn.sharedInstance.signOut()
+            
+            // Clear local user data
+            user = nil
+            authState = .signedOut
             errorMessage = nil
             
-            print("Starting signup process for email: \(email)")
-            print("User data structure: \(userData)")
+            print("✅ User signed out successfully")
             
-            Task {
-                do {
-                    // 1. Create Firebase Auth user
-                    print("Attempting to create Firebase Auth user...")
-                    let authResult = try await Auth.auth().createUser(withEmail: email, password: password)
-                    let userId = authResult.user.uid
-                    print("Successfully created Firebase Auth user with ID: \(userId)")
-                    
-                    // 2. Convert dates to Timestamps for Firestore
-                    var firestoreData = userData
-                    if let dateJoined = userData["dateJoined"] as? Date {
-                        firestoreData["dateJoined"] = Timestamp(date: dateJoined)
-                    }
-                    if let dateOfBirth = userData["dateOfBirth"] as? Date {
-                        firestoreData["dateOfBirth"] = Timestamp(date: dateOfBirth)
-                    }
-                    if let lastBetDate = userData["lastBetDate"] as? Date {
-                        firestoreData["lastBetDate"] = Timestamp(date: lastBetDate)
-                    }
-                    
-                    firestoreData["id"] = userId
-                    firestoreData["email"] = email
-                    
-                    print("Attempting to create Firestore document...")
-                    
-                    // 3. Create Firestore document
-                    try await db.collection("users").document(userId).setData(firestoreData)
-                    print("Successfully created Firestore document")
-                    
-                    // 4. Fetch user data
-                    print("Fetching user data...")
-                    try await fetchUser(userId: userId)
-                    print("Successfully fetched user data")
-                    
-                    await MainActor.run {
-                        self.authState = .signedIn
-                        self.isLoading = false
-                    }
-                } catch {
-                    print("❌ Detailed error information:")
-                    print("Error domain: \((error as NSError).domain)")
-                    print("Error code: \((error as NSError).code)")
-                    print("Error description: \(error.localizedDescription)")
-                    print("Full error: \(error)")
-                    
-                    if let authError = error as? AuthErrorCode {
-                        switch authError.code {
-                        case .emailAlreadyInUse:
-                            errorMessage = "This email is already registered. Please sign in or use a different email."
-                        case .invalidEmail:
-                            errorMessage = "Please enter a valid email address."
-                        case .weakPassword:
-                            errorMessage = "Password is too weak. Please choose a stronger password."
-                        default:
-                            errorMessage = error.localizedDescription
-                        }
-                    } else {
-                        errorMessage = error.localizedDescription
-                    }
-                    
-                    await MainActor.run {
-                        self.authState = .signedOut
-                        self.isLoading = false
-                    }
-                }
-            }
+        } catch {
+            errorMessage = error.localizedDescription
+            print("❌ Sign out error: \(error.localizedDescription)")
         }
-    // MARK: - Private Methods
+    }
+    
+    // MARK: - Authentication State Management
     
     /// Checks current authentication state
     func checkAuthState() {
-        print("🔍 Checking auth state...")
+        print("🔍 Checking authentication state...")
         authState = .loading
         
         // Brief delay to ensure Firebase is initialized
@@ -306,100 +265,125 @@ class AuthenticationViewModel: ObservableObject {
                 }
             } else {
                 print("👤 No existing user found")
-                //
-                //  AuthenticationViewModel.swift (continued)
-                //  BettorOdds
-                //
-                //  Created by Claude on 1/31/25.
-                //  Version: 2.1.0
-                //
-
-                                // Try to sign in with saved credentials if Remember Me is enabled
-                                if UserDefaults.standard.bool(forKey: "rememberMe") {
-                                    if let credentials = try? KeychainHelper.shared.loadCredentials() {
-                                        Task {
-                                            await self.signIn(
-                                                email: credentials.email,
-                                                password: credentials.password,
-                                                saveCredentials: true
-                                            )
-                                        }
-                                    } else {
-                                        self.authState = .signedOut
-                                    }
-                                } else {
-                                    self.authState = .signedOut
-                                }
-                            }
-                        }
-                    }
-                    
-                    /// Fetches user data from Firestore
-                    /// - Parameter userId: The ID of the user to fetch
-                    private func fetchUser(userId: String) async throws {
-                        print("🔍 Fetching user data for ID: \(userId)")
-                        let document = try await db.collection("users").document(userId).getDocument()
-                        
-                        // Debug: Print raw document data
-                        if let data = document.data() {
-                            print("📄 Raw user data:", data)
-                            if let adminRole = data["adminRole"] as? String {
-                                print("👑 Admin role found:", adminRole)
-                            } else {
-                                print("❌ No admin role found in user data")
-                            }
-                        }
-                        
-                        if let user = User(document: document) {
-                            self.user = user
-                            print("👤 User parsed successfully. Admin role:", user.adminRole.rawValue)
-                        } else {
-                            print("❌ Failed to parse user data")
-                            throw NSError(domain: "", code: -1, userInfo: [
-                                NSLocalizedDescriptionKey: "Failed to parse user data"
-                            ])
-                        }
-                    }
-                    
-                    /// Attempts to restore the previous session
-                    private func restoreSession() {
-                        if let credentials = try? KeychainHelper.shared.loadCredentials(),
-                           UserDefaults.standard.bool(forKey: "rememberMe") {
-                            Task {
-                                await signIn(
-                                    email: credentials.email,
-                                    password: credentials.password,
-                                    saveCredentials: true
-                                )
-                            }
-                        }
-                    }
-                    
-                    /// Resets a user's password
-                    /// - Parameter email: The email address to send the reset link to
-                    func resetPassword(email: String) async throws {
-                        guard EmailValidator.isValid(email) else {
-                            throw NSError(domain: "", code: -1, userInfo: [
-                                NSLocalizedDescriptionKey: "Please enter a valid email address"
-                            ])
-                        }
-                        
-                        try await Auth.auth().sendPasswordReset(withEmail: email)
-                        
-
-                    }
-    deinit {
-        resendTimer?.invalidate()
+                self.authState = .signedOut
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Gets Google Client ID from GoogleService-Info.plist
+    private func getGoogleClientID() -> String? {
+        guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+              let plist = NSDictionary(contentsOfFile: path),
+              let clientId = plist["CLIENT_ID"] as? String else {
+            print("❌ Failed to get Google Client ID from GoogleService-Info.plist")
+            return nil
+        }
+        return clientId
     }
 }
 
+// MARK: - Apple Sign-In Coordinator
 
+class AppleSignInCoordinator: NSObject {
+    private let completion: (Result<FirebaseAuth.User, Error>) -> Void
+    
+    init(completion: @escaping (Result<FirebaseAuth.User, Error>) -> Void) {
+        self.completion = completion
+        super.init()
+    }
+}
+
+// MARK: - ASAuthorizationControllerDelegate
+extension AppleSignInCoordinator: ASAuthorizationControllerDelegate {
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        
+        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid Apple ID credential"])))
+            return
+        }
+        
+        guard let nonce = currentNonce,
+              let appleIDToken = appleIDCredential.identityToken,
+              let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+            completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch identity token"])))
+            return
+        }
+        
+        // Create Firebase credential
+        let credential = OAuthProvider.credential(
+            withProviderID: "apple.com",
+            idToken: idTokenString,
+            rawNonce: nonce
+        )
+        
+        // Sign in with Firebase
+        Task {
+            do {
+                let authResult = try await Auth.auth().signIn(with: credential)
+                completion(.success(authResult.user))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        completion(.failure(error))
+    }
+    
+    // Generate nonce for Apple Sign-In security
+    private var currentNonce: String? {
+        return randomNonceString()
+    }
+    
+    private func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        var remainingLength = length
+        
+        while remainingLength > 0 {
+            let randoms: [UInt8] = (0 ..< 16).map { _ in
+                var random: UInt8 = 0
+                let errorCode = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
+                if errorCode != errSecSuccess {
+                    fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
+                }
+                return random
+            }
+            
+            randoms.forEach { random in
+                if remainingLength == 0 {
+                    return
+                }
+                
+                if random < charset.count {
+                    result.append(charset[Int(random)])
+                    remainingLength -= 1
+                }
+            }
+        }
+        
+        return result
+    }
+}
+
+// MARK: - ASAuthorizationControllerPresentationContextProviding
+extension AppleSignInCoordinator: ASAuthorizationControllerPresentationContextProviding {
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            return ASPresentationAnchor()
+        }
+        return window
+    }
+}
 
 // MARK: - Auth State Enum
 enum AuthState {
     case signedIn
     case signedOut
     case loading
-    case phoneVerification
-    case pendingPhoneVerification
 }

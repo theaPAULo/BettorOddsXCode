@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Claude on 2/2/25
-//  Version: 2.1.0
+//  Version: 3.0.0 - Updated for Google/Apple Sign-In authentication
 //
 
 import SwiftUI
@@ -63,20 +63,80 @@ struct ProfileView: View {
                 ScrollView {
                     VStack(spacing: 24) {
                         // Profile Header
-                        VStack(spacing: 8) {
-                            Text("Profile")
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(Color("Primary"))
-                                .padding(.top, -60) // Match MyBets spacing
+                        VStack(spacing: 12) {
+                            // Profile Image (if available from provider)
+                            if let profileImageURL = authViewModel.user?.profileImageURL,
+                               let url = URL(string: profileImageURL) {
+                                AsyncImage(url: url) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 80, height: 80)
+                                        .clipShape(Circle())
+                                } placeholder: {
+                                    Circle()
+                                        .fill(Color("Primary").opacity(0.2))
+                                        .frame(width: 80, height: 80)
+                                        .overlay(
+                                            Text(authViewModel.user?.displayName?.prefix(1).uppercased() ?? "U")
+                                                .font(.system(size: 32, weight: .bold))
+                                                .foregroundColor(Color("Primary"))
+                                        )
+                                }
+                            } else {
+                                // Fallback avatar with initials
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color("Primary"),
+                                                Color("Primary").opacity(0.8)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 80, height: 80)
+                                    .overlay(
+                                        Text(authViewModel.user?.displayName?.prefix(1).uppercased() ?? "U")
+                                            .font(.system(size: 32, weight: .bold))
+                                            .foregroundColor(.white)
+                                    )
+                                    .shadow(color: Color("Primary").opacity(0.3), radius: 8, x: 0, y: 4)
+                            }
                             
-                            Text(authViewModel.user?.email ?? "User")
-                                .font(.system(size: 18))
-                                .foregroundColor(Color("Primary"))
-                            
-                            if let dateJoined = authViewModel.user?.dateJoined {
-                                Text("Member since \(dateJoined.formatted(.dateTime.month().year()))")
-                                    .font(.system(size: 14))
+                            VStack(spacing: 4) {
+                                Text("Profile")
+                                    .font(.system(size: 32, weight: .bold))
                                     .foregroundColor(Color("Primary"))
+                                    .padding(.top, -60) // Match MyBets spacing
+                                
+                                // Display name or fallback
+                                Text(authViewModel.user?.displayName ?? "User")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(Color("Primary"))
+                                
+                                // Auth provider badge
+                                if let user = authViewModel.user {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: user.authProvider == "google.com" ? "globe" : "applelogo")
+                                            .font(.system(size: 12))
+                                        Text(user.authProvider == "google.com" ? "Google Account" : "Apple Account")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color("Primary").opacity(0.1))
+                                    .foregroundColor(Color("Primary"))
+                                    .cornerRadius(8)
+                                }
+                                
+                                // Member since date
+                                if let dateJoined = authViewModel.user?.dateJoined {
+                                    Text("Member since \(dateJoined.formatted(.dateTime.month().year()))")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color("Primary").opacity(0.8))
+                                }
                             }
                         }
                         

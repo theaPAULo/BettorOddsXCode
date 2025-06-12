@@ -336,14 +336,18 @@ struct BetModal: View {
                 }
             }
 
-            // MARK: - Preview Provider
-            #Preview {
-                BetModal(
-                    game: Game.sampleGames[0],
-                    user: User(id: "preview", email: "test@example.com"),
-                    isPresented: .constant(true)
-                )
-            }
+    // MARK: - Preview Provider
+    #Preview {
+        BetModal(
+            game: Game.sampleGames[0],
+            user: User(
+                id: "preview",
+                displayName: "Preview User",
+                authProvider: "google.com"
+            ),
+            isPresented: .constant(true)
+        )
+    }
 // MARK: - Sample Data
 extension Game {
     static var sampleGames: [Game] = [
