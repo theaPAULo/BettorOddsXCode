@@ -1,254 +1,299 @@
-BettorOdds Mobile App
-Overview
+# BettorOdds Mobile App
+
+## Overview
 BettorOdds is a sports betting platform focused on responsible gambling and user experience. The app features a dual-currency system, daily betting limits, and real-time odds updates.
-Current Version
 
-Version: 1.0.0
-Last Updated: January 29, 2025
-Status: Development
+## Current Version
+- **Version**: 1.0.0
+- **Last Updated**: February 2025
+- **Status**: Development
 
-Technical Stack
-Frontend
+## Technical Stack
 
-SwiftUI for iOS native development
-React Native components for cross-platform shared components
-Custom UI components with Tailwind CSS
+### Frontend
+- SwiftUI for iOS native development
+- Custom UI components with modern design patterns
+- Real-time data updates and animations
 
-Backend
+### Backend
+- **Firebase**
+  - Authentication (Email/Password + Phone verification)
+  - Firestore Database
+  - Cloud Functions
+  - Storage
+  - Remote Notifications
+- **The Odds API** for sports data and live scores
 
-Firebase
+### Development Environment
+- Xcode 15+
+- iOS 15.0+ deployment target
+- Firebase iOS SDK (managed via Swift Package Manager)
+- SwiftUI 4.0
 
-Authentication
-Firestore Database
-Cloud Functions (planned)
-Storage
+## Core Features
 
+### Authentication System
+- Email/password registration and login
+- Phone number verification support
+- Biometric authentication (Face ID/Touch ID)
+- Secure session management
+- Keychain credential storage
 
-The Odds API for sports data
+### Dual Currency System
 
-Development Environment
+**Yellow Coins (Practice)**
+- Starting balance: 100 coins
+- No real value
+- Unlimited daily usage
+- Training and practice purpose
 
-Xcode 15+
-iOS 15.0+ deployment target
-Firebase iOS SDK
-SwiftUI 4.0
+**Green Coins (Real Money)**
+- 1:1 USD ratio
+- $100 daily limit
+- Biometric authentication required
+- Full transaction history
+- Secure payment processing
 
-Core Features
-Authentication System
+### Betting Features
+- Real-time odds updates (5-minute intervals)
+- Spread betting system
+- Multiple sports support (NBA, NFL)
+- Live score integration
+- Bet tracking and history
+- Win/loss analytics
+- Featured games system
 
-Email/password registration
-Secure session management
-Future: Email verification, social login
+### Security Features
+- Biometric authentication for real money transactions
+- Daily betting limits enforcement
+- Auto-logout (30 minutes)
+- Transaction confirmations
+- Secure Firebase rules
+- Encrypted credential storage
 
-Dual Currency System
-Yellow Coins (Practice)
+### Admin Features
+- Game management dashboard
+- User management tools
+- Bet monitoring system
+- Transaction oversight
+- System health monitoring
+- Risk alert system
 
-Starting balance: 100 coins
-No real value
-Unlimited daily usage
-Training purpose
+## Project Structure
 
-Green Coins (Real Money)
-
-1:1 USD ratio
-$100 daily limit
-Biometric authentication
-Transaction history
-
-Betting Features
-
-Real-time odds updates (5-minute intervals)
-Spread betting
-Multiple sports support
-Bet tracking
-Win/loss history
-
-Security Features
-
-Biometric authentication
-Daily betting limits
-Auto-logout (30 minutes)
-Transaction confirmations
-
-Project Structure
-Swift Files Organization
-CopyBettorOdds/
-├── App/
-│   ├── BettorOddsApp.swift
-│   └── ContentView.swift
-├── Models/
-│   ├── Bet.swift
-│   ├── Game.swift
-│   ├── Transaction.swift
-│   └── User.swift
-├── Views/
-│   ├── Authentication/
-│   ├── Betting/
-│   ├── Profile/
-│   └── Common/
-├── ViewModels/
+```
+BettorOdds/
+├── BettorOdds/                     # Main app files
+│   ├── BettorOddsApp.swift        # App entry point
+│   ├── ContentView.swift          # Root view controller
+│   └── Info.plist                 # App configuration
+├── Models/                         # Data models
+│   ├── Bet.swift                  # Betting system models
+│   ├── Game.swift                 # Game and sports data
+│   ├── Transaction.swift          # Financial transactions
+│   ├── User.swift                 # User accounts and preferences
+│   └── TeamColors.swift           # Team branding
+├── Views/                          # SwiftUI views
+│   ├── Auth/                      # Authentication screens
+│   ├── Games/                     # Game browsing and betting
+│   ├── Betting/                   # Bet management
+│   ├── Profile/                   # User profile and admin
+│   └── Shared/                    # Reusable components
+├── ViewModels/                     # Business logic
 │   ├── AuthenticationViewModel.swift
-│   ├── BetModalViewModel.swift
-│   └── GamesViewModel.swift
-├── Services/
-│   ├── BetService.swift
-│   ├── GameService.swift
-│   └── UserService.swift
-└── Utilities/
-    ├── BiometricHelper.swift
-    └── Theme.swift
-Database Schema
-The database schema is defined in DATABASE_SCHEMA.md and includes:
+│   ├── GamesViewModel.swift
+│   └── BetModalViewModel.swift
+├── Services/                       # API and data services
+│   ├── Core/                      # Core business services
+│   ├── OddsService.swift          # Sports data integration
+│   └── ScoreService.swift         # Live score updates
+├── Repositories/                   # Data access layer
+│   └── Core/                      # Repository implementations
+├── Utilities/                      # Helper functions
+│   ├── BiometricHelper.swift      # Biometric authentication
+│   ├── Theme.swift                # App theming
+│   └── Color+AppTheme.swift       # Color system
+├── Components/                     # Reusable UI components
+│   └── UI/                        # Custom UI elements
+├── Extensions/                     # Swift extensions
+└── Documentation/                  # Project documentation
+```
 
-Users collection
-Bets collection
-Transactions collection
-Games collection
-Settings collection
+## Database Schema
+The database schema is defined in `DATABASE_SCHEMA.md` and includes:
+- Users collection (authentication, preferences, balances)
+- Bets collection (betting data, P2P matching)
+- Transactions collection (financial records)
+- Games collection (sports data, odds, scores)
+- Settings collection (app configuration)
 
-Setup Instructions
-Prerequisites
+## Setup Instructions
 
-Xcode 15 or higher
-CocoaPods
-Firebase account
-The Odds API key
+### Prerequisites
+- Xcode 15 or higher
+- iOS 15.0+ target device or simulator
+- Firebase account with project setup
+- The Odds API account and key
 
-Initial Setup
+### Initial Setup
 
-Clone the repository
-Install dependencies:
-bashCopypod install
+1. **Clone the repository**
+   ```bash
+   git clone [your-repository-url]
+   cd BettorOdds
+   ```
 
-Configure Firebase:
+2. **Open the project**
+   ```bash
+   open BettorOdds.xcodeproj
+   ```
+   
+3. **Dependencies are automatically managed**
+   - Swift Package Manager will automatically resolve Firebase dependencies
+   - No additional installation steps required
+   - Dependencies are defined in the Xcode project file
 
-Add GoogleService-Info.plist
-Initialize Firebase in BettorOddsApp.swift
+4. **Configure Firebase**
+   - Ensure `GoogleService-Info.plist` is properly added to the project
+   - Firebase is initialized in `BettorOddsApp.swift`
+   - All Firebase services are configured in `FirebaseConfig.swift`
 
+5. **Configure The Odds API**
+   - Add your API key to `Configuration.swift`
+   - Update the API configuration as needed
 
-Configure The Odds API:
+### Environment Configuration
+- **Development**: Uses Firebase development environment
+- **Production**: Uses Firebase production environment
+- **API Keys**: Stored in `Configuration.swift` (move to secure storage for production)
 
-Add API key to Configuration.swift
+## Current Status
 
+### ✅ Completed Features
+- User authentication (email/password + phone verification)
+- Dual currency system with daily limits
+- Real-time betting functionality
+- Live odds integration from The Odds API
+- Live score updates and game resolution
+- Biometric authentication for security
+- User profiles and preferences
+- Transaction history and tracking
+- Admin dashboard with game management
+- P2P bet matching system
+- Featured games system
+- Modern UI with animations and theming
 
+### 🟡 In Progress
+- Advanced analytics and reporting
+- Enhanced admin controls
+- Payment processing integration
+- Push notifications system
 
-Environment Configuration
+### 📋 Planned Features
+- Social login options
+- Advanced betting types (parlays, teasers)
+- Chat support system
+- Referral program
+- Enhanced risk management
+- Multi-language support
 
-Development: localhost:8080
-Production: Firebase production environment
+## Known Issues
+- Phone verification requires proper APNs setup for production
+- Some admin features require additional testing
+- Payment processing integration pending
+- Advanced analytics need optimization
 
-Current Status
-Completed Features
+## Next Steps
 
-✅ User authentication (basic)
-✅ Dual currency system
-✅ Basic betting functionality
-✅ Real-time odds integration
-✅ Biometric authentication
-✅ User profiles
-✅ Transaction history
-✅ Daily limits
+### Immediate Priorities
+1. Complete payment processing integration
+2. Enhance admin dashboard functionality
+3. Implement comprehensive logging
+4. Add more comprehensive error handling
 
-In Progress
+### Medium-term Goals
+1. Add push notifications
+2. Implement advanced betting types
+3. Create comprehensive help system
+4. Add social features
 
-🟡 Email verification
-🟡 Admin dashboard
-🟡 Advanced analytics
-🟡 Payment processing
+### Long-term Vision
+1. Expand to additional sports
+2. Add AI-driven odds analysis
+3. Create social betting features
+4. Implement advanced risk management
 
-Planned Features
+## Development Guidelines
 
-📋 Social login
-📋 Push notifications
-📋 Chat support
-📋 Advanced betting types
-📋 Referral system
+### Code Style
+- Follow Swift style guide
+- Use SwiftUI best practices
+- Implement comprehensive error handling
+- Add documentation for all public interfaces
+- Use meaningful commit messages
 
-Known Issues
+### Testing
+- Unit tests for business logic
+- UI tests for critical user flows
+- Integration tests for API calls
+- Regular testing on physical devices
 
-No email verification on signup
-Limited admin controls
-Basic error handling in some areas
-Need for more comprehensive testing
+### Security
+- Implement proper authentication flows
+- Secure sensitive data with Keychain
+- Follow Firebase security best practices
+- Regular security audits
+- Proper error handling without exposing sensitive information
 
-Next Steps
-Immediate Priorities
+## Maintenance
 
-Implement email verification
-Create admin dashboard
-Enhance error handling
-Add comprehensive logging
+### Database
+- Regular Firestore backups
+- Performance monitoring via Firebase Console
+- Data cleanup routines for old games/bets
+- Usage analytics and optimization
 
-Medium-term Goals
+### API Management
+- Monitor The Odds API rate limits
+- Implement proper caching strategies
+- Handle API errors gracefully
+- Efficient odds update scheduling
 
-Add payment processing
-Implement push notifications
-Create chat support system
-Add social features
+### User Management
+- Monitor user growth and engagement
+- Track key performance metrics
+- Handle user support requests
+- Manage verification processes
 
-Long-term Vision
+## Dependencies (Managed via Swift Package Manager)
+- Firebase iOS SDK (v11.7.0+)
+  - FirebaseAuth
+  - FirebaseFirestore
+  - FirebaseCore
+  - FirebaseMessaging
+  - FirebaseStorage
+  - FirebaseCrashlytics
 
-Expand to additional sports
-Add advanced betting types
-Implement AI-driven odds analysis
-Create social betting features
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Follow coding standards
+4. Add appropriate tests
+5. Submit pull request
+6. Ensure code review approval
 
-Development Guidelines
-Code Style
-
-Follow Swift style guide
-Use SwiftUI best practices
-Implement comprehensive error handling
-Add documentation for all public interfaces
-
-Testing
-
-Unit tests for business logic
-UI tests for critical flows
-Integration tests for API calls
-
-Security
-
-Implement proper authentication flows
-Secure sensitive data
-Follow Firebase security rules
-Regular security audits
-
-Maintenance
-Database
-
-Regular backups
-Performance monitoring
-Data cleanup routines
-Usage analytics
-
-API
-
-Monitor rate limits
-Cache responses
-Handle errors gracefully
-Update odds efficiently
-
-User Management
-
-Monitor user growth
-Track engagement metrics
-Handle support requests
-Manage verification processes
-
-Contributing
-
-Fork the repository
-Create feature branch
-Submit pull request
-Follow code review process
-
-License
+## License
 Proprietary - All rights reserved
-Contact
-[Your Contact Information]
-Acknowledgments
 
-Firebase team
-The Odds API
-SwiftUI community
+## Support
+For technical issues or questions:
+- Check the documentation in the `/Documentation` folder
+- Review Firebase Console for backend issues
+- Check The Odds API documentation for sports data issues
+- Consult the admin dashboard for system health monitoring
+
+## Acknowledgments
+- Firebase team for backend infrastructure
+- The Odds API for sports data
+- SwiftUI community for UI patterns and best practices
+- iOS development community for security and performance guidance
