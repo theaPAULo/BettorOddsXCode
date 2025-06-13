@@ -1,6 +1,6 @@
 // FeaturedGameCard.swift
-// Version: 2.0.0
-// Updated design for featured game cards
+// Version: 2.1.0
+// Updated with local hex support (preserves readability)
 
 import SwiftUI
 
@@ -9,6 +9,32 @@ struct FeaturedGameCard: View {
     let onSelect: () -> Void
     
     @State private var isGlowing = false // For animation
+    
+    // MARK: - Local Hex Helper (avoids conflicts with other extensions)
+    private static func colorFromHex(_ hex: String) -> Color {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+
+        return Color(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
+    }
     
     var body: some View {
         GameCard(
@@ -34,8 +60,8 @@ struct FeaturedGameCard: View {
             .background(
                 LinearGradient(
                     colors: [
-                        Color(hex: "#00E6CA").opacity(0.9), // Your app's primary color
-                        Color(hex: "#00E6CA").opacity(0.7)
+                        Self.colorFromHex("00E6CA").opacity(0.9), // Your app's primary color
+                        Self.colorFromHex("00E6CA").opacity(0.7)
                     ],
                     startPoint: .leading,
                     endPoint: .trailing
@@ -51,8 +77,8 @@ struct FeaturedGameCard: View {
                 .stroke(
                     LinearGradient(
                         colors: [
-                            Color(hex: "#00E6CA").opacity(isGlowing ? 0.7 : 0.3),
-                            Color(hex: "#00E6CA").opacity(isGlowing ? 0.4 : 0.1)
+                            Self.colorFromHex("00E6CA").opacity(isGlowing ? 0.7 : 0.3),
+                            Self.colorFromHex("00E6CA").opacity(isGlowing ? 0.4 : 0.1)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -61,7 +87,7 @@ struct FeaturedGameCard: View {
                 )
         )
         .shadow(
-            color: Color(hex: "#00E6CA").opacity(0.2),
+            color: Self.colorFromHex("00E6CA").opacity(0.2),
             radius: 8,
             x: 0,
             y: 4

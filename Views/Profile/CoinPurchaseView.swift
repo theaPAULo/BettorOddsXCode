@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/26/25.
-//  Version: 2.0.0
+//  Version: 2.1.0 - Updated for EnhancedTheme compatibility
 
 import SwiftUI
 
@@ -17,22 +17,25 @@ struct CoinPurchaseView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: AppTheme.Spacing.lg) {
                     // Info Section
-                    VStack(spacing: 8) {
+                    VStack(spacing: AppTheme.Spacing.sm) {
                         Text("Purchase Coins")
-                            .font(.system(size: 24, weight: .bold))
+                            .font(AppTheme.Typography.largeTitle)
+                            .foregroundColor(AppTheme.Colors.textPrimary)
+                            .fontWeight(.bold)
+                        
                         Text("1 green coin = $1 USD")
-                            .font(.system(size: 16))
-                            .foregroundColor(AppTheme.Text.secondary)
+                            .font(AppTheme.Typography.callout)
+                            .foregroundColor(AppTheme.Colors.textSecondary)
                     }
-                    .padding(.top)
+                    .padding(.top, AppTheme.Spacing.md)
                     
                     // Amount Grid
                     LazyVGrid(columns: [
                         GridItem(.flexible()),
                         GridItem(.flexible())
-                    ], spacing: 16) {
+                    ], spacing: AppTheme.Spacing.md) {
                         ForEach(purchaseAmounts, id: \.self) { amount in
                             PurchaseAmountCard(
                                 amount: amount,
@@ -41,7 +44,7 @@ struct CoinPurchaseView: View {
                             )
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, AppTheme.Spacing.md)
                     
                     // Purchase Button
                     CustomButton(
@@ -50,23 +53,25 @@ struct CoinPurchaseView: View {
                         isLoading: isProcessing,
                         disabled: selectedAmount == nil || isProcessing
                     )
-                    .padding(.horizontal)
+                    .padding(.horizontal, AppTheme.Spacing.md)
                     
                     // Terms
                     Text("By purchasing coins, you agree to our Terms of Service")
-                        .font(.system(size: 12))
-                        .foregroundColor(AppTheme.Text.secondary)
+                        .font(AppTheme.Typography.caption)
+                        .foregroundColor(AppTheme.Colors.textSecondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                        .padding(.bottom)
+                        .padding(.horizontal, AppTheme.Spacing.md)
+                        .padding(.bottom, AppTheme.Spacing.md)
                 }
             }
+            .background(AppTheme.Colors.background)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(AppTheme.Colors.textSecondary)
                 }
             }
         }
@@ -75,8 +80,7 @@ struct CoinPurchaseView: View {
     private func handlePurchase() {
         guard let amount = selectedAmount else { return }
         
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
+        HapticManager.impact(.medium)
         
         isProcessing = true
         
@@ -115,13 +119,13 @@ struct PurchaseAmountCard: View {
     private var cardBackground: some View {
         if isSelected {
             return LinearGradient(
-                colors: [.primary, .primary.opacity(0.8)],
+                colors: [AppTheme.Colors.primary, AppTheme.Colors.primary.opacity(0.8)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         } else {
             return LinearGradient(
-                colors: [Color(uiColor: .systemBackground), Color(uiColor: .systemBackground)],
+                colors: [AppTheme.Colors.cardBackground, AppTheme.Colors.cardBackground],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -130,12 +134,12 @@ struct PurchaseAmountCard: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 12) {
+            VStack(spacing: AppTheme.Spacing.sm) {
                 // Coin Icon
                 ZStack {
                     Circle()
                         .fill(LinearGradient(
-                            colors: [.green.opacity(0.2), .green.opacity(0.1)],
+                            colors: [AppTheme.Colors.greenCoin.opacity(0.2), AppTheme.Colors.greenCoin.opacity(0.1)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ))
@@ -147,31 +151,34 @@ struct PurchaseAmountCard: View {
                 
                 // Amount
                 Text("\(amount)")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .font(AppTheme.Typography.amount)
+                    .foregroundColor(isSelected ? .white : AppTheme.Colors.textPrimary)
+                    .fontWeight(.bold)
                 
                 // Price
                 Text("$\(amount)")
-                    .font(.system(size: 14))
-                    .foregroundColor(isSelected ? .white.opacity(0.9) : .secondary)
+                    .font(AppTheme.Typography.callout)
+                    .foregroundColor(isSelected ? .white.opacity(0.9) : AppTheme.Colors.textSecondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
+            .padding(.vertical, AppTheme.Spacing.lg)
             .background(cardBackground)
-            .cornerRadius(16)
+            .cornerRadius(AppTheme.CornerRadius.large)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? Color.primary : Color.secondary.opacity(0.1),
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
+                    .stroke(isSelected ? AppTheme.Colors.primary : AppTheme.Colors.textSecondary.opacity(0.1),
                            lineWidth: isSelected ? 2 : 1)
             )
             .shadow(
-                color: isSelected ? Color.primary.opacity(0.2) : .clear,
+                color: isSelected ? AppTheme.Colors.primary.opacity(0.2) : .clear,
                 radius: 8,
                 x: 0,
                 y: 4
             )
         }
         .buttonStyle(ScaleButtonStyle())
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(AppTheme.Animation.springQuick, value: isSelected)
     }
 }
 

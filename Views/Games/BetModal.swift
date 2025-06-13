@@ -1,14 +1,13 @@
 //
-//  EnhancedBetModalView.swift
+//  BetModal.swift
 //  BettorOdds
 //
-//  Created by Claude on 6/13/25
-//  Version: 2.0.0 - Modern design with swipe-to-dismiss and better UX
+//  Version: 2.1.0 - Simplified working version without binding issues
 //
 
 import SwiftUI
 
-struct EnhancedBetModalView: View {
+struct BetModal: View {
     let game: Game
     let user: User
     @Binding var isPresented: Bool
@@ -16,13 +15,7 @@ struct EnhancedBetModalView: View {
     @StateObject private var viewModel: BetModalViewModel
     @State private var selectedTeam: String = ""
     @State private var isHomeTeam: Bool = false
-    @State private var showKeypad = false
-    @State private var dragOffset: CGSize = .zero
-    @State private var showSuccessAnimation = false
-    
-    // Animation states
-    @State private var contentOpacity: Double = 0
-    @State private var contentScale: Double = 0.9
+    @FocusState private var isAmountFieldFocused: Bool
     
     init(game: Game, user: User, isPresented: Binding<Bool>) {
         self.game = game
@@ -32,141 +25,84 @@ struct EnhancedBetModalView: View {
     }
     
     var body: some View {
-        ZStack {
-            // Background with blur
-            AppTheme.Colors.background.opacity(0.9)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    dismiss()
-                }
-            
-            // Modal Content
-            VStack(spacing: 0) {
-                // Drag Handle
-                dragHandle
+        NavigationView {
+            ZStack {
+                AppTheme.Colors.background
+                    .ignoresSafeArea()
                 
-                // Modal Card
-                modalCard
+                ScrollView {
+                    VStack(spacing: AppTheme.Spacing.lg) {
+                        // Game Info Header
+                        gameInfoSection
+                        
+                        // Team Selection
+                        teamSelectionSection
+                        
+                        // Coin Type Selection
+                        coinTypeSection
+                        
+                        // Bet Amount
+                        betAmountSection
+                        
+                        // Potential Winnings
+                        potentialWinningsSection
+                        
+                        // Place Bet Button
+                        placeBetButton
+                    }
+                    .padding(AppTheme.Spacing.md)
+                }
             }
-            .offset(y: dragOffset.height)
-            .scaleEffect(contentScale)
-            .opacity(contentOpacity)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        if value.translation.height > 0 {
-                            dragOffset = value.translation
-                        }
+            .navigationTitle("Place Bet")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        isPresented = false
                     }
-                    .onEnded { value in
-                        if value.translation.height > 150 || value.predictedEndTranslation.height > 300 {
-                            dismiss()
-                        } else {
-                            withAnimation(AppTheme.Animation.spring) {
-                                dragOffset = .zero
-                            }
-                        }
-                    }
-            )
-            
-            // Success Animation Overlay
-            if showSuccessAnimation {
-                successOverlay
+                    .foregroundColor(AppTheme.Colors.textSecondary)
+                }
+            }
+            .alert("Success!", isPresented: $viewModel.showSuccess) {
+                Button("OK") {
+                    isPresented = false
+                }
+            } message: {
+                Text("Your bet has been placed successfully!")
             }
         }
         .onAppear {
-            withAnimation(AppTheme.Animation.spring) {
-                contentOpacity = 1.0
-                contentScale = 1.0
-            }
+            viewModel.clearValidation()
         }
-        .onChange(of: viewModel.showSuccess) { _, newValue in
-            if newValue {
-                showSuccessState()
-            }
+        .onChange(of: viewModel.betAmount) { _, _ in
+            viewModel.validateBet()
         }
         .errorHandling(viewModel: viewModel)
     }
     
-    // MARK: - Drag Handle
+    // MARK: - Game Info Section
     
-    private var dragHandle: some View {
-        RoundedRectangle(cornerRadius: 3)
-            .fill(AppTheme.Colors.textTertiary)
-            .frame(width: 40, height: 6)
-            .padding(.top, AppTheme.Spacing.md)
-    }
-    
-    // MARK: - Modal Card
-    
-    private var modalCard: some View {
-        VStack(spacing: AppTheme.Spacing.xl) {
-            // Header with close button and game info
-            headerSection
+    private var gameInfoSection: some View {
+        VStack(spacing: AppTheme.Spacing.sm) {
+            Text("\(game.awayTeam) @ \(game.homeTeam)")
+                .font(AppTheme.Typography.title2)
+                .foregroundColor(AppTheme.Colors.textPrimary)
+                .multilineTextAlignment(.center)
             
-            // Team Selection
-            teamSelectionSection
+            Text(game.time.formatted(date: .abbreviated, time: .shortened))
+                .font(AppTheme.Typography.callout)
+                .foregroundColor(AppTheme.Colors.textSecondary)
             
-            // Coin Type Selection
-            coinTypeSection
-            
-            // Bet Amount Section
-            betAmountSection
-            
-            // Potential Winnings
-            potentialWinningsSection
-            
-            // Place Bet Button
-            placeBetButton
+            Text(game.league)
+                .font(AppTheme.Typography.caption)
+                .foregroundColor(AppTheme.Colors.textTertiary)
+                .padding(.horizontal, AppTheme.Spacing.sm)
+                .padding(.vertical, AppTheme.Spacing.xs)
+                .background(AppTheme.Colors.cardBackground)
+                .cornerRadius(AppTheme.CornerRadius.small)
         }
-        .padding(AppTheme.Spacing.xl)
-        .background(AppTheme.Colors.cardBackground)
-        .cornerRadius(AppTheme.CornerRadius.xlarge, corners: [.topLeft, .topRight])
-        .shadow(
-            color: AppTheme.Shadow.large.color,
-            radius: AppTheme.Shadow.large.radius,
-            x: AppTheme.Shadow.large.x,
-            y: AppTheme.Shadow.large.y
-        )
-    }
-    
-    // MARK: - Header Section
-    
-    private var headerSection: some View {
-        VStack(spacing: AppTheme.Spacing.md) {
-            HStack {
-                // Themed close button (no more blue!)
-                Button(action: dismiss) {
-                    Image(systemName: "xmark")
-                        .font(.title2)
-                        .foregroundColor(AppTheme.Colors.textSecondary)
-                        .padding(AppTheme.Spacing.sm)
-                        .background(AppTheme.Colors.backgroundSecondary)
-                        .cornerRadius(AppTheme.CornerRadius.medium)
-                }
-                .hapticFeedback(.light)
-                
-                Spacer()
-                
-                // Game time and date (better placement)
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(game.time.formatted(date: .abbreviated, time: .omitted))
-                        .font(AppTheme.Typography.caption)
-                        .foregroundColor(AppTheme.Colors.textTertiary)
-                    
-                    Text(game.time.formatted(date: .omitted, time: .shortened))
-                        .font(AppTheme.Typography.callout)
-                        .foregroundColor(AppTheme.Colors.textSecondary)
-                        .fontWeight(.semibold)
-                }
-            }
-            
-            // Enhanced title
-            Text("Place Your Bet")
-                .font(AppTheme.Typography.largeTitle)
-                .foregroundColor(.white)
-                .fontWeight(.bold)
-        }
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
     }
     
     // MARK: - Team Selection
@@ -174,66 +110,37 @@ struct EnhancedBetModalView: View {
     private var teamSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             Text("Select Team")
-                .font(AppTheme.Typography.title2)
-                .foregroundColor(.white)
-                .fontWeight(.bold)
+                .font(AppTheme.Typography.title3)
+                .foregroundColor(AppTheme.Colors.textPrimary)
             
             HStack(spacing: AppTheme.Spacing.md) {
-                // Away Team
-                teamSelectionCard(
-                    team: game.awayTeam,
+                // Away Team Button
+                TeamSelectionButton(
+                    teamName: game.awayTeam,
                     spread: game.awaySpread,
                     isSelected: selectedTeam == game.awayTeam,
-                    isHome: false
-                )
+                    teamColors: game.awayTeamColors
+                ) {
+                    selectedTeam = game.awayTeam
+                    isHomeTeam = false
+                    HapticManager.selection()
+                }
                 
-                // Home Team
-                teamSelectionCard(
-                    team: game.homeTeam,
+                // Home Team Button
+                TeamSelectionButton(
+                    teamName: game.homeTeam,
                     spread: game.homeSpread,
                     isSelected: selectedTeam == game.homeTeam,
-                    isHome: true
-                )
+                    teamColors: game.homeTeamColors
+                ) {
+                    selectedTeam = game.homeTeam
+                    isHomeTeam = true
+                    HapticManager.selection()
+                }
             }
         }
-    }
-    
-    private func teamSelectionCard(team: String, spread: String, isSelected: Bool, isHome: Bool) -> some View {
-        Button(action: {
-            HapticManager.selection()
-            withAnimation(AppTheme.Animation.springQuick) {
-                selectedTeam = team
-                isHomeTeam = isHome
-            }
-        }) {
-            VStack(spacing: AppTheme.Spacing.sm) {
-                Text(team)
-                    .font(AppTheme.Typography.title3)
-                    .foregroundColor(.white)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
-                
-                Text(spread)
-                    .font(AppTheme.Typography.amount)
-                    .foregroundColor(AppTheme.Colors.primary)
-                    .fontWeight(.bold)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(AppTheme.Spacing.lg)
-            .background(
-                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
-                    .fill(isSelected ? AppTheme.Colors.primary.opacity(0.2) : AppTheme.Colors.backgroundSecondary)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
-                            .stroke(
-                                isSelected ? AppTheme.Colors.primary : Color.clear,
-                                lineWidth: 2
-                            )
-                    )
-            )
-        }
-        .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(AppTheme.Animation.springQuick, value: isSelected)
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
     }
     
     // MARK: - Coin Type Selection
@@ -241,68 +148,33 @@ struct EnhancedBetModalView: View {
     private var coinTypeSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             Text("Select Coin Type")
-                .font(AppTheme.Typography.title2)
-                .foregroundColor(.white)
-                .fontWeight(.bold)
+                .font(AppTheme.Typography.title3)
+                .foregroundColor(AppTheme.Colors.textPrimary)
             
             HStack(spacing: AppTheme.Spacing.md) {
                 // Yellow Coins
-                coinTypeCard(
-                    coinType: .yellow,
-                    emoji: "💛",
-                    title: "Play Coins",
-                    balance: user.yellowCoins,
-                    isSelected: viewModel.selectedCoinType == .yellow
-                )
+                CoinSelectionButton(
+                    type: .yellow,
+                    isSelected: viewModel.selectedCoinType == .yellow,
+                    balance: user.yellowCoins
+                ) {
+                    viewModel.selectedCoinType = .yellow
+                    HapticManager.selection()
+                }
                 
                 // Green Coins
-                coinTypeCard(
-                    coinType: .green,
-                    emoji: "💚",
-                    title: "Real Coins",
-                    balance: user.greenCoins,
-                    isSelected: viewModel.selectedCoinType == .green
-                )
+                CoinSelectionButton(
+                    type: .green,
+                    isSelected: viewModel.selectedCoinType == .green,
+                    balance: user.greenCoins
+                ) {
+                    viewModel.selectedCoinType = .green
+                    HapticManager.selection()
+                }
             }
         }
-    }
-    
-    private func coinTypeCard(coinType: CoinType, emoji: String, title: String, balance: Int, isSelected: Bool) -> some View {
-        Button(action: {
-            HapticManager.selection()
-            withAnimation(AppTheme.Animation.springQuick) {
-                viewModel.selectedCoinType = coinType
-            }
-        }) {
-            VStack(spacing: AppTheme.Spacing.sm) {
-                Text(emoji)
-                    .font(.title)
-                
-                Text(title)
-                    .font(AppTheme.Typography.callout)
-                    .foregroundColor(.white)
-                    .fontWeight(.semibold)
-                
-                Text("Balance: \(balance)")
-                    .font(AppTheme.Typography.caption)
-                    .foregroundColor(AppTheme.Colors.textSecondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(AppTheme.Spacing.lg)
-            .background(
-                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
-                    .fill(isSelected ? coinType == .yellow ? AppTheme.Colors.yellowCoin.opacity(0.2) : AppTheme.Colors.greenCoin.opacity(0.2) : AppTheme.Colors.backgroundSecondary)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
-                            .stroke(
-                                isSelected ? (coinType == .yellow ? AppTheme.Colors.yellowCoin : AppTheme.Colors.greenCoin) : Color.clear,
-                                lineWidth: 2
-                            )
-                    )
-            )
-        }
-        .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(AppTheme.Animation.springQuick, value: isSelected)
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
     }
     
     // MARK: - Bet Amount Section
@@ -310,32 +182,18 @@ struct EnhancedBetModalView: View {
     private var betAmountSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             Text("Bet Amount")
-                .font(AppTheme.Typography.title2)
-                .foregroundColor(.white)
-                .fontWeight(.bold)
+                .font(AppTheme.Typography.title3)
+                .foregroundColor(AppTheme.Colors.textPrimary)
             
-            // Amount Input with enhanced styling
             HStack {
                 Text(viewModel.coinTypeEmoji)
                     .font(.title2)
                 
                 TextField("0", text: $viewModel.betAmount)
-                    .font(AppTheme.Typography.amountLarge)
-                    .foregroundColor(.white)
                     .keyboardType(.numberPad)
-                    .textFieldStyle(PlainTextFieldStyle())
-                    .onTapGesture {
-                        showKeypad = true
-                    }
-                    .focused($showKeypad)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .focused($isAmountFieldFocused)
             }
-            .padding(AppTheme.Spacing.lg)
-            .background(AppTheme.Colors.backgroundSecondary)
-            .cornerRadius(AppTheme.CornerRadius.large)
-            .overlay(
-                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
-                    .stroke(AppTheme.Colors.primary.opacity(0.3), lineWidth: 1)
-            )
             
             // Validation message
             if let validationMessage = viewModel.validationMessage {
@@ -346,11 +204,13 @@ struct EnhancedBetModalView: View {
             
             // Daily limit for green coins
             if viewModel.selectedCoinType == .green {
-                Text("Daily limit: \(user.dailyGreenCoinsUsed)/\(Configuration.Settings.dailyGreenCoinLimit)")
+                Text("Daily limit: \(user.dailyGreenCoinsUsed)/100")
                     .font(AppTheme.Typography.caption)
                     .foregroundColor(AppTheme.Colors.textSecondary)
             }
         }
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
     }
     
     // MARK: - Potential Winnings
@@ -377,6 +237,7 @@ struct EnhancedBetModalView: View {
                     .stroke(AppTheme.Colors.success.opacity(0.3), lineWidth: 1)
             )
         }
+        .padding(.horizontal, AppTheme.Spacing.lg)
     }
     
     // MARK: - Place Bet Button
@@ -386,7 +247,7 @@ struct EnhancedBetModalView: View {
             placeBet()
         }) {
             HStack {
-                if viewModel.isLoading {
+                if viewModel.isProcessing {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.8)
@@ -400,116 +261,144 @@ struct EnhancedBetModalView: View {
             .padding(AppTheme.Spacing.lg)
             .background(
                 RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
-                    .fill(viewModel.canPlaceBet ? AppTheme.Colors.primary : AppTheme.Colors.buttonBackgroundDisabled)
+                    .fill(viewModel.canPlaceBet && !selectedTeam.isEmpty ? AppTheme.Colors.primary : AppTheme.Colors.buttonBackgroundDisabled)
             )
             .foregroundColor(.white)
         }
-        .disabled(!viewModel.canPlaceBet || viewModel.isLoading)
-        .scaleEffect(viewModel.canPlaceBet ? 1.0 : 0.98)
-        .animation(AppTheme.Animation.springQuick, value: viewModel.canPlaceBet)
-        .hapticFeedback(.medium)
+        .disabled(!viewModel.canPlaceBet || selectedTeam.isEmpty || viewModel.isProcessing)
+        .padding(.horizontal, AppTheme.Spacing.lg)
+        .padding(.bottom, AppTheme.Spacing.lg)
     }
     
-    // MARK: - Success Overlay
-    
-    private var successOverlay: some View {
-        ZStack {
-            AppTheme.Colors.background.opacity(0.95)
-                .ignoresSafeArea()
-            
-            VStack(spacing: AppTheme.Spacing.xl) {
-                // Success animation
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(AppTheme.Colors.success)
-                    .scaleEffect(showSuccessAnimation ? 1.0 : 0.1)
-                    .animation(AppTheme.Animation.bounce, value: showSuccessAnimation)
-                
-                Text("Bet Placed Successfully!")
-                    .font(AppTheme.Typography.largeTitle)
-                    .foregroundColor(.white)
-                    .fontWeight(.bold)
-                    .opacity(showSuccessAnimation ? 1.0 : 0)
-                    .animation(AppTheme.Animation.standard.delay(0.2), value: showSuccessAnimation)
-                
-                Button("Continue") {
-                    dismiss()
-                }
-                .primaryButtonStyle()
-                .opacity(showSuccessAnimation ? 1.0 : 0)
-                .animation(AppTheme.Animation.standard.delay(0.4), value: showSuccessAnimation)
-            }
-        }
-    }
-    
-    // MARK: - Methods
-    
-    private func dismiss() {
-        HapticManager.impact(.light)
-        showKeypad = false // Dismiss keyboard
-        
-        withAnimation(AppTheme.Animation.standard) {
-            contentOpacity = 0
-            contentScale = 0.9
-            dragOffset = CGSize(width: 0, height: 500)
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            isPresented = false
-        }
-    }
+    // MARK: - Actions
     
     private func placeBet() {
-        guard !selectedTeam.isEmpty else { return }
-        
-        HapticManager.impact(.medium)
+        guard !selectedTeam.isEmpty else {
+            viewModel.validationMessage = "Please select a team"
+            return
+        }
         
         Task {
-            let success = await viewModel.placeBet(team: selectedTeam, isHomeTeam: isHomeTeam)
-            if success {
-                HapticManager.notification(.success)
-            } else {
+            do {
+                let success = try await viewModel.placeBet(team: selectedTeam, isHomeTeam: isHomeTeam)
+                if success {
+                    HapticManager.notification(.success)
+                } else {
+                    HapticManager.notification(.error)
+                }
+            } catch {
                 HapticManager.notification(.error)
             }
         }
     }
+}
+
+// MARK: - Supporting Views
+
+struct TeamSelectionButton: View {
+    let teamName: String
+    let spread: String
+    let isSelected: Bool
+    let teamColors: TeamColors
+    let action: () -> Void
     
-    private func showSuccessState() {
-        withAnimation(AppTheme.Animation.spring) {
-            showSuccessAnimation = true
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: AppTheme.Spacing.sm) {
+                Text(teamName)
+                    .font(AppTheme.Typography.callout)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                
+                Text(spread)
+                    .font(AppTheme.Typography.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white.opacity(0.9))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppTheme.Spacing.md)
+            .background(
+                LinearGradient(
+                    colors: [
+                        teamColors.primary.opacity(isSelected ? 1.0 : 0.7),
+                        teamColors.secondary.opacity(isSelected ? 0.8 : 0.5)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .cornerRadius(AppTheme.CornerRadius.medium)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                    .stroke(
+                        isSelected ? Color.white.opacity(0.4) : Color.clear,
+                        lineWidth: 2
+                    )
+            )
         }
-        
-        // Auto-dismiss after 2 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            dismiss()
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct CoinSelectionButton: View {
+    let type: CoinType
+    let isSelected: Bool
+    let balance: Int
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: AppTheme.Spacing.sm) {
+                Text(type.emoji)
+                    .font(.system(size: 32))
+                
+                Text(type.displayName)
+                    .font(AppTheme.Typography.callout)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppTheme.Colors.textPrimary)
+                
+                Text("Balance: \(balance)")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppTheme.Spacing.md)
+            .background(buttonBackground)
+            .cornerRadius(AppTheme.CornerRadius.medium)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                    .stroke(buttonBorder, lineWidth: 2)
+            )
         }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private var buttonBackground: Color {
+        if isSelected {
+            return type == .yellow ? AppTheme.Colors.yellowCoin.opacity(0.2) : AppTheme.Colors.greenCoin.opacity(0.2)
+        }
+        return AppTheme.Colors.cardBackground
+    }
+    
+    private var buttonBorder: Color {
+        if isSelected {
+            return type == .yellow ? AppTheme.Colors.yellowCoin : AppTheme.Colors.greenCoin
+        }
+        return type == .yellow ? AppTheme.Colors.yellowCoin.opacity(0.3) : AppTheme.Colors.greenCoin.opacity(0.3)
     }
 }
 
-// MARK: - View Extensions
-
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-}
-
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius)
-        )
-        return Path(path.cgPath)
-    }
-}
-
-extension View {
-    func focused(_ condition: FocusState<Bool>.Binding) -> some View {
-        self.focused(condition)
-    }
+// MARK: - Preview
+#Preview {
+    BetModal(
+        game: Game.sampleGames[0],
+        user: User(
+            id: "preview",
+            displayName: "Preview User",
+            authProvider: "google.com"
+        ),
+        isPresented: .constant(true)
+    )
 }

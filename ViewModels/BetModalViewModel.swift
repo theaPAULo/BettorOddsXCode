@@ -3,18 +3,19 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/27/25.
-//  Version: 1.0.0
+//  Version: 2.0.0 - Updated to inherit from BaseViewModel with all needed properties
 //
 
 import SwiftUI
 
 @MainActor
-class BetModalViewModel: ObservableObject {
+class BetModalViewModel: BaseViewModel {
     // MARK: - Published Properties
     @Published var selectedCoinType: CoinType = .yellow
     @Published var betAmount: String = ""
     @Published var isProcessing = false
-    @Published var errorMessage: String?
+    @Published var showSuccess = false
+    @Published var validationMessage: String?
     
     // MARK: - Private Properties
     private let game: Game
@@ -52,6 +53,19 @@ class BetModalViewModel: ObservableObject {
         return String(format: "%.0f", amount)
     }
     
+    var coinTypeEmoji: String {
+        return selectedCoinType.emoji
+    }
+    
+    var errorMessage: String? {
+        return currentError?.localizedDescription
+    }
+    
+    // Override isLoading to use our isProcessing state
+    override var isLoading: Bool {
+        return isProcessing
+    }
+    
     // MARK: - Initialization
     init(game: Game, user: User) {
         self.game = game
@@ -64,6 +78,8 @@ class BetModalViewModel: ObservableObject {
         } catch {
             fatalError("Failed to initialize repositories: \(error)")
         }
+        
+        super.init()
     }
     
     // MARK: - Public Methods
@@ -75,7 +91,7 @@ class BetModalViewModel: ObservableObject {
     func placeBet(team: String, isHomeTeam: Bool) async throws -> Bool {
         guard !isProcessing else { return false }
         guard let amount = Int(betAmount), amount > 0 else {
-            errorMessage = "Invalid bet amount"
+            validationMessage = "Invalid bet amount"
             return false
         }
         
@@ -83,15 +99,17 @@ class BetModalViewModel: ObservableObject {
         if selectedCoinType == .green {
             // Check daily limit
             if amount > remainingDailyLimit {
-                errorMessage = "This bet would exceed your daily limit"
+                validationMessage = "This bet would exceed your daily limit"
                 return false
             }
         }
         
         isProcessing = true
-        // Place the defer block here, before the do-catch
-        defer { isProcessing = false }
-        errorMessage = nil
+        validationMessage = nil
+        
+        defer {
+            isProcessing = false
+        }
         
         do {
             // Create bet
@@ -105,39 +123,60 @@ class BetModalViewModel: ObservableObject {
                 isHomeTeam: isHomeTeam
             )
             
-            // Place bet using repository
+            // Save bet
             try await betRepository.save(bet)
             
-            // Update user's daily limit for green coins
+            // Update user balance
+            var updatedUser = user
             if selectedCoinType == .green {
-                try await userRepository.updateDailyGreenCoinsUsage(
-                    userId: user.id,
-                    amount: amount
-                )
+                updatedUser.greenCoins -= amount
+                updatedUser.dailyGreenCoinsUsed += amount
+            } else {
+                updatedUser.yellowCoins -= amount
             }
             
+            try await userRepository.save(updatedUser)
+            
+            // Show success
+            showSuccess = true
+            
             return true
+            
         } catch {
-            errorMessage = error.localizedDescription
+            handleError(AppError.unknown(error.localizedDescription))
             return false
         }
     }
     
-    // MARK: - Helper Methods
-    
-    /// Validates bet amount
-    private func validateBetAmount(_ amount: Int) -> Bool {
-        // Minimum bet amount
-        guard amount >= 1 else { return false }
-        
-        // Maximum bet amount (could be moved to settings)
-        guard amount <= 100 else { return false }
-        
-        // For green coins, check daily limit
-        if selectedCoinType == .green {
-            return amount <= remainingDailyLimit
+    /// Validates the current bet configuration
+    func validateBet() {
+        guard let amount = Int(betAmount), amount > 0 else {
+            validationMessage = "Enter a valid bet amount"
+            return
         }
         
-        return true
+        if selectedCoinType == .green {
+            if amount > remainingDailyLimit {
+                validationMessage = "Exceeds daily limit (\(remainingDailyLimit) remaining)"
+                return
+            }
+            
+            if amount > user.greenCoins {
+                validationMessage = "Insufficient green coins"
+                return
+            }
+        } else {
+            if amount > user.yellowCoins {
+                validationMessage = "Insufficient yellow coins"
+                return
+            }
+        }
+        
+        validationMessage = nil
+    }
+    
+    /// Clears all validation messages
+    func clearValidation() {
+        validationMessage = nil
     }
 }

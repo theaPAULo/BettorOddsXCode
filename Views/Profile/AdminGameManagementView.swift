@@ -2,16 +2,8 @@
 //  AdminGameManagementView.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/30/25.
-//
-
-
-//
-//  AdminGameManagementView.swift
-//  BettorOdds
-//
 //  Created by Claude on 1/30/25
-//  Version: 1.0.0
+//  Version: 1.1.0 - Updated for EnhancedTheme compatibility
 //
 
 import SwiftUI
@@ -23,70 +15,74 @@ struct AdminGameManagementView: View {
     var body: some View {
         List {
             // Featured Game Section
-            // Featured Game Section
             Section {
                 if let featuredGame = viewModel.games.first(where: { $0.isFeatured }) {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                         Text("\(featuredGame.homeTeam) vs \(featuredGame.awayTeam)")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
+                            .font(AppTheme.Typography.title3)
+                            .foregroundColor(AppTheme.Colors.textPrimary)
                         
                         Text(featuredGame.time.formatted(date: .abbreviated, time: .shortened))
-                            .font(.subheadline)
-                            .foregroundColor(.textSecondary)
+                            .font(AppTheme.Typography.callout)
+                            .foregroundColor(AppTheme.Colors.textSecondary)
                     }
                 } else {
                     Text("No featured game selected")
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(AppTheme.Colors.textSecondary)
                 }
                 
                 Button("Select Featured Game") {
                     viewModel.showGameSelector = true
                 }
-                .foregroundColor(AppTheme.Brand.primary)
+                .foregroundColor(AppTheme.Colors.primary)
             } header: {
                 Text("Featured Game")
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
             } footer: {
                 Text("Featured games appear at the top of the list.")
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
             }
             
-            // Game Management Section
+            // All Games Section
             Section {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                } else {
-                    ForEach(viewModel.games) { game in
-                        GameManagementRow(
-                            game: game,
-                            onToggleLock: {
-                                Task { await viewModel.toggleGameLock(game) }
-                            },
-                            onToggleVisibility: {
-                                Task { await viewModel.toggleGameVisibility(game) }
+                ForEach(viewModel.games) { game in
+                    GameManagementRow(
+                        game: game,
+                        onToggleLock: {
+                            Task {
+                                await viewModel.toggleGameLock(game)
                             }
-                        )
-                    }
+                        },
+                        onToggleVisibility: {
+                            Task {
+                                await viewModel.toggleGameVisibility(game)
+                            }
+                        }
+                    )
                 }
             } header: {
-                Text("Game Management")
-                    .foregroundColor(.textSecondary)
+                Text("All Games")
+                    .foregroundColor(AppTheme.Colors.textSecondary)
             }
         }
         .navigationTitle("Game Management")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarItems(trailing: Button("Done") { dismiss() })
-        .sheet(isPresented: $viewModel.showGameSelector) {
-            GameSelectorView(
-                games: viewModel.availableGames,
-                onSelect: { game in
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Refresh") {
                     Task {
-                        await viewModel.setFeaturedGame(game)
+                        await viewModel.loadGames()
                     }
                 }
-            )
+                .foregroundColor(AppTheme.Colors.primary)
+            }
+        }
+        .sheet(isPresented: $viewModel.showGameSelector) {
+            GameSelectorView(games: viewModel.games) { game in
+                Task {
+                    await viewModel.setFeaturedGame(game)
+                }
+            }
         }
         .alert("Success", isPresented: $viewModel.showSuccess) {
             Button("OK", role: .cancel) { }
@@ -109,26 +105,26 @@ struct FeaturedGameRow: View {
     let game: Game
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
             Text("\(game.homeTeam) vs \(game.awayTeam)")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
+                .font(AppTheme.Typography.title3)
+                .foregroundColor(AppTheme.Colors.textPrimary)
             
             HStack {
                 Image(systemName: "clock.fill")
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
                 Text(game.time.formatted(date: .abbreviated, time: .shortened))
-                    .font(.subheadline)
-                    .foregroundColor(.textSecondary)
+                    .font(AppTheme.Typography.callout)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
             }
             
             if let lastUpdated = game.lastUpdatedAt {
                 Text("Last updated: \(lastUpdated.formatted())")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
+                    .font(AppTheme.Typography.caption)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, AppTheme.Spacing.xs)
     }
 }
 
@@ -138,19 +134,19 @@ struct GameManagementRow: View {
     let onToggleVisibility: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
             Text("\(game.homeTeam) vs \(game.awayTeam)")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
+                .font(AppTheme.Typography.title3)
+                .foregroundColor(AppTheme.Colors.textPrimary)
             
             HStack {
                 // Locked Toggle
                 HStack {
                     Text("Locked")
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(AppTheme.Colors.textSecondary)
                     Button(action: onToggleLock) {
                         Image(systemName: game.isLocked ? "lock.fill" : "lock.open.fill")
-                            .foregroundColor(game.isLocked ? .red : .green)
+                            .foregroundColor(game.isLocked ? AppTheme.Colors.error : AppTheme.Colors.success)
                     }
                 }
                 
@@ -159,21 +155,21 @@ struct GameManagementRow: View {
                 // Visible Toggle
                 HStack {
                     Text("Visible")
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(AppTheme.Colors.textSecondary)
                     Button(action: onToggleVisibility) {
                         Image(systemName: game.isVisible ? "eye.fill" : "eye.slash.fill")
-                            .foregroundColor(game.isVisible ? .green : .gray)
+                            .foregroundColor(game.isVisible ? AppTheme.Colors.success : AppTheme.Colors.textSecondary)
                     }
                 }
             }
             
             if let lastUpdated = game.lastUpdatedAt {
                 Text("Last updated: \(lastUpdated.formatted())")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
+                    .font(AppTheme.Typography.caption)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, AppTheme.Spacing.xs)
     }
 }
 
@@ -191,17 +187,26 @@ struct GameSelectorView: View {
                 }) {
                     VStack(alignment: .leading) {
                         Text("\(game.homeTeam) vs \(game.awayTeam)")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
+                            .font(AppTheme.Typography.title3)
+                            .foregroundColor(AppTheme.Colors.textPrimary)
                         
                         Text(game.time.formatted(date: .abbreviated, time: .shortened))
-                            .font(.subheadline)
-                            .foregroundColor(.textSecondary)
+                            .font(AppTheme.Typography.callout)
+                            .foregroundColor(AppTheme.Colors.textSecondary)
                     }
                 }
+                .buttonStyle(PlainButtonStyle())
             }
             .navigationTitle("Select Featured Game")
-            .navigationBarItems(trailing: Button("Cancel") { dismiss() })
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(AppTheme.Colors.textSecondary)
+                }
+            }
         }
     }
 }

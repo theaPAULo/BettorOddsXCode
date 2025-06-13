@@ -2,8 +2,8 @@
 //  GameCard.swift
 //  BettorOdds
 //
-//  Version: 2.2.0 - Added winning team and score display
-//  Updated: February 2025
+//  Version: 2.3.0 - Fixed formattedDateTime and complex expression issues
+//  Updated: June 2025
 
 import SwiftUI
 
@@ -20,6 +20,13 @@ struct GameCard: View {
     
     private var selectedTeam: TeamSelection? {
         isTeamSelected ? globalSelectedTeam?.team : nil
+    }
+    
+    // MARK: - Computed Properties
+    private var formattedDateTime: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, h:mm a"
+        return formatter.string(from: game.time)
     }
     
     private var gradientOverlay: LinearGradient {
@@ -56,13 +63,13 @@ struct GameCard: View {
     }
     
     private var cardBorder: some View {
-        RoundedRectangle(cornerRadius: 16)
+        let awayPrimaryColor = game.awayTeamColors.primary.opacity(0.4)
+        let homePrimaryColor = game.homeTeamColors.primary.opacity(0.4)
+        
+        return RoundedRectangle(cornerRadius: 16)
             .stroke(
                 LinearGradient(
-                    colors: [
-                        game.awayTeamColors.primary.opacity(0.4),
-                        game.homeTeamColors.primary.opacity(0.4)
-                    ],
+                    colors: [awayPrimaryColor, homePrimaryColor],
                     startPoint: .leading,
                     endPoint: .trailing
                 ),
@@ -93,7 +100,7 @@ struct GameCard: View {
                     // Game Time
                     if game.status == .upcoming {
                         HStack(spacing: 4) {
-                            Text(game.formattedDateTime)
+                            Text(formattedDateTime)
                                 .font(.system(size: 14))
                         }
                         .foregroundColor(.white.opacity(0.9))
@@ -164,7 +171,7 @@ struct GameCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(cardBorder)
         .shadow(
-            color: Color.backgroundPrimary.opacity(0.2),
+            color: Color.black.opacity(0.2),
             radius: 10,
             x: 0,
             y: 4
@@ -189,7 +196,7 @@ struct GameCard: View {
 // MARK: - Team Button Component
 struct TeamButton: View {
     // MARK: - Properties
-    let game: Game  // Added game property
+    let game: Game
     let teamName: String
     let spread: String
     let isSelected: Bool
@@ -198,61 +205,86 @@ struct TeamButton: View {
     let isHomeTeam: Bool
     let action: () -> Void
     
+    private var displayScore: String? {
+        guard let score = score else { return nil }
+        return isHomeTeam ? "\(score.homeScore)" : "\(score.awayScore)"
+    }
+    
+    private var isWinningTeam: Bool {
+        guard let score = score else { return false }
+        if isHomeTeam {
+            return score.homeScore > score.awayScore
+        } else {
+            return score.awayScore > score.homeScore
+        }
+    }
+    
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 12) {
-                // Team Name with potential winning checkmark
-                HStack(spacing: 4) {
-                    Text(teamName)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2, reservesSpace: true)
-                        .minimumScaleFactor(0.8)
-                    
-                    if game.isCompleted && game.winningTeam == teamName {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.system(size: 16))
-                    }
-                }
+            VStack(spacing: 8) {
+                // Team Name
+                Text(teamName)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
                 
-                if let score = score {
-                    // Show final score
-                    Text("\(isHomeTeam ? score.homeScore : score.awayScore)")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                // Score or Spread
+                if let displayScore = displayScore {
+                    // Show actual score
+                    HStack(spacing: 4) {
+                        Text(displayScore)
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(isWinningTeam ? .green : .white)
+                        
+                        if isWinningTeam {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(.yellow)
+                        }
+                    }
                 } else {
-                    // Show spread for upcoming games
+                    // Show spread
                     Text(spread)
-                        .font(.system(size: 22, weight: .heavy))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 16)
             .background(
-                Group {
-                    if isSelected {
-                        Color.white.opacity(0.2)
-                    }
-                }
+                createTeamButtonBackground()
             )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .cornerRadius(12)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isSelected ? Color.white.opacity(0.4) : Color.clear,
-                        lineWidth: 2
-                    )
+                createTeamButtonBorder()
             )
         }
         .buttonStyle(PlainButtonStyle())
     }
+    
+    private func createTeamButtonBackground() -> some View {
+        let primaryColor = teamColors.primary
+        let secondaryColor = teamColors.secondary
+        
+        return LinearGradient(
+            colors: [
+                primaryColor.opacity(isSelected ? 0.8 : 0.6),
+                secondaryColor.opacity(isSelected ? 0.6 : 0.4)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    private func createTeamButtonBorder() -> some View {
+        let borderColor = isSelected ? Color.white.opacity(0.4) : Color.clear
+        
+        return RoundedRectangle(cornerRadius: 12)
+            .stroke(borderColor, lineWidth: 2)
+    }
 }
+
 
 // MARK: - View Modifier for Press Events
 struct PressEventsModifier: ViewModifier {
@@ -305,5 +337,5 @@ extension View {
         )
     }
     .padding()
-    .background(Color.backgroundPrimary)
+    .background(Color.black)
 }

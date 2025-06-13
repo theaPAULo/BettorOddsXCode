@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Claude on 6/13/25
-//  Version: 2.0.0 - Modern UI with vibrant design and animations
+//  Version: 2.1.0 - Fixed to use correct BetModal component
 //
 
 import SwiftUI
@@ -60,10 +60,11 @@ struct EnhancedGamesView: View {
         }
         .errorHandling(viewModel: viewModel)
         .fullScreenCover(isPresented: $showBetModal) {
-            if let game = selectedGame {
-                EnhancedBetModalView(
+            if let game = selectedGame,
+               let user = authViewModel.user {
+                BetModal(
                     game: game,
-                    user: authViewModel.user ?? User(id: "", authProvider: ""),
+                    user: user,
                     isPresented: $showBetModal
                 )
             }
@@ -74,74 +75,56 @@ struct EnhancedGamesView: View {
     
     private var headerSection: some View {
         VStack(spacing: AppTheme.Spacing.lg) {
-            // App Title with modern font
-            HStack {
-                Text("BettorOdds")
-                    .font(AppTheme.Typography.appTitle)
-                    .foregroundColor(AppTheme.Colors.primary)
-                    .fontWeight(.bold)
+            // App Title
+            Text("BettorOdds")
+                .font(AppTheme.Typography.appTitle)
+                .foregroundColor(.white)
+                .fontWeight(.bold)
+            
+            // Balance Cards
+            HStack(spacing: AppTheme.Spacing.md) {
+                BalanceCard(
+                    emoji: "🟡",
+                    amount: authViewModel.user?.yellowCoins ?? 0,
+                    label: "Play Coins",
+                    color: AppTheme.Colors.yellowCoin
+                )
                 
-                Spacer()
-                
-                // Win/Loss Streak Indicator
-                if let user = authViewModel.user {
-                    StreakIndicator(wins: 5, losses: 2) // TODO: Get real data from user
-                        .scaleEffect(cardsAppeared ? 1.0 : 0.8)
-                        .opacity(cardsAppeared ? 1.0 : 0.0)
-                        .animation(AppTheme.Animation.spring.delay(0.3), value: cardsAppeared)
-                }
+                BalanceCard(
+                    emoji: "💚",
+                    amount: authViewModel.user?.greenCoins ?? 0,
+                    label: "Real Coins",
+                    color: AppTheme.Colors.greenCoin
+                )
             }
             
-            // Balance Display
-            balanceSection
+            // Daily Limit Progress (for green coins)
+            if let user = authViewModel.user {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                    Text("Daily Limit")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundColor(AppTheme.Colors.textSecondary)
+                    
+                    ProgressView(
+                        value: Double(user.dailyGreenCoinsUsed),
+                        total: 100.0  // Daily limit
+                    )
+                    .progressViewStyle(LinearProgressViewStyle(tint: AppTheme.Colors.greenCoin))
+                    .frame(height: 4)
+                    
+                    Text("💚 \(user.dailyGreenCoinsUsed)/100")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundColor(AppTheme.Colors.textTertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             
-            // League Selector (Fixed glow issue)
+            // League Selector
             leagueSelector
         }
     }
     
-    // MARK: - Balance Section
-    
-    private var balanceSection: some View {
-        HStack(spacing: AppTheme.Spacing.md) {
-            // Yellow Coins
-            BalanceCard(
-                emoji: "💛",
-                amount: authViewModel.user?.yellowCoins ?? 0,
-                label: "Play Coins",
-                color: AppTheme.Colors.yellowCoin
-            )
-            
-            // Green Coins
-            BalanceCard(
-                emoji: "💚",
-                amount: authViewModel.user?.greenCoins ?? 0,
-                label: "Real Coins",
-                color: AppTheme.Colors.greenCoin
-            )
-            
-            // Daily Limit Progress
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-                Text("Daily Limit")
-                    .font(AppTheme.Typography.caption)
-                    .foregroundColor(AppTheme.Colors.textSecondary)
-                
-                ProgressView(
-                    value: Double(authViewModel.user?.dailyGreenCoinsUsed ?? 0),
-                    total: Double(Configuration.Settings.dailyGreenCoinLimit)
-                )
-                .progressViewStyle(LinearProgressViewStyle(tint: AppTheme.Colors.greenCoin))
-                .frame(height: 4)
-                
-                Text("💚 \(authViewModel.user?.dailyGreenCoinsUsed ?? 0)/\(Configuration.Settings.dailyGreenCoinLimit)")
-                    .font(AppTheme.Typography.caption)
-                    .foregroundColor(AppTheme.Colors.textTertiary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-    
-    // MARK: - League Selector (Fixed Glow)
+    // MARK: - League Selector
     
     private var leagueSelector: some View {
         HStack(spacing: AppTheme.Spacing.md) {
@@ -189,7 +172,7 @@ struct EnhancedGamesView: View {
             showBetModal = true
         }) {
             VStack(spacing: 0) {
-                // Unified Header Section (Fixed clunky overlays)
+                // Header Section
                 HStack {
                     // Featured badge
                     HStack(spacing: AppTheme.Spacing.xs) {
@@ -207,80 +190,76 @@ struct EnhancedGamesView: View {
                     
                     Spacer()
                     
-                    // Status and time in unified design
+                    // Status and time
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("UPCOMING")
                             .font(AppTheme.Typography.caption)
                             .foregroundColor(AppTheme.Colors.pending)
                             .fontWeight(.bold)
                         
-                        Text(game.time.formatted(date: .abbreviated, time: .shortened))
-                            .font(AppTheme.Typography.caption)
-                            .foregroundColor(AppTheme.Colors.textSecondary)
+                        Text(game.time.formatted(date: .omitted, time: .shortened))
+                            .font(AppTheme.Typography.callout)
+                            .foregroundColor(AppTheme.Colors.textTertiary)
+                            .fontWeight(.light)
                     }
-                    .padding(.horizontal, AppTheme.Spacing.sm)
-                    .padding(.vertical, AppTheme.Spacing.xs)
-                    .background(AppTheme.Colors.cardBackgroundElevated)
-                    .cornerRadius(AppTheme.CornerRadius.small)
                 }
-                .padding(AppTheme.Spacing.md)
+                .padding(.horizontal, AppTheme.Spacing.lg)
+                .padding(.top, AppTheme.Spacing.lg)
                 
-                // Game Content
-                VStack(spacing: AppTheme.Spacing.lg) {
-                    // Team vs Team
-                    HStack {
-                        VStack {
-                            Text(game.awayTeam)
-                                .font(AppTheme.Typography.title2)
-                                .foregroundColor(.white)
-                                .fontWeight(.bold)
-                                .multilineTextAlignment(.center)
-                            
-                            Text(game.awaySpread)
-                                .font(AppTheme.Typography.amount)
-                                .foregroundColor(AppTheme.Colors.primary)
-                                .fontWeight(.bold)
-                        }
+                // Teams Section
+                HStack {
+                    // Away Team
+                    VStack {
+                        Text(game.awayTeam)
+                            .font(AppTheme.Typography.title2)
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
+                            .multilineTextAlignment(.center)
                         
-                        Spacer()
-                        
-                        // VS indicator
-                        VStack(spacing: 4) {
-                            Text("@")
-                                .font(AppTheme.Typography.title1)
-                                .foregroundColor(AppTheme.Colors.textTertiary)
-                                .fontWeight(.light)
-                        }
-                        
-                        Spacer()
-                        
-                        VStack {
-                            Text(game.homeTeam)
-                                .font(AppTheme.Typography.title2)
-                                .foregroundColor(.white)
-                                .fontWeight(.bold)
-                                .multilineTextAlignment(.center)
-                            
-                            Text(game.homeSpread)
-                                .font(AppTheme.Typography.amount)
-                                .foregroundColor(AppTheme.Colors.primary)
-                                .fontWeight(.bold)
-                        }
+                        Text(game.awaySpread)
+                            .font(AppTheme.Typography.amount)
+                            .foregroundColor(AppTheme.Colors.primary)
+                            .fontWeight(.bold)
                     }
                     
-                    // Total Bets Indicator
-                    if game.totalBets > 0 {
-                        HStack {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .foregroundColor(AppTheme.Colors.primary)
-                            Text("\(game.totalBets) active bets")
-                                .font(AppTheme.Typography.callout)
-                                .foregroundColor(AppTheme.Colors.textSecondary)
-                        }
+                    Spacer()
+                    
+                    // VS Badge
+                    Text("@")
+                        .font(AppTheme.Typography.title1)
+                        .foregroundColor(AppTheme.Colors.textTertiary)
+                        .fontWeight(.light)
+                    
+                    Spacer()
+                    
+                    // Home Team
+                    VStack {
+                        Text(game.homeTeam)
+                            .font(AppTheme.Typography.title2)
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
+                            .multilineTextAlignment(.center)
+                        
+                        Text(game.homeSpread)
+                            .font(AppTheme.Typography.amount)
+                            .foregroundColor(AppTheme.Colors.primary)
+                            .fontWeight(.bold)
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.lg)
                 .padding(.bottom, AppTheme.Spacing.lg)
+                
+                // Total Bets Indicator
+                if game.totalBets > 0 {
+                    HStack {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .foregroundColor(AppTheme.Colors.primary)
+                        Text("\(game.totalBets) active bets")
+                            .font(AppTheme.Typography.callout)
+                            .foregroundColor(AppTheme.Colors.textSecondary)
+                    }
+                    .padding(.bottom, AppTheme.Spacing.lg)
+                }
             }
         }
         .elevatedCardStyle()
@@ -302,11 +281,8 @@ struct EnhancedGamesView: View {
                     if game.id != viewModel.featuredGame?.id {
                         upcomingGameCard(game)
                             .scaleEffect(cardsAppeared ? 1.0 : 0.9)
-                            .opacity(cardsAppeared ? 1.0 : 0.0)
-                            .animation(
-                                AppTheme.Animation.spring.delay(Double(index) * 0.1 + 0.4),
-                                value: cardsAppeared
-                            )
+                            .opacity(cardsAppeared ? 1.0 : 0)
+                            .animation(AppTheme.Animation.spring.delay(0.3 + Double(index) * 0.1), value: cardsAppeared)
                     }
                 }
             }
@@ -322,34 +298,41 @@ struct EnhancedGamesView: View {
             showBetModal = true
         }) {
             HStack {
+                // Game Info
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
                     Text("\(game.awayTeam) @ \(game.homeTeam)")
-                        .font(AppTheme.Typography.body)
+                        .font(AppTheme.Typography.callout)
                         .foregroundColor(.white)
                         .fontWeight(.semibold)
                     
-                    Text(game.time.formatted(date: .omitted, time: .shortened))
+                    Text(game.time.formatted(date: .abbreviated, time: .shortened))
                         .font(AppTheme.Typography.caption)
                         .foregroundColor(AppTheme.Colors.textSecondary)
+                    
+                    Text("Spread: \(game.homeSpread)")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundColor(AppTheme.Colors.primary)
+                        .fontWeight(.medium)
                 }
                 
                 Spacer()
                 
-                HStack(spacing: AppTheme.Spacing.md) {
+                // Bet Count
+                if game.totalBets > 0 {
                     VStack {
-                        Text(game.awaySpread)
-                            .font(AppTheme.Typography.callout)
+                        Text("\(game.totalBets)")
+                            .font(AppTheme.Typography.amount)
                             .foregroundColor(AppTheme.Colors.primary)
                             .fontWeight(.bold)
-                    }
-                    
-                    VStack {
-                        Text(game.homeSpread)
-                            .font(AppTheme.Typography.callout)
-                            .foregroundColor(AppTheme.Colors.primary)
-                            .fontWeight(.bold)
+                        Text("bets")
+                            .font(AppTheme.Typography.caption)
+                            .foregroundColor(AppTheme.Colors.textSecondary)
                     }
                 }
+                
+                Image(systemName: "chevron.right")
+                    .foregroundColor(AppTheme.Colors.textTertiary)
+                    .font(.caption)
             }
             .padding(AppTheme.Spacing.md)
         }

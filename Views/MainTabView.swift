@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  BettorOdds
 //
-//  Version: 2.3.0 - Fixed theme compatibility and added missing view imports
+//  Version: 2.4.0 - Fixed to use correct enhanced view names
 //
 
 import SwiftUI
@@ -14,15 +14,15 @@ struct MainTabView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Games Tab - NO NavigationView wrapper
-            GamesView()
+            // Games Tab - Using EnhancedGamesView since that's what you have
+            EnhancedGamesView()
                 .tabItem {
                     Label("Games", systemImage: "sportscourt.fill")
                 }
                 .tag(0)
             
-            // My Bets Tab - NO NavigationView wrapper
-            MyBetsView()
+            // My Bets Tab - Using EnhancedMyBetsView since that's what you have
+            EnhancedMyBetsView()
                 .tabItem {
                     Label("My Bets", systemImage: "list.bullet.clipboard")
                 }
@@ -104,6 +104,3 @@ struct AdminAuthView: View {
         }
     }
 }
-
-// Note: GamesView, MyBetsView, ProfileView, and AdminDashboardView
-// are defined in their respective files in the Views folder
