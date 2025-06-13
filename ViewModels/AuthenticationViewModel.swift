@@ -13,6 +13,13 @@ import GoogleSignIn
 import AuthenticationServices
 import SwiftUI
 
+// MARK: - Authentication State
+enum AuthState: Equatable {
+    case loading
+    case signedIn
+    case signedOut
+}
+
 @MainActor
 class AuthenticationViewModel: ObservableObject {
     // MARK: - Published Properties
@@ -23,6 +30,9 @@ class AuthenticationViewModel: ObservableObject {
     
     // MARK: - Private Properties
     private let db = Firestore.firestore()
+    
+    // Keep reference to Apple Sign-In coordinator
+    private var appleSignInCoordinator: AppleSignInCoordinator?
     
     // MARK: - Initialization
     init() {
@@ -137,9 +147,6 @@ class AuthenticationViewModel: ObservableObject {
         // Keep coordinator alive
         self.appleSignInCoordinator = coordinator
     }
-    
-    // Keep reference to coordinator
-    private var appleSignInCoordinator: AppleSignInCoordinator?
     
     // MARK: - Common Authentication Handling
     
@@ -375,15 +382,8 @@ extension AppleSignInCoordinator: ASAuthorizationControllerPresentationContextPr
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
-            return ASPresentationAnchor()
+            fatalError("Unable to find window for Apple Sign-In presentation")
         }
         return window
     }
-}
-
-// MARK: - Auth State Enum
-enum AuthState {
-    case signedIn
-    case signedOut
-    case loading
 }

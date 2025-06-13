@@ -63,11 +63,6 @@ extension BetRepository {
         }
     }
     
-    // MARK: - Configuration Aliases (for easier migration)
-    
-    /// Convenience typealias for Configuration access
-    typealias AppConfiguration = Configuration
-    
     // MARK: - Result Extensions
     
     extension Result where Failure == Error {
