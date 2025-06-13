@@ -3,10 +3,11 @@
 //  BettorOdds
 //
 //  Created by Claude on 1/31/25.
-//  Version: 3.0.0 - Updated for Google/Apple Sign-In authentication
+//  Version: 3.2.0 - Fixed compiler type-checking issue by breaking down complex views
 //
 
 import SwiftUI
+import UIKit  // Required for UINotificationFeedbackGenerator
 
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
@@ -25,225 +26,154 @@ struct SettingsView: View {
         NavigationView {
             List {
                 // Account Information Section
-                Section {
-                    if let user = authViewModel.user {
-                        HStack {
-                            // Profile image or avatar
-                            if let profileImageURL = user.profileImageURL,
-                               let url = URL(string: profileImageURL) {
-                                AsyncImage(url: url) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 40, height: 40)
-                                        .clipShape(Circle())
-                                } placeholder: {
-                                    Circle()
-                                        .fill(Color("Primary").opacity(0.2))
-                                        .frame(width: 40, height: 40)
-                                        .overlay(
-                                            Text(user.displayName?.prefix(1).uppercased() ?? "U")
-                                                .font(.system(size: 16, weight: .bold))
-                                                .foregroundColor(Color("Primary"))
-                                        )
-                                }
-                            } else {
-                                Circle()
-                                    .fill(Color("Primary").opacity(0.2))
-                                    .frame(width: 40, height: 40)
-                                    .overlay(
-                                        Text(user.displayName?.prefix(1).uppercased() ?? "U")
-                                            .font(.system(size: 16, weight: .bold))
-                                            .foregroundColor(Color("Primary"))
-                                    )
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(user.displayName ?? "Unknown User")
-                                    .font(.headline)
-                                    .foregroundColor(.textPrimary)
-                                
-                                HStack(spacing: 4) {
-                                    Image(systemName: user.authProvider == "google.com" ? "globe" : "applelogo")
-                                        .font(.system(size: 12))
-                                    Text(user.authProvider == "google.com" ? "Google Account" : "Apple Account")
-                                        .font(.system(size: 12))
-                                }
-                                .foregroundColor(.textSecondary)
-                            }
-                            
-                            Spacer()
-                        }
-                        .padding(.vertical, 8)
-                    }
-                } header: {
-                    Text("Account")
-                        .foregroundColor(.textSecondary)
-                }
+                accountSection
                 
-                // Appearance Section
-                Section {
-                    HStack {
-                        Label("Dark Mode", systemImage: "moon.fill")
-                            .foregroundColor(.textPrimary)
-                        Spacer()
-                        Toggle("", isOn: $isDarkMode)
-                            .tint(.primary)
-                    }
-                } header: {
-                    Text("Appearance")
-                        .foregroundColor(.textSecondary)
-                } footer: {
-                    Text("Changes app theme between light and dark mode")
-                        .foregroundColor(.textSecondary)
-                }
+                // App Preferences Section
+                preferencesSection
                 
                 // Security Section
-                if BiometricHelper.shared.canUseBiometrics {
-                    Section {
-                        HStack {
-                            Label(
-                                "Require \(BiometricHelper.shared.biometricType.description)",
-                                systemImage: BiometricHelper.shared.biometricType.systemImageName
-                            )
-                            .foregroundColor(.textPrimary)
-                            Spacer()
-                            Toggle("", isOn: $requireBiometrics)
-                                .tint(.primary)
-                        }
-                    } header: {
-                        Text("Security")
-                            .foregroundColor(.textSecondary)
-                    } footer: {
-                        Text("When enabled, biometric authentication will be required for all real money transactions.")
-                            .foregroundColor(.textSecondary)
-                    }
-                    .onChange(of: requireBiometrics) { newValue in
-                        handleBiometricToggle(isEnabled: newValue)
-                    }
-                }
+                securitySection
                 
-                // Notifications Section
-                Section {
-                    HStack {
-                        Label("Enable Notifications", systemImage: "bell.fill")
-                            .foregroundColor(.textPrimary)
-                        Spacer()
-                        Toggle("", isOn: $notificationsEnabled)
-                            .tint(.primary)
-                    }
-                } header: {
-                    Text("Notifications")
-                        .foregroundColor(.textSecondary)
-                } footer: {
-                    Text("Receive updates about your bets and important events")
-                        .foregroundColor(.textSecondary)
-                }
+                // About Section
+                aboutSection
                 
-                // Coin Balances Section
-                if let user = authViewModel.user {
-                    Section {
-                        HStack {
-                            Label("Play Coins", systemImage: "gamecontroller")
-                                .foregroundColor(.textPrimary)
-                            Spacer()
-                            Text("🟡 \(user.yellowCoins)")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.textPrimary)
-                        }
-                        
-                        HStack {
-                            Label("Real Coins", systemImage: "dollarsign")
-                                .foregroundColor(.textPrimary)
-                            Spacer()
-                            Text("💚 \(user.greenCoins)")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.textPrimary)
-                        }
-                        
-                        HStack {
-                            Label("Daily Limit Used", systemImage: "chart.bar")
-                                .foregroundColor(.textPrimary)
-                            Spacer()
-                            Text("\(user.dailyGreenCoinsUsed)/100")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(user.dailyGreenCoinsUsed > 80 ? .statusWarning : .textPrimary)
-                        }
-                    } header: {
-                        Text("Coin Balances")
-                            .foregroundColor(.textSecondary)
-                    }
-                }
-                
-                // App Info Section
-                Section {
-                    InfoRow(title: "Version", value: "1.0.0")
-                    InfoRow(
-                        title: "Biometric Status",
-                        value: BiometricHelper.shared.biometricType.description
-                    )
-                    
-                    Button(action: {
-                        // Open privacy policy
-                    }) {
-                        Label("Privacy Policy", systemImage: "doc.text.fill")
-                            .foregroundColor(.textPrimary)
-                    }
-                    
-                    Button(action: {
-                        // Open terms of service
-                    }) {
-                        Label("Terms of Service", systemImage: "doc.text.fill")
-                            .foregroundColor(.textPrimary)
-                    }
-                } header: {
-                    Text("About")
-                        .foregroundColor(.textSecondary)
-                }
+                // Account Actions Section
+                accountActionsSection
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color.backgroundPrimary)
-            .scrollContentBackground(.hidden)
-            .navigationBarItems(trailing: Button("Done") {
-                savePreferences()
-                dismiss()
-            })
-            .sheet(isPresented: $showingBiometricPrompt) {
-                BiometricPrompt(
-                    title: "Confirm Settings Change",
-                    subtitle: "Authenticate to change security settings"
-                ) { success in
-                    if success {
-                        if let user = authViewModel.user {
-                            Task {
-                                await updateUserPreferences(for: user)
-                            }
-                        }
-                    } else {
-                        requireBiometrics = !requireBiometrics
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
                     }
+                    .foregroundColor(Color("Primary"))
                 }
             }
-            .alert("Disable Biometric Authentication?", isPresented: $showingDisableBiometricsAlert) {
+            .onAppear {
+                loadUserPreferences()
+            }
+            // Biometric Authentication Alerts
+            .alert("Enable Biometric Authentication", isPresented: $showingBiometricPrompt) {
+                Button("Cancel", role: .cancel) {
+                    requireBiometrics = false
+                }
+                Button("Enable") {
+                    Task {
+                        await enableBiometrics()
+                    }
+                }
+            } message: {
+                Text("Use Face ID or Touch ID to secure your Green Coin transactions?")
+            }
+            .alert("Disable Biometric Authentication", isPresented: $showingDisableBiometricsAlert) {
                 Button("Cancel", role: .cancel) {
                     requireBiometrics = true
                 }
                 Button("Disable", role: .destructive) {
-                    showingBiometricPrompt = true
+                    Task {
+                        await disableBiometrics()
+                    }
                 }
             } message: {
                 Text("Disabling biometric authentication will reduce the security of your real money transactions. Are you sure you want to continue?")
             }
-            .onAppear {
-                // Load current user preferences
-                if let user = authViewModel.user {
-                    requireBiometrics = user.preferences.requireBiometricsForGreenCoins
-                }
+        }
+    }
+}
+
+// MARK: - View Components
+
+extension SettingsView {
+    
+    /// Account information section
+    private var accountSection: some View {
+        Section("Account") {
+            if let user = authViewModel.user {
+                AccountInfoRow(user: user)
             }
         }
     }
     
+    /// App preferences section
+    private var preferencesSection: some View {
+        Section("Preferences") {
+            // Dark Mode Toggle
+            PreferenceRow(
+                icon: "moon.fill",
+                title: "Dark Mode",
+                isOn: $isDarkMode
+            )
+            
+            // Notifications Toggle
+            PreferenceRow(
+                icon: "bell.fill",
+                title: "Push Notifications",
+                isOn: $notificationsEnabled
+            )
+        }
+    }
+    
+    /// Security settings section
+    private var securitySection: some View {
+        Section("Security") {
+            BiometricRow(
+                isEnabled: $requireBiometrics,
+                onToggle: handleBiometricToggle
+            )
+        }
+    }
+    
+    /// About section
+    private var aboutSection: some View {
+        Section("About") {
+            InfoRow(title: "Version", value: "3.2.0")
+            InfoRow(title: "Build", value: "1")
+            
+            Button(action: {
+                // Handle contact support
+            }) {
+                ActionRow(
+                    icon: "envelope",
+                    title: "Contact Support",
+                    showChevron: true
+                )
+            }
+        }
+    }
+    
+    /// Account actions section
+    private var accountActionsSection: some View {
+        Section {
+            Button(action: {
+                Task {
+                    await authViewModel.signOut()
+                }
+            }) {
+                ActionRow(
+                    icon: "rectangle.portrait.and.arrow.right",
+                    title: "Sign Out",
+                    isDestructive: true
+                )
+            }
+        }
+    }
+}
+
+
+
+// MARK: - Helper Methods
+
+extension SettingsView {
+    
+    /// Loads current user preferences
+    private func loadUserPreferences() {
+        if let user = authViewModel.user {
+            requireBiometrics = user.preferences.requireBiometricsForGreenCoins
+        }
+    }
+    
+    /// Handles the biometric toggle change
     private func handleBiometricToggle(isEnabled: Bool) {
         if !isEnabled {
             showingDisableBiometricsAlert = true
@@ -252,6 +182,17 @@ struct SettingsView: View {
         }
     }
     
+    /// Enables biometric authentication
+    private func enableBiometrics() async {
+        await savePreferences()
+    }
+    
+    /// Disables biometric authentication
+    private func disableBiometrics() async {
+        await savePreferences()
+    }
+    
+    /// Saves user preferences to Firebase
     private func savePreferences() {
         if let user = authViewModel.user {
             Task {
@@ -260,6 +201,7 @@ struct SettingsView: View {
         }
     }
     
+    /// Updates user preferences in Firebase
     private func updateUserPreferences(for user: User) async {
         do {
             var updatedUser = user
@@ -267,20 +209,184 @@ struct SettingsView: View {
             
             try await authViewModel.updateUser(updatedUser)
             
+            // Success feedback
             await MainActor.run {
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
             }
         } catch {
+            // Error feedback and revert toggle
             await MainActor.run {
                 requireBiometrics = !requireBiometrics
-                let generator = UINotificationFeedGenerator()
+                let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.error)
             }
         }
     }
 }
 
+// MARK: - Supporting Views
+
+/// Displays user account information
+struct AccountInfoRow: View {
+    let user: User
+    
+    var body: some View {
+        HStack {
+            // Profile image or avatar
+            ProfileImageView(user: user)
+            
+            // User details
+            VStack(alignment: .leading, spacing: 2) {
+                Text(user.displayName ?? "Unknown User")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                
+                AuthProviderView(user: user)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+/// Profile image view component
+struct ProfileImageView: View {
+    let user: User
+    
+    var body: some View {
+        Group {
+            if let profileImageURL = user.profileImageURL,
+               let url = URL(string: profileImageURL) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                } placeholder: {
+                    DefaultProfileImage(user: user)
+                }
+            } else {
+                DefaultProfileImage(user: user)
+            }
+        }
+    }
+}
+
+/// Default profile image when no URL is available
+struct DefaultProfileImage: View {
+    let user: User
+    
+    var body: some View {
+        Circle()
+            .fill(Color("Primary").opacity(0.2))
+            .frame(width: 40, height: 40)
+            .overlay(
+                Text(user.displayName?.prefix(1).uppercased() ?? "U")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(Color("Primary"))
+            )
+    }
+}
+
+/// Auth provider display component
+struct AuthProviderView: View {
+    let user: User
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: user.authProvider == "google.com" ? "globe" : "applelogo")
+                .font(.system(size: 12))
+            Text(user.authProvider == "google.com" ? "Google" : "Apple")
+                .font(.caption)
+        }
+        .foregroundColor(.textSecondary)
+    }
+}
+
+/// Preference toggle row component
+struct PreferenceRow: View {
+    let icon: String
+    let title: String
+    @Binding var isOn: Bool
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(Color("Primary"))
+                .frame(width: 20)
+            
+            Text(title)
+                .foregroundColor(.textPrimary)
+            
+            Spacer()
+            
+            Toggle("", isOn: $isOn)
+                .toggleStyle(SwitchToggleStyle(tint: Color("Primary")))
+        }
+    }
+}
+
+/// Biometric authentication row component
+struct BiometricRow: View {
+    @Binding var isEnabled: Bool
+    let onToggle: (Bool) -> Void
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "faceid")
+                .foregroundColor(Color("Primary"))
+                .frame(width: 20)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Biometric Authentication")
+                    .foregroundColor(.textPrimary)
+                Text("Required for Green Coin transactions")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+            }
+            
+            Spacer()
+            
+            Toggle("", isOn: $isEnabled)
+                .toggleStyle(SwitchToggleStyle(tint: Color("Primary")))
+                .onChange(of: isEnabled) { _, newValue in
+                    onToggle(newValue)
+                }
+        }
+    }
+}
+
+/// Action row component for buttons
+struct ActionRow: View {
+    let icon: String
+    let title: String
+    var showChevron: Bool = false
+    var isDestructive: Bool = false
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(isDestructive ? .red : Color("Primary"))
+                .frame(width: 20)
+            
+            Text(title)
+                .foregroundColor(isDestructive ? .red : .textPrimary)
+            
+            Spacer()
+            
+            if showChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(.textSecondary)
+            }
+        }
+    }
+}
+
+/// Info row component for displaying key-value pairs
 struct InfoRow: View {
     let title: String
     let value: String
@@ -295,6 +401,8 @@ struct InfoRow: View {
         }
     }
 }
+
+// MARK: - Preview
 
 #Preview {
     SettingsView()

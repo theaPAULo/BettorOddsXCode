@@ -73,11 +73,8 @@ struct LoginView: View {
                             
                             // Welcome message
                             VStack(spacing: 8) {
-                                Text("Welcome Back")
-                                    .font(.system(size: 28, weight: .semibold))
-                                    .foregroundColor(.textPrimary)
                                 
-                                Text("Sign in to start betting with friends")
+                                Text("Sign in & start cooking")
                                     .font(.system(size: 16))
                                     .foregroundColor(.textSecondary)
                                     .multilineTextAlignment(.center)
