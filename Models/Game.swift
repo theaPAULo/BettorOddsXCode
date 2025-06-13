@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Claude on 1/30/25
-//  Version: 2.1.0
+//  Version: 2.1.1 - Added sampleGames extension for previews
 //
 
 import SwiftUI
@@ -50,7 +50,6 @@ struct Game: Identifiable, Codable {
         case lastUpdatedBy, lastUpdatedAt
         case manuallyFeatured
         case score  // Add this
-
     }
     
     // MARK: - Computed Properties
@@ -83,74 +82,10 @@ struct Game: Identifiable, Codable {
         return value >= 0 ? "+\(String(format: "%.1f", value))" : String(format: "%.1f", value)
     }
     
-    var formattedTime: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: time)
-    }
-    
-    var formattedDateTime: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d • h:mm a" // Shows like "Feb 2 • 7:40 PM"
-        return formatter.string(from: time)
-    }
-    
-    // MARK: - Lock Timing Properties
-    static let lockBeforeGameMinutes: Double = 5
-    static let warningBeforeLockMinutes: Double = 1
-    static let visualIndicatorStartMinutes: Double = 15
-
-    var timeUntilGame: TimeInterval {
-        return time.timeIntervalSinceNow
-    }
-
-    var timeUntilLock: TimeInterval {
-        return timeUntilGame - (Self.lockBeforeGameMinutes * 60)
-    }
-
     var shouldBeLocked: Bool {
-        // Lock if:
-        // 1. Within 5 minutes of start time OR
-        // 2. Game has started
-        return timeUntilLock <= 0 || time <= Date()
-    }
-
-    var isApproachingLock: Bool {
-        let warningTime = Self.warningBeforeLockMinutes * 60
-        return timeUntilLock > 0 && timeUntilLock <= warningTime
-    }
-
-    var needsVisualIndicator: Bool {
-        let indicatorTime = Self.visualIndicatorStartMinutes * 60
-        return timeUntilLock > 0 && timeUntilLock <= indicatorTime
-    }
-
-    var visualIntensity: Double {
-        guard needsVisualIndicator else { return 0.0 }
-        
-        let indicatorTime = Self.visualIndicatorStartMinutes * 60
-        let intensity = 1.0 - (timeUntilLock / indicatorTime)
-        return min(max(intensity, 0.0), 1.0)
-    }
-
-    var formattedTimeUntilLock: String {
-        guard timeUntilLock > 0 else { return "Locked" }
-        
-        let minutes = Int(timeUntilLock / 60)
-        let seconds = Int(timeUntilLock.truncatingRemainder(dividingBy: 60))
-        
-        if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
-        } else {
-            return "\(seconds)s"
-        }
-    }
-
-    var lockWarningMessage: String? {
-        if isApproachingLock {
-            return "Game locking in \(formattedTimeUntilLock)"
-        }
-        return nil
+        // Lock games 15 minutes before start time
+        let lockTime = time.addingTimeInterval(-15 * 60) // 15 minutes before
+        return Date() >= lockTime
     }
     
     // MARK: - Initialization
@@ -169,7 +104,7 @@ struct Game: Identifiable, Codable {
          isLocked: Bool = false,
          lastUpdatedBy: String? = nil,
          lastUpdatedAt: Date? = nil,
-        score: GameScore? = nil) {  // Add this parameter{
+         score: GameScore? = nil) {
         self.id = id
         self.homeTeam = homeTeam
         self.awayTeam = awayTeam
@@ -185,6 +120,7 @@ struct Game: Identifiable, Codable {
         self.isLocked = isLocked
         self.lastUpdatedBy = lastUpdatedBy
         self.lastUpdatedAt = lastUpdatedAt
+        self.score = score
     }
     
     // MARK: - Codable Implementation
@@ -204,6 +140,7 @@ struct Game: Identifiable, Codable {
         lastUpdatedBy = try container.decodeIfPresent(String.self, forKey: .lastUpdatedBy)
         lastUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .lastUpdatedAt)
         manuallyFeatured = try container.decodeIfPresent(Bool.self, forKey: .manuallyFeatured) ?? false
+        score = try container.decodeIfPresent(GameScore.self, forKey: .score)
         
         homeTeamColors = TeamColors.getTeamColors(homeTeam)
         awayTeamColors = TeamColors.getTeamColors(awayTeam)
@@ -272,6 +209,7 @@ struct Game: Identifiable, Codable {
             "isVisible": isVisible,
             "isLocked": isLocked
         ]
+        
         // Add score if available
         if let score = score {
             dict["score"] = score.toDictionary()
@@ -287,116 +225,77 @@ struct Game: Identifiable, Codable {
         
         return dict
     }
-    
-    // MARK: - Debug
-    func debugDescription() -> String {
-        return """
-        Game ID: \(id)
-        Home Team: \(homeTeam)
-        Away Team: \(awayTeam)
-        Time: \(time)
-        League: \(league)
-        Spread: \(spread)
-        Is Featured: \(isFeatured)
-        Is Locked: \(isLocked)
-        """
-    }
 }
 
-enum GameStatus: String, Codable {
-    case upcoming     // Not started, accepting bets
-    case locked      // About to start, not accepting bets
-    case inProgress  // Game is live
-    case completed   // Game finished
+// MARK: - Game Status Enum
+enum GameStatus: String, Codable, CaseIterable {
+    case upcoming = "Upcoming"
+    case inProgress = "In Progress"
+    case locked = "Locked"
+    case completed = "Completed"
     
-    var sortPriority: Int {
+    var color: Color {
         switch self {
-        case .upcoming: return 0     // Show first
-        case .inProgress: return 1   // Show second
-        case .locked: return 2       // Show third
-        case .completed: return 3    // Show last
-        }
-    }
-    
-    var statusColor: Color {
-        switch self {
-        case .upcoming: return .primary
-        case .locked: return .gray
-        case .inProgress: return .green
-        case .completed: return .secondary
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .upcoming: return "clock"
-        case .locked: return "lock.fill"
-        case .inProgress: return "play.fill"
-        case .completed: return "checkmark.circle.fill"
+        case .upcoming:
+            return .blue
+        case .inProgress:
+            return .orange
+        case .locked:
+            return .red
+        case .completed:
+            return .green
         }
     }
 }
 
-// MARK: - Game Sorting
-extension Array where Element == Game {
-    func sortedByPriority() -> [Game] {
-        self.sorted { game1, game2 in
-            if game1.sortPriority != game2.sortPriority {
-                return game1.sortPriority < game2.sortPriority
-            }
-            return game1.time < game2.time
-        }
-    }
-}
-
-
+// MARK: - Sample Data Extension
+// This extension provides sample games for previews and testing
 extension Game {
-    // In Game.swift
-    var shouldBeVisible: Bool {
-        // If game is not completed, follow isVisible flag
-        if !isCompleted {
-            return isVisible
-        }
-        
-        // For completed games, check if it's past 4am CT the next day
-        let calendar = Calendar.current
-        let timeZone = TimeZone(identifier: "America/Chicago")!
-        let nowCT = Date().convertTo(timeZone: timeZone)
-        
-        // Create 4am threshold for the next day
-        var components = calendar.dateComponents([.year, .month, .day], from: nowCT)
-        components.hour = 4
-        components.minute = 0
-        components.second = 0
-        
-        guard let cutoffTime = calendar.date(from: components) else {
-            return false
-        }
-        
-        // If current time is before 4am, add 1 day to cutoffTime
-        if nowCT < cutoffTime {
-            return true
-        }
-        
-        // Hide if we're past the cutoff time
-        return false
-    }
-    
-    var winningTeam: String? {
-        guard let score = score else { return nil }
-        if score.homeScore > score.awayScore {
-            return homeTeam
-        } else if score.awayScore > score.homeScore {
-            return awayTeam
-        }
-        return nil  // Tie game
-    }
-}
-
-// Helper extension for timezone conversion
-extension Date {
-    func convertTo(timeZone: TimeZone) -> Date {
-        let delta = TimeInterval(timeZone.secondsFromGMT(for: self))
-        return addingTimeInterval(delta)
-    }
+    static var sampleGames: [Game] = [
+        Game(
+            id: "1",
+            homeTeam: "Orlando Magic",
+            awayTeam: "Portland Trail Blazers",
+            time: Calendar.current.date(bySettingHour: 18, minute: 10, second: 0, of: Date()) ?? Date(),
+            league: "NBA",
+            spread: 6.5,  // Magic favored by 6.5
+            totalBets: 1500,
+            homeTeamColors: TeamColors.getTeamColors("Magic"),
+            awayTeamColors: TeamColors.getTeamColors("Trail Blazers")
+        ),
+        Game(
+            id: "2",
+            homeTeam: "Atlanta Hawks",
+            awayTeam: "Toronto Raptors",
+            time: Calendar.current.date(bySettingHour: 18, minute: 40, second: 0, of: Date()) ?? Date(),
+            league: "NBA",
+            spread: 5.0,  // Hawks favored by 5
+            totalBets: 2000,
+            homeTeamColors: TeamColors.getTeamColors("Hawks"),
+            awayTeamColors: TeamColors.getTeamColors("Raptors")
+        ),
+        Game(
+            id: "3",
+            homeTeam: "Miami Heat",
+            awayTeam: "Boston Celtics",
+            time: Calendar.current.date(bySettingHour: 20, minute: 0, second: 0, of: Date()) ?? Date(),
+            league: "NBA",
+            spread: -2.5,  // Heat favored by 2.5
+            totalBets: 3500,
+            homeTeamColors: TeamColors.getTeamColors("Heat"),
+            awayTeamColors: TeamColors.getTeamColors("Celtics"),
+            isFeatured: true
+        ),
+        Game(
+            id: "4",
+            homeTeam: "Los Angeles Lakers",
+            awayTeam: "Golden State Warriors",
+            time: Calendar.current.date(bySettingHour: 22, minute: 30, second: 0, of: Date()) ?? Date(),
+            league: "NBA",
+            spread: 3.0,  // Lakers favored by 3
+            totalBets: 5000,
+            homeTeamColors: TeamColors.getTeamColors("Lakers"),
+            awayTeamColors: TeamColors.getTeamColors("Warriors")
+        )
+    ]
 }

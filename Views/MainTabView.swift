@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  BettorOdds
 //
-//  Version: 2.2.0 - Fixed NavigationView nesting issues
+//  Version: 2.3.0 - Fixed theme compatibility and added missing view imports
 //
 
 import SwiftUI
@@ -49,7 +49,7 @@ struct MainTabView: View {
                     .tag(3)
             }
         }
-        .accentColor(AppTheme.Brand.primary)
+        .accentColor(AppTheme.Colors.primary)
         .sheet(isPresented: $adminNav.requiresAuth) {
             AdminAuthView()
         }
@@ -63,12 +63,10 @@ struct MainTabView: View {
             appearance.configureWithOpaqueBackground()
             UITabBar.appearance().scrollEdgeAppearance = appearance
             
-            let generator = UIImpactFeedbackGenerator(style: .light)
-            generator.prepare()
+            HapticManager.impact(.light)
         }
         .onChange(of: selectedTab) { _ in
-            let generator = UIImpactFeedbackGenerator(style: .light)
-            generator.impactOccurred()
+            HapticManager.impact(.light)
         }
     }
 }
@@ -79,17 +77,18 @@ struct AdminAuthView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
+            VStack(spacing: AppTheme.Spacing.lg) {
                 Image(systemName: "shield.fill")
                     .font(.system(size: 50))
-                    .foregroundColor(AppTheme.Brand.primary)
+                    .foregroundColor(AppTheme.Colors.primary)
                 
                 Text("Admin Authentication Required")
-                    .font(.headline)
+                    .font(AppTheme.Typography.title2)
+                    .foregroundColor(AppTheme.Colors.textPrimary)
                 
                 Text("Please authenticate to access admin features")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                    .font(AppTheme.Typography.callout)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
                 
                 Button("Authenticate") {
@@ -97,11 +96,14 @@ struct AdminAuthView: View {
                         await adminNav.authenticateAdmin()
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryButtonStyle()
             }
-            .padding()
+            .padding(AppTheme.Spacing.lg)
             .navigationTitle("Admin Access")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
+
+// Note: GamesView, MyBetsView, ProfileView, and AdminDashboardView
+// are defined in their respective files in the Views folder

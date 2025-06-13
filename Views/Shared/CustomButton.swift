@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/26/25.
-//  Version: 2.0.0
+//  Version: 2.1.0 - Updated for EnhancedTheme compatibility
 //
 
 import SwiftUI
@@ -23,9 +23,9 @@ struct CustomButton: View {
         var backgroundColor: Color {
             switch self {
             case .primary:
-                return AppTheme.Brand.primary
+                return AppTheme.Colors.primary
             case .secondary:
-                return AppTheme.Brand.secondary
+                return AppTheme.Colors.primaryDark
             case .outline:
                 return .clear
             }
@@ -34,16 +34,16 @@ struct CustomButton: View {
         var textColor: Color {
             switch self {
             case .primary, .secondary:
-                return AppTheme.Text.primary
+                return AppTheme.Colors.textPrimary
             case .outline:
-                return AppTheme.Brand.primary
+                return AppTheme.Colors.primary
             }
         }
         
         var borderColor: Color {
             switch self {
             case .outline:
-                return AppTheme.Brand.primary
+                return AppTheme.Colors.primary
             default:
                 return .clear
             }
@@ -64,10 +64,10 @@ struct CustomButton: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: style.textColor))
                 } else {
                     Text(title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppTheme.Typography.button)
                 }
             }
-            .frame(maxWidth: .infinity) // Add this line to make it full width
+            .frame(maxWidth: .infinity)
             .frame(height: 56)
             .foregroundColor(style.textColor)
             .background(
@@ -82,37 +82,38 @@ struct CustomButton: View {
                             endPoint: .trailing
                         )
                     } else {
-                        style.backgroundColor.opacity(0.3)
+                        AppTheme.Colors.buttonBackgroundDisabled
                     }
                 }
             )
-                        .cornerRadius(16)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    style.borderColor.opacity(disabled ? 0.3 : 1.0),
-                                    lineWidth: style == .outline ? 2 : 1
-                                )
-                        )
-                        .shadow(
-                            color: disabled ? .clear : style.backgroundColor.opacity(0.3),
-                            radius: 8,
-                            x: 0,
-                            y: 4
-                        )
-                        .opacity(disabled ? 0.6 : 1.0)
+            .cornerRadius(AppTheme.CornerRadius.medium)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                    .stroke(
+                        style.borderColor.opacity(disabled ? 0.3 : 1.0),
+                        lineWidth: style == .outline ? 2 : 1
+                    )
+            )
+            .shadow(
+                color: disabled ? .clear : AppTheme.Shadow.medium.color,
+                radius: AppTheme.Shadow.medium.radius,
+                x: AppTheme.Shadow.medium.x,
+                y: AppTheme.Shadow.medium.y
+            )
+            .opacity(disabled ? 0.6 : 1.0)
         }
         .disabled(isLoading || disabled)
     }
 }
 
 #Preview {
-    VStack(spacing: 20) {
+    VStack(spacing: AppTheme.Spacing.lg) {
         CustomButton(title: "Primary Button", action: {})
         CustomButton(title: "Secondary Button", action: {}, style: .secondary)
         CustomButton(title: "Outline Button", action: {}, style: .outline)
         CustomButton(title: "Loading Button", action: {}, isLoading: true)
         CustomButton(title: "Disabled Button", action: {}, disabled: true)
     }
-    .padding()
+    .padding(AppTheme.Spacing.lg)
+    .background(AppTheme.Colors.background)
 }

@@ -2,16 +2,8 @@
 //  BiometricPrompt.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/28/25.
-//
-
-
-//
-//  BiometricPrompt.swift
-//  BettorOdds
-//
 //  Created by Paul Soni on 1/27/25.
-//  Version: 1.0.0
+//  Version: 1.1.0 - Updated for EnhancedTheme compatibility
 //
 
 import SwiftUI
@@ -40,47 +32,61 @@ struct BiometricPrompt: View {
     // MARK: - Body
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
+            VStack(spacing: AppTheme.Spacing.lg) {
                 // Biometric Icon
                 Image(systemName: BiometricHelper.shared.biometricType.systemImageName)
                     .font(.system(size: 64))
-                    .foregroundColor(AppTheme.Brand.primary)
+                    .foregroundColor(AppTheme.Colors.primary)
                 
                 // Title and Subtitle
-                VStack(spacing: 8) {
+                VStack(spacing: AppTheme.Spacing.sm) {
                     Text(title)
-                        .font(.headline)
+                        .font(AppTheme.Typography.title2)
+                        .foregroundColor(AppTheme.Colors.textPrimary)
                         .multilineTextAlignment(.center)
                     
                     Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundColor(AppTheme.Text.secondary)
+                        .font(AppTheme.Typography.callout)
+                        .foregroundColor(AppTheme.Colors.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 
                 // Error Message
                 if let error = errorMessage {
                     Text(error)
-                        .font(.caption)
-                        .foregroundColor(AppTheme.Status.error)
+                        .font(AppTheme.Typography.caption)
+                        .foregroundColor(AppTheme.Colors.error)
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal, AppTheme.Spacing.md)
+                        .padding(.vertical, AppTheme.Spacing.sm)
+                        .background(AppTheme.Colors.error.opacity(0.1))
+                        .cornerRadius(AppTheme.CornerRadius.medium)
                 }
                 
                 // Authenticate Button
                 Button(action: authenticate) {
-                    if isAuthenticating {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                    } else {
-                        Text("Authenticate with \(BiometricHelper.shared.biometricType.description)")
-                            .font(.headline)
+                    HStack {
+                        if isAuthenticating {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        } else {
+                            Text("Authenticate with \(BiometricHelper.shared.biometricType.description)")
+                                .font(AppTheme.Typography.button)
+                        }
                     }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(AppTheme.Colors.primary)
+                    .foregroundColor(.white)
+                    .cornerRadius(AppTheme.CornerRadius.medium)
+                    .shadow(
+                        color: AppTheme.Shadow.medium.color,
+                        radius: AppTheme.Shadow.medium.radius,
+                        x: AppTheme.Shadow.medium.x,
+                        y: AppTheme.Shadow.medium.y
+                    )
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(AppTheme.Brand.primary)
-                .foregroundColor(.white)
-                .cornerRadius(12)
                 .disabled(isAuthenticating)
                 
                 // Cancel Button
@@ -88,9 +94,10 @@ struct BiometricPrompt: View {
                     onAuthenticate(false)
                     dismiss()
                 }
-                .foregroundColor(AppTheme.Text.secondary)
+                .font(AppTheme.Typography.callout)
+                .foregroundColor(AppTheme.Colors.textSecondary)
             }
-            .padding()
+            .padding(AppTheme.Spacing.lg)
             .onAppear(perform: authenticate)
         }
     }
@@ -113,8 +120,7 @@ struct BiometricPrompt: View {
         
         Task {
             // Provide haptic feedback
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            generator.impactOccurred()
+            HapticManager.impact(.medium)
             
             // Attempt authentication
             let (success, error) = await BiometricHelper.shared.authenticate(
@@ -127,12 +133,11 @@ struct BiometricPrompt: View {
                 errorMessage = error
                 
                 if success {
+                    HapticManager.notification(.success)
                     onAuthenticate(true)
                     dismiss()
                 } else {
-                    // Provide error haptic feedback
-                    let generator = UINotificationFeedbackGenerator()
-                    generator.notificationOccurred(.error)
+                    HapticManager.notification(.error)
                 }
             }
         }

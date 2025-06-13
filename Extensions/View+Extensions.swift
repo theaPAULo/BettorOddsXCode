@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/27/25.
-//  Version: 1.1.0
+//  Version: 1.2.0 - Fixed duplicate declarations
 //
 
 import SwiftUI
@@ -48,12 +48,6 @@ extension View {
     func standardCornerRadius() -> some View {
         self.cornerRadius(12)
     }
-    
-    /// Applies corner radius to specific corners
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-    
     /// Applies modifier if condition is met
     @ViewBuilder func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
         if condition {
@@ -86,20 +80,6 @@ extension View {
     }
 }
 
-// MARK: - Helper Shapes
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-    
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius)
-        )
-        return Path(path.cgPath)
-    }
-}
 
 // MARK: - Shimmer Effect
 struct ShimmeringView: ViewModifier {
