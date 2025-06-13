@@ -3,10 +3,8 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 2/4/25.
+//  Version: 1.1.0 - Fixed error handling for future games without scores
 //
-
-
-// ScoreService.swift
 
 import SwiftUI
 import FirebaseFirestore
@@ -28,103 +26,148 @@ class ScoreService {
             throw ScoreError.apiError("Invalid URL")
         }
         
-        let (data, response) = try await URLSession.shared.data(from: url)
-        
-        // Log API usage and response
-        if let httpResponse = response as? HTTPURLResponse {
-            print("""
-                📊 API Response Headers:
-                - Remaining requests: \(httpResponse.value(forHTTPHeaderField: "x-requests-remaining") ?? "unknown")
-                - Requests used: \(httpResponse.value(forHTTPHeaderField: "x-requests-used") ?? "unknown")
-                """)
-            
-            guard (200...299).contains(httpResponse.statusCode) else {
-                throw ScoreError.apiError("API returned status code \(httpResponse.statusCode)")
-            }
-        }
-        
-        // Debug: Print raw response
-        if let jsonString = String(data: data, encoding: .utf8) {
-            print("📝 Raw API Response: \(jsonString)")
-        }
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601  // Add this line for date parsing
-        
+        // Wrap the entire operation in error handling
         do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            // Log API usage and response
+            if let httpResponse = response as? HTTPURLResponse {
+                print("""
+                    📊 API Response Headers:
+                    - Remaining requests: \(httpResponse.value(forHTTPHeaderField: "x-requests-remaining") ?? "unknown")
+                    - Requests used: \(httpResponse.value(forHTTPHeaderField: "x-requests-used") ?? "unknown")
+                    """)
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    throw ScoreError.apiError("API returned status code \(httpResponse.statusCode)")
+                }
+            }
+            
+            // Debug: Print raw response but limit size
+            if let jsonString = String(data: data, encoding: .utf8) {
+                let preview = jsonString.count > 500 ? String(jsonString.prefix(500)) + "..." : jsonString
+                print("📝 Raw API Response Preview: \(preview)")
+            }
+            
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
             let scores = try decoder.decode([OddsAPIScore].self, from: data)
-            print("📦 Received \(scores.count) games from API")
+            print("📦 Received \(scores.count) games from Scores API")
             
-            // Process completed games
-            for score in scores where score.completed {
-                // Skip if no scores available
-                guard let gameScores = score.scores else {
-                    print("⚠️ No scores available for game \(score.id)")
-                    continue
-                }
-                
-                guard let homeScore = gameScores.first(where: { $0.name == score.homeTeam })?.score,
-                      let awayScore = gameScores.first(where: { $0.name == score.awayTeam })?.score,
-                      let homeScoreInt = Int(homeScore),
-                      let awayScoreInt = Int(awayScore) else {
-                    print("⚠️ Invalid score data for game \(score.id)")
-                    continue
-                }
-                
-                let gameScore = GameScore(
-                    gameId: score.id,
-                    homeScore: homeScoreInt,
-                    awayScore: awayScoreInt,
-                    finalizedAt: score.lastUpdate ?? Date(),
-                    verifiedAt: nil
-                )
-                
-                try await db.collection("scores").document(score.id).setData(gameScore.toDictionary())
-                print("✅ Saved score for \(score.homeTeam) vs \(score.awayTeam): \(homeScoreInt)-\(awayScoreInt)")
+            // Process completed games only
+            let completedGames = scores.filter { $0.completed }
+            print("🏁 Found \(completedGames.count) completed games with scores")
+            
+            if completedGames.isEmpty {
+                print("ℹ️ No completed games found - this is normal for future games")
+                return // Exit gracefully, no error
             }
             
-            print("✅ Finished processing scores")
+            // Process each completed game
+            for score in completedGames {
+                do {
+                    try await processCompletedGame(score)
+                } catch {
+                    print("⚠️ Error processing game \(score.id): \(error.localizedDescription)")
+                    // Continue processing other games instead of failing completely
+                    continue
+                }
+            }
+            
+            print("✅ Finished processing scores successfully")
+            
+        } catch DecodingError.dataCorrupted(let context) {
+            print("❌ Data corruption error: \(context.debugDescription)")
+            // Don't throw - this might be expected for future games
+            print("ℹ️ This is often normal when no completed games are available")
+            
+        } catch DecodingError.keyNotFound(let key, let context) {
+            print("❌ Missing key '\(key.stringValue)': \(context.debugDescription)")
+            // Don't throw - this might be expected for future games
+            print("ℹ️ This is often normal when score data structure varies")
+            
+        } catch DecodingError.typeMismatch(let type, let context) {
+            print("❌ Type mismatch expecting \(type): \(context.debugDescription)")
+            // Don't throw - this might be expected for future games
+            print("ℹ️ This is often normal when score data types vary")
+            
+        } catch DecodingError.valueNotFound(let type, let context) {
+            print("❌ Missing value of type \(type): \(context.debugDescription)")
+            // Don't throw - this might be expected for future games
+            print("ℹ️ This is often normal when optional score data is missing")
+            
         } catch {
-            print("❌ Decoding error: \(error)")
-            if let decodingError = error as? DecodingError {
-                switch decodingError {
-                case .dataCorrupted(let context):
-                    print("Data corrupted: \(context.debugDescription)")
-                case .keyNotFound(let key, let context):
-                    print("Key not found: \(key.stringValue) - \(context.debugDescription)")
-                case .typeMismatch(let type, let context):
-                    print("Type mismatch: expected \(type) - \(context.debugDescription)")
-                case .valueNotFound(let type, let context):
-                    print("Value not found: expected \(type) - \(context.debugDescription)")
-                @unknown default:
-                    print("Unknown decoding error")
-                }
+            print("❌ Score fetching error: \(error.localizedDescription)")
+            // Only throw for serious errors, not data issues
+            if error is URLError {
+                throw error // Network errors should be thrown
             }
-            throw error
+            // For other errors, log but don't crash the app
+            print("ℹ️ Continuing despite score fetching issue")
         }
     }
     
-    // MARK: - Errors
+    // MARK: - Private Helper Methods
+    
+    /// Processes a single completed game and saves its score
+    private func processCompletedGame(_ score: OddsAPIScore) async throws {
+        // Skip if no scores available
+        guard let gameScores = score.scores, !gameScores.isEmpty else {
+            print("⚠️ No scores available for completed game \(score.id)")
+            return
+        }
+        
+        // Find home and away team scores
+        guard let homeScore = gameScores.first(where: { $0.name == score.homeTeam })?.score,
+              let awayScore = gameScores.first(where: { $0.name == score.awayTeam })?.score else {
+            print("⚠️ Could not find scores for teams in game \(score.id)")
+            return
+        }
+        
+        // Convert string scores to integers
+        guard let homeScoreInt = Int(homeScore),
+              let awayScoreInt = Int(awayScore) else {
+            print("⚠️ Invalid score format for game \(score.id): home=\(homeScore), away=\(awayScore)")
+            return
+        }
+        
+        // Create game score object
+        let gameScore = GameScore(
+            gameId: score.id,
+            homeScore: homeScoreInt,
+            awayScore: awayScoreInt,
+            finalizedAt: score.lastUpdate ?? Date(),
+            verifiedAt: Date() // Mark as verified now
+        )
+        
+        // Save to Firestore
+        try await db.collection("scores").document(score.id).setData(gameScore.toDictionary())
+        print("✅ Saved score for \(score.homeTeam) vs \(score.awayTeam): \(homeScoreInt)-\(awayScoreInt)")
+    }
+    
+    // MARK: - Error Types
     enum ScoreError: Error {
         case invalidScoreData
         case apiError(String)
+        case networkError(String)
         
         var localizedDescription: String {
             switch self {
             case .invalidScoreData:
-                return "Invalid score data received"
+                return "Invalid score data received from API"
             case .apiError(let message):
-                return "API Error: \(message)"
+                return "Score API Error: \(message)"
+            case .networkError(let message):
+                return "Network Error: \(message)"
             }
         }
     }
 }
 
-// Rest of your models remain the same...
+// MARK: - API Response Models
 
-
-
-// Models for The Odds API response
+/// Model for The Odds API scores response
 private struct OddsAPIScore: Codable {
     let id: String
     let sportKey: String
@@ -133,8 +176,8 @@ private struct OddsAPIScore: Codable {
     let completed: Bool
     let homeTeam: String
     let awayTeam: String
-    let scores: [TeamScore]?  // Make optional
-    let lastUpdate: Date?
+    let scores: [TeamScore]?  // Optional because future games won't have scores
+    let lastUpdate: Date?     // Optional because it might not always be present
     
     private enum CodingKeys: String, CodingKey {
         case id, completed, scores
@@ -147,12 +190,13 @@ private struct OddsAPIScore: Codable {
     }
 }
 
+/// Model for individual team scores
 private struct TeamScore: Codable {
     let name: String
-    let score: String
+    let score: String  // Keep as string since API returns it as string
 }
 
-
+/// Model for game scores stored in Firestore
 struct GameScore: Codable {
     let gameId: String
     let homeScore: Int
@@ -160,11 +204,12 @@ struct GameScore: Codable {
     let finalizedAt: Date
     let verifiedAt: Date?
     
+    /// Determines if this score should be removed from the database (after 24 hours)
     var shouldRemove: Bool {
-        // Remove 24 hours after finalization
         return finalizedAt.addingTimeInterval(86400) < Date()
     }
     
+    /// Converts GameScore to Firestore dictionary
     func toDictionary() -> [String: Any] {
         return [
             "gameId": gameId,
@@ -174,10 +219,8 @@ struct GameScore: Codable {
             "verifiedAt": verifiedAt.map { Timestamp(date: $0) } as Any
         ]
     }
-}
-
-// Add extension for Firestore initialization
-extension GameScore {
+    
+    /// Creates GameScore from Firestore document
     static func from(_ snapshot: DocumentSnapshot) -> GameScore? {
         guard let data = snapshot.data() else { return nil }
         

@@ -36,8 +36,8 @@ class GamesViewModel: ObservableObject {
     // MARK: - Public Methods
     
     /// Refreshes games data from The Odds API and syncs to Firebase
-    /// Refreshes games data from The Odds API and syncs to Firebase
-    /// Refreshes games data from The Odds API and syncs to Firebase
+    // Update your refreshGames() method in GamesViewModel.swift with this version:
+
     func refreshGames() async {
         guard !isLoading else { return }  // Prevent multiple simultaneous refreshes
         
@@ -55,10 +55,17 @@ class GamesViewModel: ObservableObject {
             print("💾 Syncing games to Firebase")
             try await gameRepository.syncGames(freshGames)
             
-            // NEW: 3. Fetch scores for completed games
+            // 3. Fetch scores for completed games (with improved error handling)
             print("🎯 Fetching scores from The Odds API")
-            let scoreService = ScoreService.shared
-            try await scoreService.fetchScores(sport: "basketball_nba") // TODO: Make sport dynamic
+            do {
+                let scoreService = ScoreService.shared
+                try await scoreService.fetchScores(sport: "basketball_nba")
+                print("✅ Score fetching completed successfully")
+            } catch {
+                print("⚠️ Score fetching failed (non-critical): \(error.localizedDescription)")
+                // Don't let score fetching errors stop the entire game loading process
+                print("ℹ️ Continuing with game loading despite score issues")
+            }
             
             // 4. Fetch games from Firebase (includes admin settings like featured status and scores)
             let snapshot = try await FirebaseConfig.shared.db.collection("games")
@@ -84,25 +91,27 @@ class GamesViewModel: ObservableObject {
                     
                     // Check for score if game might be completed
                     var gameToAdd = game
-                    // Check for score if game might be completed
-
-                    // Check for score if game might be completed
+                    
+                    // Only try to load scores for games that have started
                     if game.time <= Date() {
-                        // Load score in a way that won't cause infinite loops
-                        if let score = try? await gameRepository.getScore(for: game.id) {
-                            // Create new game instance with score
-                            var updatedGame = game
-                            updatedGame.score = score
-                            
-                            // Update game document with score and preserve spread
-                            try? await FirebaseConfig.shared.db.collection("games").document(game.id).updateData([
-                                "score": score.toDictionary(),
-                                "spread": game.isLocked ? game.spread : updatedGame.spread, // Preserve spread if locked
-                                "isLocked": true  // Lock game when completed
-                            ])
-                            
-                            gameToAdd = updatedGame
-                            print("✅ Found score for \(game.homeTeam) vs \(game.awayTeam): \(score.homeScore)-\(score.awayScore)")
+                        do {
+                            if let score = try await gameRepository.getScore(for: game.id) {
+                                var updatedGame = game
+                                updatedGame.score = score
+                                
+                                // Update game document with score and preserve spread
+                                try? await FirebaseConfig.shared.db.collection("games").document(game.id).updateData([
+                                    "score": score.toDictionary(),
+                                    "spread": game.isLocked ? game.spread : updatedGame.spread,
+                                    "isLocked": true
+                                ])
+                                
+                                gameToAdd = updatedGame
+                                print("✅ Found score for \(game.homeTeam) vs \(game.awayTeam): \(score.homeScore)-\(score.awayScore)")
+                            }
+                        } catch {
+                            print("⚠️ Could not load score for game \(game.id): \(error.localizedDescription)")
+                            // Continue with game without score
                         }
                     }
                     
