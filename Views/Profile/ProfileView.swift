@@ -205,6 +205,8 @@ struct ProfileView: View {
             SettingsView()
         }
         .navigationBarHidden(true)
+        .navigationViewStyle(StackNavigationViewStyle())
+
     }
     
     private func showSignOutConfirmation() {

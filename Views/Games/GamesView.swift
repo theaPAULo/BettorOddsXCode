@@ -34,157 +34,141 @@ struct GamesView: View {
         )
     }
     
+    // Add NavigationView wrapper to your GamesView body - update the beginning of your body:
+    
     var body: some View {
-        ZStack {
-            // Animated Background
-            backgroundGradient
-                .hueRotation(.degrees(scrollOffset / 2))
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Enhanced Header
-                VStack(spacing: 8) {
-                    Text("BettorOdds")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(Color("Primary"))
-                        .shadow(color: Color("Primary").opacity(0.3), radius: 2, x: 0, y: 2)
-                    
-                    // Balance Display
-                    HStack(spacing: 16) {
-                        CoinBalanceView(
-                            emoji: "🟡",
-                            amount: authViewModel.user?.yellowCoins ?? 0
-                        )
-                        CoinBalanceView(
-                            emoji: "💚",
-                            amount: authViewModel.user?.greenCoins ?? 0
-                        )
-                    }
-                    .padding(.horizontal)
-                    
-                    // Daily Limit Indicator
-                    if let dailyUsed = authViewModel.user?.dailyGreenCoinsUsed {
-                        DailyLimitProgressView(used: dailyUsed)
-                            .padding(.horizontal)
-                    }
-                }
-                .padding(.top)
+        NavigationView {
+            ZStack {
+                // Animated Background
+                backgroundGradient
+                    .hueRotation(.degrees(scrollOffset / 2))
+                    .ignoresSafeArea()
                 
-                // League Selector
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 20) {
-                        ForEach(leagues, id: \.self) { league in
-                            LeagueButton(
-                                league: league,
-                                isSelected: selectedLeague == league
-                            ) {
-                                withAnimation(.spring()) {
+                VStack(spacing: 0) {
+                    // Enhanced Header
+                    VStack(spacing: 8) {
+                        Text("BettorOdds")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(Color("Primary"))
+                            .shadow(color: Color("Primary").opacity(0.3), radius: 2, x: 0, y: 2)
+                        
+                        // Balance Display
+                        HStack(spacing: 16) {
+                            CoinBalanceView(
+                                emoji: "🟡",
+                                amount: authViewModel.user?.yellowCoins ?? 0
+                            )
+                            CoinBalanceView(
+                                emoji: "💚",
+                                amount: authViewModel.user?.greenCoins ?? 0
+                            )
+                            
+                            // Daily Limit Progress
+                            DailyLimitProgressView(
+                                used: authViewModel.user?.dailyGreenCoinsUsed ?? 0
+                            )
+                        }
+                        .padding(.horizontal)
+                        
+                        // League Selection
+                        HStack(spacing: 12) {
+                            ForEach(leagues, id: \.self) { league in
+                                LeagueButton(
+                                    league: league,
+                                    isSelected: selectedLeague == league
+                                ) {
                                     selectedLeague = league
-                                    globalSelectedTeam = nil
+                                    print("🏈 Selected league: \(league)")
                                 }
                             }
+                            Spacer()
                         }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
-                }
-                .padding(.vertical, 8)
-                
-                // Games List
-                ScrollView {
-                    // Debug Logging
-                    let _ = print("🎮 Total games before filtering: \(viewModel.games.count)")
-                    let _ = viewModel.games.forEach { game in
-                        print("""
-                            🏟️ Game: \(game.homeTeam) vs \(game.awayTeam)
-                            ⏰ Time: \(game.time)
-                            🔒 Should be locked: \(game.shouldBeLocked)
-                            🔐 Is locked: \(game.isLocked)
-                            👀 Is visible: \(game.isVisible)
-                            🏈 League: \(game.league)
-                            ⭐️ Is featured: \(game.id == viewModel.featuredGame?.id)
-                            """)
-                    }
+                    .padding(.bottom, 8)
                     
-                    LazyVStack(spacing: 16) {
-                        // Display featured game first if exists
-                        if let featured = viewModel.featuredGame {
-                            let _ = print("⭐️ Featured game: \(featured.homeTeam) vs \(featured.awayTeam)")
-                            FeaturedGameCard(
-                                game: featured,
-                                onSelect: {
-                                    selectedGame = featured
-                                    showBetModal = true
-                                }
-                            )
-                            .padding(.horizontal)
-                        }
-                        
-                        // Display rest of the games
-                        let filteredGames = viewModel.games.filter { game in
-                            let shouldShow = game.isVisible &&
-                            game.league == selectedLeague &&
-                            game.id != viewModel.featuredGame?.id
+                    // Games Content
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            // Featured Game
+                            if let featured = viewModel.featuredGame {
+                                FeaturedGameCard(
+                                    game: featured,
+                                    onSelect: {
+                                        selectedGame = featured
+                                        showBetModal = true
+                                    }
+                                )
+                                .padding(.horizontal)
+                            }
                             
-                            print("""
-                                🎯 Filtering game: \(game.homeTeam) vs \(game.awayTeam)
-                                ✅ Is visible: \(game.isVisible)
-                                🏈 League match: \(game.league == selectedLeague)
-                                ⭐️ Not featured: \(game.id != viewModel.featuredGame?.id)
-                                📍 Final show decision: \(shouldShow)
-                                """)
+                            // Display rest of the games
+                            let filteredGames = viewModel.games.filter { game in
+                                let shouldShow = game.isVisible &&
+                                game.league == selectedLeague &&
+                                game.id != viewModel.featuredGame?.id
+                                
+                                print("""
+                                    🎯 Filtering game: \(game.homeTeam) vs \(game.awayTeam)
+                                    ✅ Is visible: \(game.isVisible)
+                                    🏈 League match: \(game.league == selectedLeague)
+                                    ⭐️ Not featured: \(game.id != viewModel.featuredGame?.id)
+                                    📍 Final show decision: \(shouldShow)
+                                    """)
+                                
+                                return shouldShow
+                            }.sorted { $0.sortPriority == $1.sortPriority ?
+                                $0.time < $1.time :
+                                $0.sortPriority < $1.sortPriority }
                             
-                            return shouldShow
-                        }.sorted { $0.sortPriority == $1.sortPriority ?
-                            $0.time < $1.time :
-                            $0.sortPriority < $1.sortPriority }
-                        
-                        ForEach(filteredGames) { game in
-                            GameCard(
-                                game: game,
-                                isFeatured: false,
-                                onSelect: {
-                                    selectedGame = game
-                                    showBetModal = true
-                                },
-                                globalSelectedTeam: $globalSelectedTeam
-                            )
-                            .padding(.horizontal)
+                            ForEach(filteredGames) { game in
+                                GameCard(
+                                    game: game,
+                                    isFeatured: false,
+                                    onSelect: {
+                                        selectedGame = game
+                                        showBetModal = true
+                                    },
+                                    globalSelectedTeam: $globalSelectedTeam
+                                )
+                                .padding(.horizontal)
+                            }
                         }
+                        .padding(.vertical)
                     }
-                    .padding(.vertical)
+                    .refreshable {
+                        print("♻️ Pull-to-refresh triggered")
+                        await viewModel.refreshGames()
+                    }
+                    .modifier(ScrollOffsetModifier(coordinateSpace: "scroll", offset: $scrollOffset))
+                    .coordinateSpace(name: "scroll")
                 }
-                .refreshable {
-                    print("♻️ Pull-to-refresh triggered")
+            }
+            .sheet(isPresented: $showBetModal) {
+                globalSelectedTeam = nil
+            } content: {
+                if let game = selectedGame,
+                   let user = authViewModel.user {
+                    BetModal(
+                        game: game,
+                        user: user,
+                        isPresented: $showBetModal
+                    )
+                }
+            }
+            .onAppear {
+                print("📱 Games screen appeared - refreshing data")
+                Task {
                     await viewModel.refreshGames()
                 }
-                .modifier(ScrollOffsetModifier(coordinateSpace: "scroll", offset: $scrollOffset))
-                .coordinateSpace(name: "scroll")
             }
-        }
-        .sheet(isPresented: $showBetModal) {
-            globalSelectedTeam = nil
-        } content: {
-            if let game = selectedGame,
-               let user = authViewModel.user {
-                BetModal(
-                    game: game,
-                    user: user,
-                    isPresented: $showBetModal
-                )
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                print("📱 App entering foreground - refreshing games")
+                Task {
+                    await viewModel.refreshGames()
+                }
             }
-        }
-        .onAppear {
-            print("📱 Games screen appeared - refreshing data")
-            Task {
-                await viewModel.refreshGames()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            print("📱 App entering foreground - refreshing games")
-            Task {
-                await viewModel.refreshGames()
-            }
-        }
+        }  // Close NavigationView here
     }
 }
     

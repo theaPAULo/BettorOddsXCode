@@ -170,8 +170,11 @@ struct AdminDashboardView: View {
                 Text(viewModel.errorMessage ?? "An unknown error occurred")
             }
             .navigationBarHidden(true)
+            .navigationViewStyle(StackNavigationViewStyle())
+
         }
     }
+    
 }
 
 // MARK: - Supporting Views

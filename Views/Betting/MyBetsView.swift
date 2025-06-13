@@ -186,6 +186,7 @@ struct MyBetsView: View {
                 viewModel.loadBets()
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
     
     // MARK: - Supporting Views
