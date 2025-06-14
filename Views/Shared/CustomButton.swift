@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/26/25.
-//  Version: 2.1.0 - Updated for EnhancedTheme compatibility
+//  Version: 2.2.0 - Fixed typography reference
 //
 
 import SwiftUI
@@ -64,29 +64,18 @@ struct CustomButton: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: style.textColor))
                 } else {
                     Text(title)
-                        .font(AppTheme.Typography.button)
+                        .font(AppTheme.Typography.bodyBold) // Fixed: using bodyBold instead of button
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .foregroundColor(style.textColor)
             .background(
-                Group {
-                    if !disabled {
-                        LinearGradient(
-                            colors: [
-                                style.backgroundColor,
-                                style.backgroundColor.opacity(0.8)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    } else {
-                        AppTheme.Colors.buttonBackgroundDisabled
-                    }
-                }
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                    .fill(
+                        disabled ? Color.gray.opacity(0.5) : style.backgroundColor
+                    )
             )
-            .cornerRadius(AppTheme.CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
                     .stroke(

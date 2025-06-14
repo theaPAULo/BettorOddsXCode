@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Claude on 1/30/25
-//  Version: 2.3.0 - Fixed scope issues and EnhancedTheme compatibility
+//  Version: 2.4.0 - Simplified to fix Swift compiler issue
 //
 
 import SwiftUI
@@ -12,10 +12,9 @@ import FirebaseFirestore
 struct AdminDashboardView: View {
     @StateObject private var viewModel = AdminDashboardViewModel()
     @State private var selectedTab = AdminTab.overview
-    @State private var scrollOffset: CGFloat = 0  // Track scroll position
     
     // MARK: - Tab Enum
-    enum AdminTab {
+    enum AdminTab: CaseIterable {
         case overview
         case users
         case bets
@@ -40,193 +39,172 @@ struct AdminDashboardView: View {
         }
     }
     
-    // MARK: - Scroll Tracking
-    private struct ScrollOffsetPreferenceKey: PreferenceKey {
-        static var defaultValue: CGFloat = 0
-        
-        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-            value = nextValue()
-        }
-    }
-    
-    private struct ScrollOffsetModifier: ViewModifier {
-        let coordinateSpace: String
-        @Binding var offset: CGFloat
-        
-        func body(content: Content) -> some View {
-            content
-                .overlay(
-                    GeometryReader { proxy in
-                        Color.clear
-                            .preference(
-                                key: ScrollOffsetPreferenceKey.self,
-                                value: proxy.frame(in: .named(coordinateSpace)).minY
-                            )
-                    }
-                )
-                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                    offset = value
-                }
-        }
-    }
-    
-    // MARK: - Body
     var body: some View {
         NavigationView {
-            ZStack {
-                // Animated Background
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        AppTheme.Colors.primary.opacity(0.2),
-                        AppTheme.Colors.background.opacity(0.1),
-                        AppTheme.Colors.primary.opacity(0.2)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .hueRotation(.degrees(scrollOffset / 2))
-                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                // Header
+                headerSection
                 
-                VStack(spacing: 0) {
-                    // Admin Header
-                    HStack {
-                        Text("Admin Dashboard")
-                            .font(AppTheme.Typography.largeTitle)
-                            .foregroundColor(AppTheme.Colors.primary)
-                            .fontWeight(.bold)
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            Task {
-                                await viewModel.refreshData()
-                            }
-                        }) {
-                            Image(systemName: "arrow.clockwise")
-                                .foregroundColor(AppTheme.Colors.primary)
-                                .font(.title2)
-                        }
-                    }
-                    .padding(.top, -60)
-                    .padding(.horizontal, AppTheme.Spacing.md)
-                    
-                    // Quick Actions Section
-                    VStack(spacing: AppTheme.Spacing.sm) {
-                        // Game Management Button
-                        NavigationLink(destination: AdminGameManagementView()) {
-                            HStack {
-                                Image(systemName: "gamecontroller.fill")
-                                    .foregroundColor(AppTheme.Colors.primary)
-                                Text("Game Management")
-                                    .font(AppTheme.Typography.callout)
-                                    .foregroundColor(AppTheme.Colors.textPrimary)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(AppTheme.Colors.textSecondary)
-                            }
-                            .padding(AppTheme.Spacing.md)
-                            .background(AppTheme.Colors.cardBackground)
-                            .cornerRadius(AppTheme.CornerRadius.medium)
-                            .shadow(
-                                color: AppTheme.Shadow.small.color,
-                                radius: AppTheme.Shadow.small.radius,
-                                x: AppTheme.Shadow.small.x,
-                                y: AppTheme.Shadow.small.y
-                            )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.md)
-                    
-                    // Tab Selection
-                    HStack(spacing: 0) {
-                        ForEach([AdminTab.overview, .users, .bets, .transactions], id: \.self) { tab in
-                            AdminTabButton(
-                                title: tab.title,
-                                icon: tab.icon,
-                                isSelected: selectedTab == tab
-                            ) {
-                                withAnimation(AppTheme.Animation.spring) {
-                                    selectedTab = tab
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.md)
-                    
-                    // Content
-                    ScrollView {
-                        VStack(spacing: AppTheme.Spacing.lg) {
-                            switch selectedTab {
-                            case .overview:
-                                if let stats = viewModel.stats as? DashboardStats {
-                                    AdminOverviewSection(stats: stats)
-                                } else {
-                                    // Fallback if stats is wrong type
-                                    Text("Dashboard Overview")
-                                        .font(AppTheme.Typography.title2)
-                                        .foregroundColor(AppTheme.Colors.textPrimary)
-                                }
-                            case .users:
-                                // Create a simple users view since AdminUsersSection might not be accessible
-                                VStack {
-                                    Text("Users Management")
-                                        .font(AppTheme.Typography.title2)
-                                        .foregroundColor(AppTheme.Colors.textPrimary)
-                                    Text("User management functionality")
-                                        .font(AppTheme.Typography.callout)
-                                        .foregroundColor(AppTheme.Colors.textSecondary)
-                                }
-                                .padding(AppTheme.Spacing.lg)
-                                .cardStyle()
-                            case .bets:
-                                // Create a simple bets view since AdminBetsSection might not be accessible
-                                VStack {
-                                    Text("Bets Management")
-                                        .font(AppTheme.Typography.title2)
-                                        .foregroundColor(AppTheme.Colors.textPrimary)
-                                    Text("Bet monitoring functionality")
-                                        .font(AppTheme.Typography.callout)
-                                        .foregroundColor(AppTheme.Colors.textSecondary)
-                                }
-                                .padding(AppTheme.Spacing.lg)
-                                .cardStyle()
-                            case .transactions:
-                                // Create a simple transactions view since AdminTransactionsSection might not be accessible
-                                VStack {
-                                    Text("Transactions Management")
-                                        .font(AppTheme.Typography.title2)
-                                        .foregroundColor(AppTheme.Colors.textPrimary)
-                                    Text("Transaction monitoring functionality")
-                                        .font(AppTheme.Typography.callout)
-                                        .foregroundColor(AppTheme.Colors.textSecondary)
-                                }
-                                .padding(AppTheme.Spacing.lg)
-                                .cardStyle()
-                            }
-                        }
-                        .padding(AppTheme.Spacing.md)
-                    }
-                    .refreshable {
-                        await viewModel.refreshData()
-                    }
-                    .modifier(ScrollOffsetModifier(coordinateSpace: "scroll", offset: $scrollOffset))
-                    .coordinateSpace(name: "scroll")
-                }
+                // Tab Selection
+                tabSelectionSection
+                
+                // Content
+                contentSection
             }
             .background(AppTheme.Colors.background.ignoresSafeArea())
-            .alert("Error", isPresented: $viewModel.showError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(viewModel.errorMessage ?? "An unknown error occurred")
-            }
             .navigationBarHidden(true)
-            .navigationViewStyle(StackNavigationViewStyle())
         }
+        .alert("Error", isPresented: $viewModel.showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(viewModel.errorMessage ?? "An unknown error occurred")
+        }
+    }
+    
+    // MARK: - Header Section
+    
+    private var headerSection: some View {
+        HStack {
+            Text("Admin Dashboard")
+                .font(AppTheme.Typography.largeTitle)
+                .foregroundColor(AppTheme.Colors.primary)
+                .fontWeight(.bold)
+            
+            Spacer()
+            
+            Button(action: {
+                Task {
+                    await viewModel.refreshData()
+                }
+            }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 20))
+                    .foregroundColor(AppTheme.Colors.primary)
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.md)
+        .padding(.top, AppTheme.Spacing.md)
+    }
+    
+    // MARK: - Tab Selection Section
+    
+    private var tabSelectionSection: some View {
+        HStack(spacing: 0) {
+            ForEach(AdminTab.allCases, id: \.self) { tab in
+                AdminTabButton(
+                    title: tab.title,
+                    icon: tab.icon,
+                    isSelected: selectedTab == tab
+                ) {
+                    selectedTab = tab
+                }
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.md)
+        .padding(.vertical, AppTheme.Spacing.sm)
+    }
+    
+    // MARK: - Content Section
+    
+    private var contentSection: some View {
+        ScrollView {
+            VStack(spacing: AppTheme.Spacing.lg) {
+                // Switch on selected tab
+                Group {
+                    switch selectedTab {
+                    case .overview:
+                        overviewContent
+                    case .users:
+                        usersContent
+                    case .bets:
+                        betsContent
+                    case .transactions:
+                        transactionsContent
+                    }
+                }
+            }
+            .padding(AppTheme.Spacing.md)
+        }
+        .refreshable {
+            await viewModel.refreshData()
+        }
+    }
+    
+    // MARK: - Content Views
+    
+    private var overviewContent: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Text("Dashboard Overview")
+                .font(AppTheme.Typography.title2)
+                .foregroundColor(AppTheme.Colors.textPrimary)
+            
+            if viewModel.stats.activeUsers > 0 {
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    HStack {
+                        StatCardView(title: "Active Users", value: "\(viewModel.stats.activeUsers)", color: .blue)
+                        StatCardView(title: "Daily Bets", value: "\(viewModel.stats.dailyBets)", color: .green)
+                    }
+                    
+                    HStack {
+                        StatCardView(title: "Revenue", value: String(format: "%.2f", viewModel.stats.revenue), color: .orange)
+                        StatCardView(title: "Pending", value: "\(viewModel.stats.pendingBets)", color: .red)
+                    }
+                }
+            } else {
+                Text("Loading statistics...")
+                    .font(AppTheme.Typography.callout)
+                    .foregroundColor(AppTheme.Colors.textSecondary)
+            }
+        }
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
+    }
+    
+    private var usersContent: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Text("Users Management")
+                .font(AppTheme.Typography.title2)
+                .foregroundColor(AppTheme.Colors.textPrimary)
+            
+            Text("User management functionality")
+                .font(AppTheme.Typography.callout)
+                .foregroundColor(AppTheme.Colors.textSecondary)
+        }
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
+    }
+    
+    private var betsContent: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Text("Bets Management")
+                .font(AppTheme.Typography.title2)
+                .foregroundColor(AppTheme.Colors.textPrimary)
+            
+            Text("Bet monitoring functionality")
+                .font(AppTheme.Typography.callout)
+                .foregroundColor(AppTheme.Colors.textSecondary)
+        }
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
+    }
+    
+    private var transactionsContent: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Text("Transactions Management")
+                .font(AppTheme.Typography.title2)
+                .foregroundColor(AppTheme.Colors.textPrimary)
+            
+            Text("Transaction monitoring functionality")
+                .font(AppTheme.Typography.callout)
+                .foregroundColor(AppTheme.Colors.textSecondary)
+        }
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
     }
 }
 
 // MARK: - Supporting Views
+
 struct AdminTabButton: View {
     let title: String
     let icon: String
@@ -251,7 +229,29 @@ struct AdminTabButton: View {
     }
 }
 
-// MARK: - Preview
+struct StatCardView: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: AppTheme.Spacing.xs) {
+            Text(value)
+                .font(AppTheme.Typography.title2)
+                .foregroundColor(color)
+                .fontWeight(.bold)
+            
+            Text(title)
+                .font(AppTheme.Typography.caption)
+                .foregroundColor(AppTheme.Colors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(AppTheme.Spacing.md)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(AppTheme.CornerRadius.medium)
+    }
+}
+
 #Preview {
     AdminDashboardView()
 }

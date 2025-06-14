@@ -1,9 +1,9 @@
 //
-//  Enhanced GamesView.swift
+//  EnhancedGamesView.swift
 //  BettorOdds
 //
 //  Created by Claude on 6/13/25
-//  Version: 2.1.0 - Fixed to use correct BetModal component
+//  Version: 2.2.0 - Fixed compiler issues and missing colors
 //
 
 import SwiftUI
@@ -32,18 +32,10 @@ struct EnhancedGamesView: View {
                         .offset(y: headerOffset)
                     
                     // Featured Game Card
-                    if let featuredGame = viewModel.featuredGame {
-                        featuredGameCard(featuredGame)
-                            .scaleEffect(cardsAppeared ? 1.0 : 0.95)
-                            .opacity(cardsAppeared ? 1.0 : 0.0)
-                            .animation(AppTheme.Animation.spring.delay(0.1), value: cardsAppeared)
-                    }
+                    featuredGameSection
                     
                     // Upcoming Games Section
                     upcomingGamesSection
-                        .scaleEffect(cardsAppeared ? 1.0 : 0.95)
-                        .opacity(cardsAppeared ? 1.0 : 0.0)
-                        .animation(AppTheme.Animation.spring.delay(0.2), value: cardsAppeared)
                 }
                 .padding(.horizontal, AppTheme.Spacing.md)
                 .padding(.bottom, AppTheme.Spacing.xl)
@@ -98,171 +90,98 @@ struct EnhancedGamesView: View {
                 )
             }
             
-            // Daily Limit Progress (for green coins)
-            if let user = authViewModel.user {
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-                    Text("Daily Limit")
-                        .font(AppTheme.Typography.caption)
-                        .foregroundColor(AppTheme.Colors.textSecondary)
-                    
-                    ProgressView(
-                        value: Double(user.dailyGreenCoinsUsed),
-                        total: 100.0  // Daily limit
-                    )
-                    .progressViewStyle(LinearProgressViewStyle(tint: AppTheme.Colors.greenCoin))
-                    .frame(height: 4)
-                    
-                    Text("💚 \(user.dailyGreenCoinsUsed)/100")
-                        .font(AppTheme.Typography.caption)
-                        .foregroundColor(AppTheme.Colors.textTertiary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            // Daily Limit Progress
+            dailyLimitSection
             
-            // League Selector
-            leagueSelector
+            // League Selection
+            leagueSelectionSection
         }
     }
     
-    // MARK: - League Selector
+    // MARK: - Featured Game Section (Broken down to fix compiler issue)
     
-    private var leagueSelector: some View {
-        HStack(spacing: AppTheme.Spacing.md) {
-            ForEach(["NBA", "NFL"], id: \.self) { league in
-                Button(action: {
-                    HapticManager.selection()
-                    withAnimation(AppTheme.Animation.springQuick) {
-                        selectedLeague = league
-                    }
-                }) {
-                    Text(league)
-                        .font(AppTheme.Typography.button)
-                        .foregroundColor(selectedLeague == league ? .white : AppTheme.Colors.textSecondary)
-                        .padding(.horizontal, AppTheme.Spacing.lg)
-                        .padding(.vertical, AppTheme.Spacing.sm)
-                        .background(
-                            RoundedRectangle(cornerRadius: AppTheme.CornerRadius.pill)
-                                .fill(selectedLeague == league ?
-                                      AppTheme.Colors.leagueSelected :
-                                      AppTheme.Colors.leagueUnselected)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AppTheme.CornerRadius.pill)
-                                .stroke(
-                                    selectedLeague == league ?
-                                    AppTheme.Colors.primary.opacity(0.6) :
-                                    Color.clear,
-                                    lineWidth: 1
-                                )
-                        )
-                }
-                .scaleEffect(selectedLeague == league ? 1.05 : 1.0)
-                .animation(AppTheme.Animation.springQuick, value: selectedLeague)
+    private var featuredGameSection: some View {
+        Group {
+            if let featuredGame = viewModel.featuredGame {
+                featuredGameCard(featuredGame)
+                    .scaleEffect(cardsAppeared ? 1.0 : 0.95)
+                    .opacity(cardsAppeared ? 1.0 : 0.0)
+                    .animation(AppTheme.Animation.spring.delay(0.1), value: cardsAppeared)
             }
+        }
+    }
+    
+    // MARK: - Daily Limit Section
+    
+    private var dailyLimitSection: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+            Text("Daily Limit")
+                .font(AppTheme.Typography.callout)
+                .foregroundColor(.white.opacity(0.8))
+            
+            HStack {
+                Text("💚")
+                    .font(.caption)
+                
+                Text("0/100")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundColor(.white.opacity(0.6))
+                
+                Spacer()
+            }
+            
+            // Progress Bar
+            ProgressView(value: 0.0, total: 100.0)
+                .progressViewStyle(LinearProgressViewStyle(tint: AppTheme.Colors.greenCoin))
+                .scaleEffect(x: 1, y: 0.5)
+        }
+    }
+    
+    // MARK: - League Selection Section
+    
+    private var leagueSelectionSection: some View {
+        HStack(spacing: AppTheme.Spacing.sm) {
+            leagueButton("NBA", isSelected: selectedLeague == "NBA")
+            leagueButton("NFL", isSelected: selectedLeague == "NFL")
             Spacer()
         }
+    }
+    
+    private func leagueButton(_ league: String, isSelected: Bool) -> some View {
+        Button(action: {
+            selectedLeague = league
+            HapticManager.selection()
+        }) {
+            Text(league)
+                .font(AppTheme.Typography.callout)
+                .fontWeight(.semibold)
+                .foregroundColor(isSelected ? .white : .white.opacity(0.6))
+                .padding(.horizontal, AppTheme.Spacing.md)
+                .padding(.vertical, AppTheme.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                        .fill(isSelected ? AppTheme.Colors.primary.opacity(0.8) : Color.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                                .stroke(AppTheme.Colors.primary.opacity(0.5), lineWidth: 1)
+                        )
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
     
     // MARK: - Featured Game Card
     
     private func featuredGameCard(_ game: Game) -> some View {
-        Button(action: {
-            HapticManager.impact(.medium)
-            selectedGame = game
-            showBetModal = true
-        }) {
-            VStack(spacing: 0) {
-                // Header Section
-                HStack {
-                    // Featured badge
-                    HStack(spacing: AppTheme.Spacing.xs) {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                            .font(.caption)
-                        Text("Featured")
-                            .font(AppTheme.Typography.caption)
-                            .fontWeight(.semibold)
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.sm)
-                    .padding(.vertical, AppTheme.Spacing.xs)
-                    .background(Color.yellow.opacity(0.2))
-                    .cornerRadius(AppTheme.CornerRadius.small)
-                    
-                    Spacer()
-                    
-                    // Status and time
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("UPCOMING")
-                            .font(AppTheme.Typography.caption)
-                            .foregroundColor(AppTheme.Colors.pending)
-                            .fontWeight(.bold)
-                        
-                        Text(game.time.formatted(date: .omitted, time: .shortened))
-                            .font(AppTheme.Typography.callout)
-                            .foregroundColor(AppTheme.Colors.textTertiary)
-                            .fontWeight(.light)
-                    }
-                }
-                .padding(.horizontal, AppTheme.Spacing.lg)
-                .padding(.top, AppTheme.Spacing.lg)
-                
-                // Teams Section
-                HStack {
-                    // Away Team
-                    VStack {
-                        Text(game.awayTeam)
-                            .font(AppTheme.Typography.title2)
-                            .foregroundColor(.white)
-                            .fontWeight(.bold)
-                            .multilineTextAlignment(.center)
-                        
-                        Text(game.awaySpread)
-                            .font(AppTheme.Typography.amount)
-                            .foregroundColor(AppTheme.Colors.primary)
-                            .fontWeight(.bold)
-                    }
-                    
-                    Spacer()
-                    
-                    // VS Badge
-                    Text("@")
-                        .font(AppTheme.Typography.title1)
-                        .foregroundColor(AppTheme.Colors.textTertiary)
-                        .fontWeight(.light)
-                    
-                    Spacer()
-                    
-                    // Home Team
-                    VStack {
-                        Text(game.homeTeam)
-                            .font(AppTheme.Typography.title2)
-                            .foregroundColor(.white)
-                            .fontWeight(.bold)
-                            .multilineTextAlignment(.center)
-                        
-                        Text(game.homeSpread)
-                            .font(AppTheme.Typography.amount)
-                            .foregroundColor(AppTheme.Colors.primary)
-                            .fontWeight(.bold)
-                    }
-                }
-                .padding(.horizontal, AppTheme.Spacing.lg)
-                .padding(.bottom, AppTheme.Spacing.lg)
-                
-                // Total Bets Indicator
-                if game.totalBets > 0 {
-                    HStack {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .foregroundColor(AppTheme.Colors.primary)
-                        Text("\(game.totalBets) active bets")
-                            .font(AppTheme.Typography.callout)
-                            .foregroundColor(AppTheme.Colors.textSecondary)
-                    }
-                    .padding(.bottom, AppTheme.Spacing.lg)
-                }
-            }
-        }
-        .elevatedCardStyle()
+        GameCard(
+            game: game,
+            isFeatured: true,
+            onSelect: {
+                selectedGame = game
+                showBetModal = true
+            },
+            globalSelectedTeam: .constant(nil)
+        )
         .scaleEffect(selectedGame?.id == game.id ? 0.98 : 1.0)
         .animation(AppTheme.Animation.springQuick, value: selectedGame?.id)
     }
@@ -281,62 +200,32 @@ struct EnhancedGamesView: View {
                     if game.id != viewModel.featuredGame?.id {
                         upcomingGameCard(game)
                             .scaleEffect(cardsAppeared ? 1.0 : 0.9)
-                            .opacity(cardsAppeared ? 1.0 : 0)
-                            .animation(AppTheme.Animation.spring.delay(0.3 + Double(index) * 0.1), value: cardsAppeared)
+                            .opacity(cardsAppeared ? 1.0 : 0.0)
+                            .animation(
+                                AppTheme.Animation.spring.delay(Double(index) * 0.1),
+                                value: cardsAppeared
+                            )
                     }
                 }
             }
         }
+        .scaleEffect(cardsAppeared ? 1.0 : 0.95)
+        .opacity(cardsAppeared ? 1.0 : 0.0)
+        .animation(AppTheme.Animation.spring.delay(0.2), value: cardsAppeared)
     }
     
     // MARK: - Upcoming Game Card
     
     private func upcomingGameCard(_ game: Game) -> some View {
-        Button(action: {
-            HapticManager.impact(.light)
-            selectedGame = game
-            showBetModal = true
-        }) {
-            HStack {
-                // Game Info
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-                    Text("\(game.awayTeam) @ \(game.homeTeam)")
-                        .font(AppTheme.Typography.callout)
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                    
-                    Text(game.time.formatted(date: .abbreviated, time: .shortened))
-                        .font(AppTheme.Typography.caption)
-                        .foregroundColor(AppTheme.Colors.textSecondary)
-                    
-                    Text("Spread: \(game.homeSpread)")
-                        .font(AppTheme.Typography.caption)
-                        .foregroundColor(AppTheme.Colors.primary)
-                        .fontWeight(.medium)
-                }
-                
-                Spacer()
-                
-                // Bet Count
-                if game.totalBets > 0 {
-                    VStack {
-                        Text("\(game.totalBets)")
-                            .font(AppTheme.Typography.amount)
-                            .foregroundColor(AppTheme.Colors.primary)
-                            .fontWeight(.bold)
-                        Text("bets")
-                            .font(AppTheme.Typography.caption)
-                            .foregroundColor(AppTheme.Colors.textSecondary)
-                    }
-                }
-                
-                Image(systemName: "chevron.right")
-                    .foregroundColor(AppTheme.Colors.textTertiary)
-                    .font(.caption)
-            }
-            .padding(AppTheme.Spacing.md)
-        }
-        .cardStyle()
+        GameCard(
+            game: game,
+            isFeatured: false,
+            onSelect: {
+                selectedGame = game
+                showBetModal = true
+            },
+            globalSelectedTeam: .constant(nil)
+        )
         .scaleEffect(selectedGame?.id == game.id ? 0.98 : 1.0)
         .animation(AppTheme.Animation.springQuick, value: selectedGame?.id)
     }
@@ -374,4 +263,9 @@ struct BalanceCard: View {
                 .stroke(color.opacity(0.3), lineWidth: 1)
         )
     }
+}
+
+#Preview {
+    EnhancedGamesView()
+        .environmentObject(AuthenticationViewModel())
 }

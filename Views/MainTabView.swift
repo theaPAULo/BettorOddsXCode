@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  BettorOdds
 //
-//  Version: 2.4.0 - Fixed to use correct enhanced view names
+//  Version: 2.5.0 - Fixed view names and references
 //
 
 import SwiftUI
@@ -14,28 +14,28 @@ struct MainTabView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Games Tab - Using EnhancedGamesView since that's what you have
+            // Games Tab - Using EnhancedGamesView
             EnhancedGamesView()
                 .tabItem {
                     Label("Games", systemImage: "sportscourt.fill")
                 }
                 .tag(0)
             
-            // My Bets Tab - Using EnhancedMyBetsView since that's what you have
-            EnhancedMyBetsView()
+            // My Bets Tab - Using MyBetsView (not EnhancedMyBetsView)
+            MyBetsView()
                 .tabItem {
                     Label("My Bets", systemImage: "list.bullet.clipboard")
                 }
                 .tag(1)
             
-            // Profile Tab - NO NavigationView wrapper
+            // Profile Tab
             ProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "person.fill")
                 }
                 .tag(2)
             
-            // Admin Tab - NO NavigationView wrapper
+            // Admin Tab (only if user is admin)
             if authViewModel.user?.adminRole == .admin {
                 AdminDashboardView()
                     .onAppear {
@@ -71,7 +71,8 @@ struct MainTabView: View {
     }
 }
 
-// Keep AdminAuthView with NavigationView since it's in a sheet
+// MARK: - Admin Auth View
+
 struct AdminAuthView: View {
     @StateObject private var adminNav = AdminNavigation.shared
     
@@ -103,4 +104,9 @@ struct AdminAuthView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
     }
+}
+
+#Preview {
+    MainTabView()
+        .environmentObject(AuthenticationViewModel())
 }

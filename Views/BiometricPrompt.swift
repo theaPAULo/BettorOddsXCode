@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/27/25.
-//  Version: 1.1.0 - Updated for EnhancedTheme compatibility
+//  Version: 1.2.0 - Fixed typography reference
 //
 
 import SwiftUI
@@ -72,7 +72,7 @@ struct BiometricPrompt: View {
                                 .scaleEffect(0.8)
                         } else {
                             Text("Authenticate with \(BiometricHelper.shared.biometricType.description)")
-                                .font(AppTheme.Typography.button)
+                                .font(AppTheme.Typography.bodyBold) // Fixed: using bodyBold instead of button
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -141,5 +141,11 @@ struct BiometricPrompt: View {
                 }
             }
         }
+    }
+}
+
+#Preview {
+    BiometricPrompt { success in
+        print("Authentication result: \(success)")
     }
 }

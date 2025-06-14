@@ -188,7 +188,7 @@ struct ProfileView: View {
                                 showSignOutConfirmation()
                             }
                         }
-                        .background(Color.backgroundSecondary)
+                        .background(AppTheme.Colors.background)
                         .cornerRadius(12)
                         .shadow(color: Color.backgroundPrimary.opacity(0.1), radius: 5)
                         .padding(.horizontal)
@@ -257,7 +257,7 @@ struct CoinBalanceCard: View {
             }
         }
         .padding()
-        .background(Color.backgroundSecondary)
+        .background(AppTheme.Colors.background)
         .cornerRadius(12)
         .shadow(color: Color.backgroundPrimary.opacity(0.1), radius: 5)
     }
@@ -293,7 +293,7 @@ struct ActionButton: View {
         if showDivider {
             Divider()
                 .padding(.leading, 56)
-                .background(Color.backgroundPrimary)
+                .background(AppTheme.Colors.background)
         }
     }
 }

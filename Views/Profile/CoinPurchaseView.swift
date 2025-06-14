@@ -3,7 +3,7 @@
 //  BettorOdds
 //
 //  Created by Paul Soni on 1/26/25.
-//  Version: 2.1.0 - Updated for EnhancedTheme compatibility
+//  Version: 2.2.0 - Fixed LinearGradient type issues
 
 import SwiftUI
 
@@ -47,12 +47,30 @@ struct CoinPurchaseView: View {
                     .padding(.horizontal, AppTheme.Spacing.md)
                     
                     // Purchase Button
-                    CustomButton(
-                        title: isProcessing ? "Processing..." : "Purchase Now",
-                        action: handlePurchase,
-                        isLoading: isProcessing,
-                        disabled: selectedAmount == nil || isProcessing
-                    )
+                    Button(action: handlePurchase) {
+                        HStack {
+                            if isProcessing {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            }
+                            
+                            Text(isProcessing ? "Processing..." : "Purchase Now")
+                                .font(AppTheme.Typography.bodyBold)
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppTheme.Spacing.md)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                                .fill(
+                                    (selectedAmount != nil && !isProcessing)
+                                        ? Color.primary
+                                        : Color.gray.opacity(0.5)
+                                )
+                        )
+                    }
+                    .disabled(selectedAmount == nil || isProcessing)
                     .padding(.horizontal, AppTheme.Spacing.md)
                     
                     // Terms
@@ -116,33 +134,13 @@ struct PurchaseAmountCard: View {
     let isSelected: Bool
     let action: () -> Void
     
-    private var cardBackground: some View {
-        if isSelected {
-            return LinearGradient(
-                colors: [AppTheme.Colors.primary, AppTheme.Colors.primary.opacity(0.8)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            return LinearGradient(
-                colors: [AppTheme.Colors.cardBackground, AppTheme.Colors.cardBackground],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-    }
-    
     var body: some View {
         Button(action: action) {
             VStack(spacing: AppTheme.Spacing.sm) {
                 // Coin Icon
                 ZStack {
                     Circle()
-                        .fill(LinearGradient(
-                            colors: [AppTheme.Colors.greenCoin.opacity(0.2), AppTheme.Colors.greenCoin.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
+                        .fill(Color.primary.opacity(0.2))
                         .frame(width: 44, height: 44)
                     
                     Text("💚")
@@ -162,23 +160,31 @@ struct PurchaseAmountCard: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppTheme.Spacing.lg)
-            .background(cardBackground)
-            .cornerRadius(AppTheme.CornerRadius.large)
+            .background(
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
+                    .fill(
+                        isSelected
+                            ? Color.primary
+                            : Color.white.opacity(0.05)
+                    )
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
-                    .stroke(isSelected ? AppTheme.Colors.primary : AppTheme.Colors.textSecondary.opacity(0.1),
-                           lineWidth: isSelected ? 2 : 1)
+                    .stroke(
+                        isSelected ? Color.primary : AppTheme.Colors.textSecondary.opacity(0.1),
+                        lineWidth: isSelected ? 2 : 1
+                    )
             )
             .shadow(
-                color: isSelected ? AppTheme.Colors.primary.opacity(0.2) : .clear,
+                color: isSelected ? Color.primary.opacity(0.2) : .clear,
                 radius: 8,
                 x: 0,
                 y: 4
             )
         }
-        .buttonStyle(ScaleButtonStyle())
+        .buttonStyle(PlainButtonStyle())
         .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(AppTheme.Animation.springQuick, value: isSelected)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }
 

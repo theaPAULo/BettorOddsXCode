@@ -42,7 +42,7 @@ struct AdminUserRow: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.backgroundSecondary)
+                .background(AppTheme.Colors.background)
                 .cornerRadius(8)
                 
                 Spacer()
@@ -72,7 +72,7 @@ struct AdminUserRow: View {
             .padding(.top, 4)
         }
         .padding()
-        .background(Color.backgroundSecondary)
+        .background(AppTheme.Colors.background)
         .cornerRadius(12)
     }
 }
@@ -122,7 +122,7 @@ struct AdminBetRow: View {
             }
         }
         .padding()
-        .background(Color.backgroundSecondary)
+        .background(AppTheme.Colors.background)
         .cornerRadius(12)
     }
 }
@@ -160,7 +160,7 @@ struct AdminTransactionRow: View {
                 .foregroundColor(.textSecondary)
         }
         .padding()
-        .background(Color.backgroundSecondary)
+        .background(AppTheme.Colors.background)
         .cornerRadius(12)
     }
 }
