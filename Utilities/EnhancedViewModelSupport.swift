@@ -2,8 +2,8 @@
 //  EnhancedViewModelSupport.swift
 //  BettorOdds
 //
-//  Created by Claude on 6/13/25
-//  Version: 1.0.1 - Fixed compilation condition error
+//  Version: 1.1.0 - Removed CoinType conflicts and fixed Codable issues
+//  Updated: June 2025
 //
 
 import Foundation
@@ -22,7 +22,7 @@ struct BetTransaction: Identifiable, Codable {
     let id: String
     let userId: String
     let type: BetTransactionType
-    let coinType: CoinType
+    let coinType: String // FIXED: Use String to avoid CoinType conflicts
     let amount: Double
     let createdAt: Date
     let relatedBetId: String?
@@ -33,7 +33,7 @@ struct BetTransaction: Identifiable, Codable {
     init(id: String = UUID().uuidString,
          userId: String,
          type: BetTransactionType,
-         coinType: CoinType,
+         coinType: String, // FIXED: Use String
          amount: Double,
          relatedBetId: String? = nil,
          relatedGameId: String? = nil,

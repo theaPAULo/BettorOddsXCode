@@ -1,115 +1,77 @@
-//
-//  MyBetsViewModel.swift
-//  BettorOdds
-//
-//  Version: 1.0.0 - Created to support MyBetsView
-//  Updated: June 2025
-//
-
 import SwiftUI
-import FirebaseFirestore
 import FirebaseAuth
 
 @MainActor
-class MyBetsViewModel: ListViewModel<Bet> {
+class MyBetsViewModel: ObservableObject {
     
     // MARK: - Published Properties
-    @Published var totalBets: Int = 0
-    @Published var wonBets: Int = 0
-    @Published var lostBets: Int = 0
-    @Published var pendingBets: Int = 0
-    @Published var winRate: Int = 0
-    
-    // MARK: - Private Properties
-    private let betRepository = BetRepository()
+    @Published var bets: [Bet] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
     
     // MARK: - Computed Properties
+    var totalBets: Int { bets.count }
+    var wonBets: Int { bets.filter { $0.status == .won }.count }
+    var lostBets: Int { bets.filter { $0.status == .lost }.count }
+    var pendingBets: Int { bets.filter { $0.status == .pending || $0.status == .active }.count }
     
-    var bets: [Bet] {
-        return items
+    var winRate: Int {
+        let completedBets = wonBets + lostBets
+        guard completedBets > 0 else { return 0 }
+        return Int(Double(wonBets) / Double(completedBets) * 100)
     }
     
-    // MARK: - Initialization
-    
-    override init() {
-        super.init()
-    }
-    
-    // MARK: - Public Methods
-    
-    /// Loads bets for the current user
-    override func loadItems() async {
-        await loadBets()
-    }
-    
-    /// Loads all bets for the current user
+    // MARK: - Methods
     func loadBets() async {
         guard let userId = Auth.auth().currentUser?.uid else {
-            print("❌ No authenticated user")
+            errorMessage = "No authenticated user"
             return
         }
         
-        await executeAsync({
-            let userBets = try await self.betRepository.fetchBets(userId: userId)
-            return userBets
-        }, onSuccess: { [weak self] (bets: [Bet]) in
-            self?.items = bets
-            self?.updateStats()
-            print("✅ Loaded \(bets.count) bets for user")
-        }, onError: { [weak self] error in
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let betRepository = BetRepository()
+            // FIXED: Use correct method name
+            let userBets = try await betRepository.fetchUserBets(userId: userId)
+            
+            self.bets = userBets
+            self.isLoading = false
+            
+            print("✅ Loaded \(userBets.count) bets for user")
+            
+        } catch {
+            self.errorMessage = error.localizedDescription
+            self.isLoading = false
             print("❌ Error loading bets: \(error)")
-            self?.handleError(AppError.databaseError(error.localizedDescription))
-        })
+        }
     }
     
-    /// Cancels a pending bet
     func cancelBet(_ bet: Bet) async {
         guard bet.status == .pending else {
-            print("❌ Cannot cancel bet with status: \(bet.status)")
+            errorMessage = "Cannot cancel bet with status: \(bet.status)"
             return
         }
         
-        await executeAsync({
-            // Update bet status to cancelled
+        do {
+            let betRepository = BetRepository()
+            
             var cancelledBet = bet
             cancelledBet.status = .cancelled
             
-            try await self.betRepository.save(cancelledBet)
+            try await betRepository.save(cancelledBet)
             
-            // Note: In a real app, you'd also need to refund the user's coins
-            // For now, we'll just update the bet status
-            
-            return cancelledBet
-        }, onSuccess: { [weak self] (cancelledBet: Bet) in
-            // Update the bet in our local list
-            if let index = self?.items.firstIndex(where: { $0.id == cancelledBet.id }) {
-                self?.items[index] = cancelledBet
-                self?.updateStats()
-                print("✅ Cancelled bet: \(cancelledBet.id)")
+            // Update local list
+            if let index = bets.firstIndex(where: { $0.id == bet.id }) {
+                bets[index] = cancelledBet
             }
-        }, onError: { [weak self] error in
+            
+            print("✅ Cancelled bet: \(bet.id)")
+            
+        } catch {
+            errorMessage = "Failed to cancel bet: \(error.localizedDescription)"
             print("❌ Error cancelling bet: \(error)")
-            self?.handleError(AppError.betCancellationFailed)
-        })
-    }
-    
-    // MARK: - Private Methods
-    
-    /// Updates betting statistics
-    private func updateStats() {
-        totalBets = items.count
-        wonBets = items.filter { $0.status == .won }.count
-        lostBets = items.filter { $0.status == .lost }.count
-        pendingBets = items.filter { $0.status == .pending || $0.status == .active }.count
-        
-        // Calculate win rate
-        let completedBets = wonBets + lostBets
-        if completedBets > 0 {
-            winRate = Int(Double(wonBets) / Double(completedBets) * 100)
-        } else {
-            winRate = 0
         }
-        
-        print("📊 Updated stats: \(totalBets) total, \(wonBets) won, \(lostBets) lost, \(pendingBets) pending, \(winRate)% win rate")
     }
 }

@@ -29,7 +29,7 @@ class AdminNavigation: ObservableObject {
     
     /// Checks if admin features are accessible
     func checkAdminAccess() async {
-        guard let user = try? await Auth.auth().currentUser else {
+        guard let user = Auth.auth().currentUser else {
             requiresAuth = false
             return
         }

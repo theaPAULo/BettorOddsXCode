@@ -2,8 +2,8 @@
 //  SettingsView.swift
 //  BettorOdds
 //
-//  Created by Claude on 1/31/25.
-//  Version: 3.2.0 - Fixed compiler type-checking issue by breaking down complex views
+//  Version: 3.3.0 - Fixed all color references and async issues
+//  Updated: June 2025
 //
 
 import SwiftUI
@@ -47,7 +47,7 @@ struct SettingsView: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundColor(Color("Primary"))
+                    .foregroundColor(.primary)  // FIXED: Use .primary instead of Color("Primary")
                 }
             }
             .onAppear {
@@ -60,7 +60,7 @@ struct SettingsView: View {
                 }
                 Button("Enable") {
                     Task {
-                        await enableBiometrics()
+                        enableBiometrics()  // FIXED: Removed unnecessary await
                     }
                 }
             } message: {
@@ -72,7 +72,7 @@ struct SettingsView: View {
                 }
                 Button("Disable", role: .destructive) {
                     Task {
-                        await disableBiometrics()
+                        disableBiometrics()  // FIXED: Removed unnecessary await
                     }
                 }
             } message: {
@@ -147,7 +147,7 @@ extension SettingsView {
         Section {
             Button(action: {
                 Task {
-                    await authViewModel.signOut()
+                    authViewModel.signOut()  // FIXED: Removed unnecessary await
                 }
             }) {
                 ActionRow(
@@ -159,8 +159,6 @@ extension SettingsView {
         }
     }
 }
-
-
 
 // MARK: - Helper Methods
 
@@ -183,13 +181,13 @@ extension SettingsView {
     }
     
     /// Enables biometric authentication
-    private func enableBiometrics() async {
-        await savePreferences()
+    private func enableBiometrics() {  // FIXED: Removed async
+        savePreferences()
     }
     
     /// Disables biometric authentication
-    private func disableBiometrics() async {
-        await savePreferences()
+    private func disableBiometrics() {  // FIXED: Removed async
+        savePreferences()
     }
     
     /// Saves user preferences to Firebase
@@ -240,7 +238,7 @@ struct AccountInfoRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.displayName ?? "Unknown User")
                     .font(.headline)
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)  // FIXED: Use .primary instead of .textPrimary
                 
                 AuthProviderView(user: user)
             }
@@ -281,12 +279,12 @@ struct DefaultProfileImage: View {
     
     var body: some View {
         Circle()
-            .fill(Color("Primary").opacity(0.2))
+            .fill(Color.primary.opacity(0.2))  // FIXED: Use .primary instead of Color("Primary")
             .frame(width: 40, height: 40)
             .overlay(
                 Text(user.displayName?.prefix(1).uppercased() ?? "U")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(Color("Primary"))
+                    .foregroundColor(.primary)  // FIXED: Use .primary instead of Color("Primary")
             )
     }
 }
@@ -302,7 +300,7 @@ struct AuthProviderView: View {
             Text(user.authProvider == "google.com" ? "Google" : "Apple")
                 .font(.caption)
         }
-        .foregroundColor(.textSecondary)
+        .foregroundColor(.secondary)  // FIXED: Use .secondary instead of .textSecondary
     }
 }
 
@@ -315,16 +313,16 @@ struct PreferenceRow: View {
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundColor(Color("Primary"))
+                .foregroundColor(.primary)  // FIXED: Use .primary instead of Color("Primary")
                 .frame(width: 20)
             
             Text(title)
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primary)  // FIXED: Use .primary instead of .textPrimary
             
             Spacer()
             
             Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: Color("Primary")))
+                .toggleStyle(SwitchToggleStyle(tint: .primary))  // FIXED: Use .primary instead of Color("Primary")
         }
     }
 }
@@ -337,21 +335,21 @@ struct BiometricRow: View {
     var body: some View {
         HStack {
             Image(systemName: "faceid")
-                .foregroundColor(Color("Primary"))
+                .foregroundColor(.primary)  // FIXED: Use .primary instead of Color("Primary")
                 .frame(width: 20)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text("Biometric Authentication")
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)  // FIXED: Use .primary instead of .textPrimary
                 Text("Required for Green Coin transactions")
                     .font(.caption)
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondary)  // FIXED: Use .secondary instead of .textSecondary
             }
             
             Spacer()
             
             Toggle("", isOn: $isEnabled)
-                .toggleStyle(SwitchToggleStyle(tint: Color("Primary")))
+                .toggleStyle(SwitchToggleStyle(tint: .primary))  // FIXED: Use .primary instead of Color("Primary")
                 .onChange(of: isEnabled) { _, newValue in
                     onToggle(newValue)
                 }
@@ -369,18 +367,18 @@ struct ActionRow: View {
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundColor(isDestructive ? .red : Color("Primary"))
+                .foregroundColor(isDestructive ? .red : .primary)  // FIXED: Use .primary instead of Color("Primary")
                 .frame(width: 20)
             
             Text(title)
-                .foregroundColor(isDestructive ? .red : .textPrimary)
+                .foregroundColor(isDestructive ? .red : .primary)  // FIXED: Use .primary instead of .textPrimary
             
             Spacer()
             
             if showChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondary)  // FIXED: Use .secondary instead of .textSecondary
             }
         }
     }
@@ -394,10 +392,10 @@ struct InfoRow: View {
     var body: some View {
         HStack {
             Text(title)
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primary)  // FIXED: Use .primary instead of .textPrimary
             Spacer()
             Text(value)
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondary)  // FIXED: Use .secondary instead of .textSecondary
         }
     }
 }

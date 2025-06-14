@@ -42,7 +42,7 @@ class BiometricHelper {
             // Check if biometrics are available
             guard canUseBiometrics else {
                 print("⚠️ Biometrics not available - Type: \(context.biometryType.rawValue)")
-                var error = LAError(_nsError: NSError(domain: LAErrorDomain, code: LAError.biometryNotAvailable.rawValue))
+                let error = LAError(_nsError: NSError(domain: LAErrorDomain, code: LAError.biometryNotAvailable.rawValue))
                 return (false, getBiometricErrorMessage(error))
             }
             

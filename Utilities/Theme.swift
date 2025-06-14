@@ -443,4 +443,128 @@ struct AppTheme_Previews: PreviewProvider {
         .background(AppTheme.Colors.background)
     }
 }
+
+
 #endif
+
+
+//
+//  Enhanced Typography System
+//  BettorOdds
+//
+//  Version: 3.0.0 - Modern typography with better small text handling
+extension AppTheme.Typography {
+    
+    // MARK: - Enhanced Small Text Styles
+    
+    // For section headers like "Daily Limit", "Upcoming Games"
+    static let sectionHeader = Font.system(size: 16, weight: .semibold, design: .rounded)
+    
+    // For labels like "Play Coins", "Real Coins", "Buy Coins"
+    static let label = Font.system(size: 12, weight: .medium, design: .rounded)
+    
+    // For small UI elements like bet counts, time stamps
+    static let smallUI = Font.system(size: 11, weight: .medium, design: .rounded)
+    
+    // For very small text like "Transaction History"
+    static let micro = Font.system(size: 10, weight: .medium, design: .rounded)
+    
+    // For emphasized small text
+    static let labelEmphasis = Font.system(size: 12, weight: .semibold, design: .rounded)
+    
+    // For descriptive text
+    static let description = Font.system(size: 13, weight: .regular, design: .default)
+}
+
+// MARK: - Typography View Modifier
+
+struct EnhancedTypography: ViewModifier {
+    let style: TypographyStyle
+    let color: Color
+    
+    enum TypographyStyle {
+        case sectionHeader
+        case label
+        case labelEmphasis
+        case smallUI
+        case micro
+        case description
+        
+        var font: Font {
+            switch self {
+            case .sectionHeader:
+                return AppTheme.Typography.sectionHeader
+            case .label:
+                return AppTheme.Typography.label
+            case .labelEmphasis:
+                return AppTheme.Typography.labelEmphasis
+            case .smallUI:
+                return AppTheme.Typography.smallUI
+            case .micro:
+                return AppTheme.Typography.micro
+            case .description:
+                return AppTheme.Typography.description
+            }
+        }
+    }
+    
+    func body(content: Content) -> some View {
+        content
+            .font(style.font)
+            .foregroundColor(color)
+    }
+}
+
+// MARK: - Convenience Extensions
+
+extension View {
+    func typographyStyle(_ style: EnhancedTypography.TypographyStyle, color: Color = .white) -> some View {
+        modifier(EnhancedTypography(style: style, color: color))
+    }
+    
+    func sectionHeader(color: Color = .white) -> some View {
+        typographyStyle(.sectionHeader, color: color)
+    }
+    
+    func labelStyle(color: Color = Color.white.opacity(0.8)) -> some View {
+        typographyStyle(.label, color: color)
+    }
+    
+    func labelEmphasis(color: Color = Color("Primary")) -> some View {
+        typographyStyle(.labelEmphasis, color: color)
+    }
+    
+    func smallUI(color: Color = Color.white.opacity(0.7)) -> some View {
+        typographyStyle(.smallUI, color: color)
+    }
+    
+    func microText(color: Color = Color.white.opacity(0.6)) -> some View {
+        typographyStyle(.micro, color: color)
+    }
+    
+    func descriptionText(color: Color = Color.white.opacity(0.8)) -> some View {
+        typographyStyle(.description, color: color)
+    }
+}
+
+// MARK: - Usage Examples for GamesView
+
+/*
+// Section headers
+Text("Daily Limit").sectionHeader()
+Text("Upcoming Games").sectionHeader()
+
+// Labels
+Text("Play Coins").labelStyle()
+Text("Real Coins").labelStyle()
+
+// Emphasized labels (with teal)
+Text("$0/100").labelEmphasis()
+
+// Small UI elements
+Text("15 bets").smallUI()
+Text("7:35 PM").smallUI()
+
+// Micro text
+Text("Transaction History").microText()
+*/

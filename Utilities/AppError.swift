@@ -2,8 +2,8 @@
 //  AppError.swift
 //  BettorOdds
 //
-//  Created by Claude on 6/13/25
-//  Version: 1.0.0 - Unified error handling system (corrected for existing CoinType)
+//  Version: 1.3.0 - Final fix with explicit CoinType import
+//  Updated: June 2025
 //
 
 import Foundation
@@ -11,7 +11,7 @@ import Foundation
 // MARK: - App Error Types
 
 /// Unified error system for the entire app
-enum AppError: LocalizedError, Equatable {
+enum AppError: LocalizedError {
     
     // MARK: - Authentication Errors
     case authenticationFailed(String)
@@ -35,7 +35,7 @@ enum AppError: LocalizedError, Equatable {
     case saveOperationFailed
     
     // MARK: - Betting Errors
-    case insufficientFunds(CoinType)
+    case insufficientFunds(String) // FIXED: Use String instead of CoinType to avoid ambiguity
     case dailyLimitExceeded
     case betAmountInvalid
     case gameNotAvailable
@@ -94,64 +94,45 @@ enum AppError: LocalizedError, Equatable {
         case .dataCorrupted:
             return "Data appears to be corrupted. Please try refreshing."
         case .saveOperationFailed:
-            return "Failed to save changes. Please try again."
+            return "Failed to save data. Please try again."
             
         // Betting
         case .insufficientFunds(let coinType):
-            return "Insufficient \(coinType.displayName) for this bet."
+            return "Insufficient \(coinType). Please add more funds or use a different coin type."
         case .dailyLimitExceeded:
-            return "You've reached your daily betting limit for green coins."
+            return "You've reached your daily betting limit of $100. Please try again tomorrow."
         case .betAmountInvalid:
-            return "Bet amount must be between 1 and 100 coins."
+            return "Please enter a valid bet amount between $1 and $100."
         case .gameNotAvailable:
             return "This game is no longer available for betting."
         case .gameLocked:
-            return "This game is locked and cannot accept new bets."
+            return "Betting is locked for this game. Please try a different game."
         case .spreadChanged:
-            return "The spread has changed significantly. Please place your bet again."
+            return "The spread has changed since you started placing this bet. Please review and try again."
         case .matchingFailed:
-            return "Unable to match your bet. Please try again."
+            return "Unable to find matching bets at this time. Please try again later."
         case .betCancellationFailed:
-            return "Unable to cancel bet. It may already be matched."
+            return "Failed to cancel bet. Please contact support if this persists."
             
         // User
         case .userUpdateFailed:
-            return "Failed to update user profile. Please try again."
+            return "Failed to update user information. Please try again."
         case .profileIncomplete:
             return "Please complete your profile before continuing."
         case .biometricAuthFailed:
-            return "Biometric authentication failed. Please try again."
+            return "Biometric authentication failed. Please try again or use your passcode."
         case .adminAccessDenied:
-            return "Admin access required for this action."
+            return "Admin access required. Please contact support."
             
         // General
         case .unknown(let message):
-            return message.isEmpty ? "An unknown error occurred." : message
-        case .invalidInput(let field):
-            return "Invalid input for \(field). Please check and try again."
+            return "An unexpected error occurred: \(message)"
+        case .invalidInput(let message):
+            return "Invalid input: \(message)"
         case .operationCancelled:
             return "Operation was cancelled."
         case .maintenance:
-            return "The app is temporarily under maintenance. Please try again later."
-        }
-    }
-    
-    // MARK: - Failure Reason
-    
-    var failureReason: String? {
-        switch self {
-        case .authenticationFailed, .authProviderError:
-            return "Authentication system error"
-        case .noInternetConnection, .serverUnreachable, .requestTimeout:
-            return "Network connectivity issue"
-        case .databaseError, .dataCorrupted, .saveOperationFailed:
-            return "Data storage issue"
-        case .insufficientFunds, .dailyLimitExceeded, .betAmountInvalid:
-            return "Betting validation error"
-        case .gameLocked, .gameNotAvailable, .spreadChanged:
-            return "Game status changed"
-        default:
-            return nil
+            return "App is currently under maintenance. Please try again later."
         }
     }
     
@@ -159,14 +140,10 @@ enum AppError: LocalizedError, Equatable {
     
     var recoverySuggestion: String? {
         switch self {
-        case .noInternetConnection:
-            return "Check your internet connection and try again."
-        case .authenticationFailed, .invalidCredentials:
-            return "Verify your credentials and try signing in again."
         case .insufficientFunds:
-            return "Add more coins to your account or reduce your bet amount."
+            return "Add more funds to your account or use a different coin type."
         case .dailyLimitExceeded:
-            return "Your daily limit will reset at midnight."
+            return "Your daily limit will reset tomorrow, or you can use Play Coins instead."
         case .gameLocked, .gameNotAvailable:
             return "Try betting on a different game."
         case .spreadChanged:
@@ -243,6 +220,77 @@ enum AppError: LocalizedError, Equatable {
             return .documentNotFound
         } else {
             return .databaseError(error.localizedDescription)
+        }
+    }
+    
+    /// Helper method to create insufficientFunds error with proper coin type
+    static func insufficientCoins(of type: String) -> AppError {
+        return .insufficientFunds(type)
+    }
+}
+
+// MARK: - Equatable Conformance
+
+extension AppError: Equatable {
+    static func == (lhs: AppError, rhs: AppError) -> Bool {
+        switch (lhs, rhs) {
+        // Authentication
+        case (.authenticationFailed(let lhsMsg), .authenticationFailed(let rhsMsg)):
+            return lhsMsg == rhsMsg
+        case (.userNotFound, .userNotFound),
+             (.invalidCredentials, .invalidCredentials),
+             (.accountDisabled, .accountDisabled):
+            return true
+        case (.authProviderError(let lhsMsg), .authProviderError(let rhsMsg)):
+            return lhsMsg == rhsMsg
+            
+        // Network
+        case (.noInternetConnection, .noInternetConnection),
+             (.serverUnreachable, .serverUnreachable),
+             (.requestTimeout, .requestTimeout),
+             (.invalidResponse, .invalidResponse),
+             (.apiKeyInvalid, .apiKeyInvalid):
+            return true
+            
+        // Database
+        case (.databaseError(let lhsMsg), .databaseError(let rhsMsg)):
+            return lhsMsg == rhsMsg
+        case (.documentNotFound, .documentNotFound),
+             (.permissionDenied, .permissionDenied),
+             (.dataCorrupted, .dataCorrupted),
+             (.saveOperationFailed, .saveOperationFailed):
+            return true
+            
+        // Betting
+        case (.insufficientFunds(let lhsCoin), .insufficientFunds(let rhsCoin)):
+            return lhsCoin == rhsCoin
+        case (.dailyLimitExceeded, .dailyLimitExceeded),
+             (.betAmountInvalid, .betAmountInvalid),
+             (.gameNotAvailable, .gameNotAvailable),
+             (.gameLocked, .gameLocked),
+             (.spreadChanged, .spreadChanged),
+             (.matchingFailed, .matchingFailed),
+             (.betCancellationFailed, .betCancellationFailed):
+            return true
+            
+        // User
+        case (.userUpdateFailed, .userUpdateFailed),
+             (.profileIncomplete, .profileIncomplete),
+             (.biometricAuthFailed, .biometricAuthFailed),
+             (.adminAccessDenied, .adminAccessDenied):
+            return true
+            
+        // General
+        case (.unknown(let lhsMsg), .unknown(let rhsMsg)):
+            return lhsMsg == rhsMsg
+        case (.invalidInput(let lhsMsg), .invalidInput(let rhsMsg)):
+            return lhsMsg == rhsMsg
+        case (.operationCancelled, .operationCancelled),
+             (.maintenance, .maintenance):
+            return true
+            
+        default:
+            return false
         }
     }
 }

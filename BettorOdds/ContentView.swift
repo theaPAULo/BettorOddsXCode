@@ -94,7 +94,7 @@ struct LoadingView: View {
                 
                 Text("Loading...")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondary)
             }
         }
         .onAppear {

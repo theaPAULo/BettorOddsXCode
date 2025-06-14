@@ -2,8 +2,8 @@
 //  AdminOverviewSection.swift
 //  BettorOdds
 //
-//  Created by Claude on 1/30/25
-//  Version: 1.0.0
+//  Version: 1.1.0 - Fixed all color references
+//  Updated: June 2025
 //
 
 import SwiftUI
@@ -28,7 +28,7 @@ struct AdminOverviewSection: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Recent Activity")
                     .font(.headline)
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)  // FIXED: Use .primary instead of .textPrimary
                 
                 ForEach(stats.recentActivity) { activity in
                     HStack {
@@ -37,17 +37,17 @@ struct AdminOverviewSection: View {
                             .frame(width: 8, height: 8)
                         Text(activity.description)
                             .font(.system(size: 14))
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(.primary)  // FIXED: Use .primary instead of .textPrimary
                         Spacer()
                         Text(activity.time)
                             .font(.system(size: 12))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.secondary)  // FIXED: Use .secondary instead of .textSecondary
                     }
                     .padding(.vertical, 4)
                 }
             }
             .padding()
-            .background(Color.backgroundSecondary)
+            .background(Color(UIColor.secondarySystemBackground))  // FIXED: Use system color instead of .backgroundSecondary
             .cornerRadius(12)
         }
     }
@@ -61,14 +61,14 @@ struct QuickStatCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 14))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondary)  // FIXED: Use .secondary instead of .textSecondary
             Text(value)
                 .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primary)  // FIXED: Use .primary instead of .textPrimary
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color.backgroundSecondary)
+        .background(Color(UIColor.secondarySystemBackground))  // FIXED: Use system color instead of .backgroundSecondary
         .cornerRadius(12)
     }
 }
@@ -88,5 +88,5 @@ struct QuickStatCard: View {
         )
     )
     .padding()
-    .background(Color.backgroundPrimary)
+    .background(Color(UIColor.systemBackground))  // FIXED: Use system color instead of .backgroundPrimary
 }

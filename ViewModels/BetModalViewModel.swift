@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import Foundation
 
 @MainActor
 class BetModalViewModel: BaseViewModel {

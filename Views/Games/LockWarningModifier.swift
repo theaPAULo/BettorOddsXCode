@@ -128,7 +128,7 @@ extension View {
             .fill(AppTheme.Colors.cardBackground)
             .frame(height: 100)
             .lockWarning(for: {
-                var game = Game.sampleGames[0]
+                let game = Game.sampleGames[0]
                 // Note: Since Game is a struct, we'd need a mutable copy
                 // This is just for preview purposes
                 return game

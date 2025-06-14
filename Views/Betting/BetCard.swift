@@ -15,45 +15,45 @@ struct BetCard: View {
                 Spacer()
                 Text(bet.createdAt.formatted(date: .abbreviated, time: .shortened))
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary.opacity(0.8))  // Slightly more visible
+                    .foregroundColor(.secondary.opacity(0.8))  // FIXED: Use .secondary instead
             }
             
             // Team and Spread
             VStack(alignment: .leading, spacing: 6) {  // Increased spacing
                 Text(bet.team)
                     .font(.system(size: 18, weight: .semibold))  // Larger font
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)  // FIXED: Use .primary instead
                 
                 Text("Spread: \(String(format: "%.1f", bet.initialSpread))")
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondary)  // FIXED: Use .secondary instead
                 
                 if bet.currentSpread != bet.initialSpread {
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.statusWarning)  // Changed to warning
+                            .foregroundColor(.orange)  // FIXED: Use .orange instead
                         Text("Current Spread: \(String(format: "%.1f", bet.currentSpread))")
                             .font(.system(size: 14))
-                            .foregroundColor(.statusWarning)  // Changed to warning
+                            .foregroundColor(.orange)  // FIXED: Use .orange instead
                     }
                     .padding(.vertical, 2)
                 }
             }
             
             Divider()
-                .background(Color.textSecondary.opacity(0.15))  // More subtle divider
+                .background(Color.gray.opacity(0.3))  // FIXED: Use .gray instead
             
             // Bet Amount and Potential Win
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Bet Amount")
                         .font(.system(size: 14))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondary)  // FIXED: Use .secondary instead
                     HStack {
                         Text(bet.coinType.emoji)
                         Text("\(bet.amount)")
                             .font(.system(size: 18, weight: .semibold))  // Larger font
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(.primary)  // FIXED: Use .primary instead
                     }
                 }
                 
@@ -62,10 +62,10 @@ struct BetCard: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Potential Win")
                         .font(.system(size: 14))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondary)  // FIXED: Use .secondary instead
                     Text("\(bet.potentialWinnings)")
                         .font(.system(size: 18, weight: .semibold))  // Larger font
-                        .foregroundColor(bet.status == .won ? .statusSuccess : .textPrimary)  // Green if won
+                        .foregroundColor(bet.status == .won ? .green : .primary)  // FIXED: Use .green and .primary
                 }
             }
             
@@ -80,27 +80,27 @@ struct BetCard: View {
                         Text("Cancel Bet")
                     }
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.statusError)
+                    .foregroundColor(.red)  // FIXED: Use .red instead
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)  // Slightly taller
-                    .background(Color.statusError.opacity(0.08))  // More subtle background
+                    .background(Color.red.opacity(0.08))  // FIXED: Use .red instead
                     .cornerRadius(8)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.statusError.opacity(0.2), lineWidth: 1)
+                            .stroke(Color.red.opacity(0.2), lineWidth: 1)  // FIXED: Use .red instead
                     )
                 }
-                .buttonStyle(ScaleButtonStyle())  // Add scaling animation
+                .buttonStyle(PlainButtonStyle())  // FIXED: Use PlainButtonStyle instead
             }
         }
         .padding()
         .background(
-            Color.backgroundSecondary
+            Color(UIColor.secondarySystemBackground)  // FIXED: Use system color
                 .opacity(0.95)  // Slightly transparent
         )
         .cornerRadius(16)  // Larger corner radius
         .shadow(
-            color: Color.backgroundPrimary.opacity(0.15),
+            color: Color.black.opacity(0.1),  // FIXED: Use .black instead
             radius: 8,
             x: 0,
             y: 4
@@ -110,8 +110,8 @@ struct BetCard: View {
                 .stroke(
                     LinearGradient(
                         colors: [
-                            .textSecondary.opacity(0.1),
-                            .textSecondary.opacity(0.05)
+                            Color.gray.opacity(0.1),  // FIXED: Use .gray instead
+                            Color.gray.opacity(0.05)  // FIXED: Use .gray instead
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -129,7 +129,7 @@ struct BetCard: View {
             }
         } message: {
             Text("Are you sure you want to cancel this bet? This action cannot be undone.")
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primary)  // FIXED: Use .primary instead
         }
     }
 }
@@ -141,7 +141,7 @@ struct BetCard: View {
         LinearGradient(
             colors: [
                 .primary.opacity(0.1),
-                .backgroundPrimary,
+                Color(UIColor.systemBackground),  // FIXED: Use system color
                 .primary.opacity(0.1)
             ],
             startPoint: .topLeading,

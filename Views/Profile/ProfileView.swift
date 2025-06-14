@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import Foundation
 
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
@@ -190,7 +191,7 @@ struct ProfileView: View {
                         }
                         .background(AppTheme.Colors.background)
                         .cornerRadius(12)
-                        .shadow(color: Color.backgroundPrimary.opacity(0.1), radius: 5)
+                        .shadow(color: Color.primary.opacity(0.1), radius: 5)
                         .padding(.horizontal)
                     }
                 }
@@ -246,20 +247,20 @@ struct CoinBalanceCard: View {
                 Spacer()
                 Text(balance.formatted())
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
             }
             
             HStack {
                 Text(type == .yellow ? "Play Coins" : "Real Coins")
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondary)
                 Spacer()
             }
         }
         .padding()
         .background(AppTheme.Colors.background)
         .cornerRadius(12)
-        .shadow(color: Color.backgroundPrimary.opacity(0.1), radius: 5)
+        .shadow(color: Color.primary.opacity(0.1), radius: 5)
     }
 }
 
@@ -279,13 +280,13 @@ struct ActionButton: View {
                     .frame(width: 30)
                 
                 Text(title)
-                    .foregroundColor(isDestructive ? .statusError : .textPrimary)
+                    .foregroundColor(isDestructive ? .statusError : .primary)
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondary)
             }
             .padding()
         }

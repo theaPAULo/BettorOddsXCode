@@ -2,16 +2,17 @@
 //  CoinType.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/26/25.
+//  Version: 1.2.0 - Final single definition to resolve all conflicts
+//  Updated: June 2025
 //
 
-
-// File: Models/CoinTypes.swift
 import Foundation
 
-enum CoinType: String, Codable {
-    case yellow
-    case green
+// MARK: - Single CoinType Definition (THE ONLY ONE)
+
+enum CoinType: String, Codable, Equatable {
+    case yellow = "yellow"
+    case green = "green"
     
     var displayName: String {
         switch self {
@@ -46,11 +47,44 @@ enum CoinType: String, Codable {
     }
 }
 
+// MARK: - CoinBalance Helper
+
 struct CoinBalance {
     let type: CoinType
     let amount: Int
     
     var formattedAmount: String {
         return type == .green ? "$\(amount)" : "\(amount)"
+    }
+}
+
+// MARK: - Preview Support
+
+extension User {
+    /// Preview instance for SwiftUI previews and testing
+    static var preview: User {
+        User(
+            id: "preview-user-id",
+            displayName: "John Doe",
+            profileImageURL: nil,
+            authProvider: "google.com"
+        )
+    }
+    
+    /// Preview instance with some betting history
+    static var previewWithHistory: User {
+        var user = User(
+            id: "preview-user-with-history",
+            displayName: "Jane Smith",
+            profileImageURL: nil,
+            authProvider: "apple.com"
+        )
+        
+        // Add some coins and betting history
+        user.yellowCoins = 75
+        user.greenCoins = 25
+        user.dailyGreenCoinsUsed = 15
+        
+        return user
     }
 }

@@ -8,7 +8,6 @@
 
 import Foundation
 import FirebaseFirestore
-
 /// Represents a financial transaction in the app
 struct Transaction: Identifiable, Codable {
     // MARK: - Properties

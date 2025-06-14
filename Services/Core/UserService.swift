@@ -2,6 +2,7 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 
+
 actor UserService {
     // MARK: - Properties
     private let db = FirebaseConfig.shared.db

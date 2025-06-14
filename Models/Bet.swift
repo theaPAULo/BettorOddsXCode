@@ -8,6 +8,7 @@
 
 import SwiftUI
 import FirebaseFirestore
+import Foundation
 
 // MARK: - Bet Match Model
 struct BetMatch: Identifiable, Codable {

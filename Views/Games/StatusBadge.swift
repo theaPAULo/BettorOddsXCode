@@ -20,7 +20,7 @@ struct StatusBadge: View {
         case .fullyMatched, .active:
             return .primary
         case .cancelled:
-            return .textSecondary
+            return .secondary
         case .won:
             return .statusSuccess
         case .lost:

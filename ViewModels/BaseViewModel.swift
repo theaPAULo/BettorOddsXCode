@@ -177,7 +177,7 @@ class BaseViewModel: BaseViewModelProtocol, ObservableObject {
         $currentError
             .compactMap { $0 }
             .filter { !$0.requiresUserAction }
-            .delay(for: .seconds(AppConfiguration.UI.defaultAnimationDuration + 2), scheduler: RunLoop.main)
+            .delay(for: .seconds(AppConfiguration.UI.animationDuration + 2), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 self?.clearError()
             }
