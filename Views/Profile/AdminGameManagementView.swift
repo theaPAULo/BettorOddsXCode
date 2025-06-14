@@ -34,7 +34,7 @@ struct AdminGameManagementView: View {
                 Button("Select Featured Game") {
                     viewModel.showGameSelector = true
                 }
-                .foregroundColor(AppTheme.Colors.primary)
+                .foregroundColor(Color.primary)
             } header: {
                 Text("Featured Game")
                     .foregroundColor(AppTheme.Colors.textSecondary)
@@ -74,7 +74,7 @@ struct AdminGameManagementView: View {
                         await viewModel.loadGames()
                     }
                 }
-                .foregroundColor(AppTheme.Colors.primary)
+                .foregroundColor(Color.primary)
             }
         }
         .sheet(isPresented: $viewModel.showGameSelector) {

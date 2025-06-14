@@ -50,7 +50,7 @@ struct MainTabView: View {
                     .tag(3)
             }
         }
-        .accentColor(.primary)  // FIXED: Use .primary instead of AppTheme.Colors.primary
+        .accentColor(.primary)  // FIXED: Use .primary instead of Color.primary
         .sheet(isPresented: $adminNav.requiresAuth) {
             AdminAuthView()
         }

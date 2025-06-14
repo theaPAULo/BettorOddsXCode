@@ -43,7 +43,7 @@ struct LoadingScreen: View {
                 .font(.system(size: 80))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [AppTheme.Colors.primary, AppTheme.Colors.secondary],
+                        colors: [Color.primary, AppTheme.Colors.secondary],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -63,7 +63,7 @@ struct LoadingScreen: View {
                 .foregroundStyle(
                     LinearGradient(
                         colors: [
-                            AppTheme.Colors.primary,
+                            Color.primary,
                             AppTheme.Colors.secondary,
                             AppTheme.Colors.accent
                         ],
@@ -91,7 +91,7 @@ struct LoadingScreen: View {
             HStack(spacing: 8) {
                 ForEach(0..<3) { index in
                     Circle()
-                        .fill(AppTheme.Colors.primary)
+                        .fill(Color.primary)
                         .frame(width: 8, height: 8)
                         .scaleEffect(isAnimating ? 1.0 : 0.5)
                         .animation(
@@ -154,7 +154,7 @@ struct AppIconLoadingScreen: View {
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(
                                 LinearGradient(
-                                    colors: [AppTheme.Colors.primary, AppTheme.Colors.secondary],
+                                    colors: [Color.primary, AppTheme.Colors.secondary],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
@@ -203,7 +203,7 @@ struct MinimalLoadingScreen: View {
                     .font(.system(size: 40, weight: .black))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [AppTheme.Colors.primary, AppTheme.Colors.secondary],
+                            colors: [Color.primary, AppTheme.Colors.secondary],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -218,7 +218,7 @@ struct MinimalLoadingScreen: View {
                             .frame(width: 200 * animationProgress, height: 4)
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [AppTheme.Colors.primary, AppTheme.Colors.secondary],
+                                    colors: [Color.primary, AppTheme.Colors.secondary],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )

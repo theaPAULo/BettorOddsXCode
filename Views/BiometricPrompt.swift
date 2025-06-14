@@ -36,7 +36,7 @@ struct BiometricPrompt: View {
                 // Biometric Icon
                 Image(systemName: BiometricHelper.shared.biometricType.systemImageName)
                     .font(.system(size: 64))
-                    .foregroundColor(AppTheme.Colors.primary)
+                    .foregroundColor(Color.primary)
                 
                 // Title and Subtitle
                 VStack(spacing: AppTheme.Spacing.sm) {
@@ -77,7 +77,7 @@ struct BiometricPrompt: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(AppTheme.Colors.primary)
+                    .background(Color.primary)
                     .foregroundColor(.white)
                     .cornerRadius(AppTheme.CornerRadius.medium)
                     .shadow(

@@ -51,9 +51,9 @@ struct ProfileView: View {
                 // Animated Background
                 LinearGradient(
                     gradient: Gradient(colors: [
-                        Color("Primary").opacity(0.2),
+                        Color.primary.opacity(0.2),
                         Color.white.opacity(0.1),
-                        Color("Primary").opacity(0.2)
+                        Color.primary.opacity(0.2)
                     ]),
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -76,12 +76,12 @@ struct ProfileView: View {
                                         .clipShape(Circle())
                                 } placeholder: {
                                     Circle()
-                                        .fill(Color("Primary").opacity(0.2))
+                                        .fill(Color.primary.opacity(0.2))
                                         .frame(width: 80, height: 80)
                                         .overlay(
                                             Text(authViewModel.user?.displayName?.prefix(1).uppercased() ?? "U")
                                                 .font(.system(size: 32, weight: .bold))
-                                                .foregroundColor(Color("Primary"))
+                                                .foregroundColor(Color.primary)
                                         )
                                 }
                             } else {
@@ -90,8 +90,8 @@ struct ProfileView: View {
                                     .fill(
                                         LinearGradient(
                                             colors: [
-                                                Color("Primary"),
-                                                Color("Primary").opacity(0.8)
+                                                Color.primary,
+                                                Color.primary.opacity(0.8)
                                             ],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
@@ -103,19 +103,19 @@ struct ProfileView: View {
                                             .font(.system(size: 32, weight: .bold))
                                             .foregroundColor(.white)
                                     )
-                                    .shadow(color: Color("Primary").opacity(0.3), radius: 8, x: 0, y: 4)
+                                    .shadow(color: Color.primary.opacity(0.3), radius: 8, x: 0, y: 4)
                             }
                             
                             VStack(spacing: 4) {
                                 Text("Profile")
                                     .font(.system(size: 32, weight: .bold))
-                                    .foregroundColor(Color("Primary"))
+                                    .foregroundColor(Color.primary)
                                     .padding(.top, -60) // Match MyBets spacing
                                 
                                 // Display name or fallback
                                 Text(authViewModel.user?.displayName ?? "User")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(Color("Primary"))
+                                    .foregroundColor(Color.primary)
                                 
                                 // Auth provider badge
                                 if let user = authViewModel.user {
@@ -127,8 +127,8 @@ struct ProfileView: View {
                                     }
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color("Primary").opacity(0.1))
-                                    .foregroundColor(Color("Primary"))
+                                    .background(Color.primary.opacity(0.1))
+                                    .foregroundColor(Color.primary)
                                     .cornerRadius(8)
                                 }
                                 
@@ -136,7 +136,7 @@ struct ProfileView: View {
                                 if let dateJoined = authViewModel.user?.dateJoined {
                                     Text("Member since \(dateJoined.formatted(.dateTime.month().year()))")
                                         .font(.system(size: 14))
-                                        .foregroundColor(Color("Primary").opacity(0.8))
+                                        .foregroundColor(Color.primary.opacity(0.8))
                                 }
                             }
                         }

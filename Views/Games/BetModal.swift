@@ -49,7 +49,7 @@ struct BetModal: View {
                     Button("Cancel") {
                         isPresented = false
                     }
-                    .foregroundColor(AppTheme.Colors.primary) // FIXED: Teal cancel button
+                    .foregroundColor(Color.primary) // FIXED: Teal cancel button
                 }
             }
         }
@@ -82,7 +82,7 @@ struct BetModal: View {
                 .padding(.vertical, 6)
                 .background(
                     Capsule()
-                        .fill(AppTheme.Colors.primary.opacity(0.8)) // FIXED: Teal background
+                        .fill(Color.primary.opacity(0.8)) // FIXED: Teal background
                 )
         }
         .padding(20)
@@ -91,7 +91,7 @@ struct BetModal: View {
                 .fill(Color.white.opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppTheme.Colors.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
+                        .stroke(Color.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
                 )
         )
     }
@@ -134,7 +134,7 @@ struct BetModal: View {
                 .fill(Color.white.opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppTheme.Colors.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
+                        .stroke(Color.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
                 )
         )
     }
@@ -177,7 +177,7 @@ struct BetModal: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(
-                                isSelected ? AppTheme.Colors.primary.opacity(0.8) : Color.white.opacity(0.2), // FIXED: Teal border when selected
+                                isSelected ? Color.primary.opacity(0.8) : Color.white.opacity(0.2), // FIXED: Teal border when selected
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )
@@ -218,7 +218,7 @@ struct BetModal: View {
                 .fill(Color.white.opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppTheme.Colors.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
+                        .stroke(Color.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
                 )
         )
     }
@@ -243,7 +243,7 @@ struct BetModal: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(
-                                isSelected ? AppTheme.Colors.primary : Color.white.opacity(0.2), // FIXED: Teal border when selected
+                                isSelected ? Color.primary : Color.white.opacity(0.2), // FIXED: Teal border when selected
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )
@@ -273,7 +273,7 @@ struct BetModal: View {
                             .fill(Color.white.opacity(0.1))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(AppTheme.Colors.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
+                                    .stroke(Color.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
                             )
                     )
                 
@@ -290,7 +290,7 @@ struct BetModal: View {
                 .fill(Color.white.opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppTheme.Colors.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
+                        .stroke(Color.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
                 )
         )
     }
@@ -309,16 +309,16 @@ struct BetModal: View {
                 
                 Text("\(potentialWinnings)")
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(AppTheme.Colors.primary) // FIXED: Teal color for winnings
+                    .foregroundColor(Color.primary) // FIXED: Teal color for winnings
             }
         }
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(AppTheme.Colors.primary.opacity(0.1)) // FIXED: Teal background tint
+                .fill(Color.primary.opacity(0.1)) // FIXED: Teal background tint
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppTheme.Colors.primary.opacity(0.5), lineWidth: 1) // FIXED: Teal border
+                        .stroke(Color.primary.opacity(0.5), lineWidth: 1) // FIXED: Teal border
                 )
         )
     }
@@ -353,8 +353,8 @@ struct BetModal: View {
                     .fill(
                         LinearGradient(
                             colors: canPlaceBet ? [
-                                AppTheme.Colors.primary,
-                                AppTheme.Colors.primary.opacity(0.8)
+                                Color.primary,
+                                Color.primary.opacity(0.8)
                             ] : [
                                 Color.gray.opacity(0.5),
                                 Color.gray.opacity(0.3)
@@ -365,7 +365,7 @@ struct BetModal: View {
                     )
             )
             .shadow(
-                color: canPlaceBet ? AppTheme.Colors.primary.opacity(0.3) : Color.clear,
+                color: canPlaceBet ? Color.primary.opacity(0.3) : Color.clear,
                 radius: 8,
                 x: 0,
                 y: 4

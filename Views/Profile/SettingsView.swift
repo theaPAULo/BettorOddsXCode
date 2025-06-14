@@ -47,7 +47,7 @@ struct SettingsView: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundColor(.primary)  // FIXED: Use .primary instead of Color("Primary")
+                    .foregroundColor(.primary)  // FIXED: Use .primary instead of Color.primary
                 }
             }
             .onAppear {
@@ -279,12 +279,12 @@ struct DefaultProfileImage: View {
     
     var body: some View {
         Circle()
-            .fill(Color.primary.opacity(0.2))  // FIXED: Use .primary instead of Color("Primary")
+            .fill(Color.primary.opacity(0.2))  // FIXED: Use .primary instead of Color.primary
             .frame(width: 40, height: 40)
             .overlay(
                 Text(user.displayName?.prefix(1).uppercased() ?? "U")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.primary)  // FIXED: Use .primary instead of Color("Primary")
+                    .foregroundColor(.primary)  // FIXED: Use .primary instead of Color.primary
             )
     }
 }
@@ -313,7 +313,7 @@ struct PreferenceRow: View {
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundColor(.primary)  // FIXED: Use .primary instead of Color("Primary")
+                .foregroundColor(.primary)  // FIXED: Use .primary instead of Color.primary
                 .frame(width: 20)
             
             Text(title)
@@ -322,7 +322,7 @@ struct PreferenceRow: View {
             Spacer()
             
             Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: .primary))  // FIXED: Use .primary instead of Color("Primary")
+                .toggleStyle(SwitchToggleStyle(tint: .primary))  // FIXED: Use .primary instead of Color.primary
         }
     }
 }
@@ -335,7 +335,7 @@ struct BiometricRow: View {
     var body: some View {
         HStack {
             Image(systemName: "faceid")
-                .foregroundColor(.primary)  // FIXED: Use .primary instead of Color("Primary")
+                .foregroundColor(.primary)  // FIXED: Use .primary instead of Color.primary
                 .frame(width: 20)
             
             VStack(alignment: .leading, spacing: 2) {
@@ -349,7 +349,7 @@ struct BiometricRow: View {
             Spacer()
             
             Toggle("", isOn: $isEnabled)
-                .toggleStyle(SwitchToggleStyle(tint: .primary))  // FIXED: Use .primary instead of Color("Primary")
+                .toggleStyle(SwitchToggleStyle(tint: .primary))  // FIXED: Use .primary instead of Color.primary
                 .onChange(of: isEnabled) { _, newValue in
                     onToggle(newValue)
                 }
@@ -367,7 +367,7 @@ struct ActionRow: View {
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundColor(isDestructive ? .red : .primary)  // FIXED: Use .primary instead of Color("Primary")
+                .foregroundColor(isDestructive ? .red : .primary)  // FIXED: Use .primary instead of Color.primary
                 .frame(width: 20)
             
             Text(title)

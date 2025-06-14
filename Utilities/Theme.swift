@@ -262,11 +262,11 @@ extension View {
                     .fill(AppTheme.Colors.featuredCardBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: AppTheme.CornerRadius.large)
-                            .stroke(AppTheme.Colors.primary.opacity(0.3), lineWidth: 1)
+                            .stroke(Color.primary.opacity(0.3), lineWidth: 1)
                     )
             )
             .shadow(
-                color: AppTheme.Colors.primary.opacity(0.2),
+                color: Color.primary.opacity(0.2),
                 radius: 12,
                 x: 0,
                 y: 6
@@ -361,7 +361,7 @@ struct GradientText: View {
     
     init(_ text: String,
          gradient: LinearGradient = LinearGradient(
-            colors: [AppTheme.Colors.primary, AppTheme.Colors.secondary],
+            colors: [Color.primary, AppTheme.Colors.secondary],
             startPoint: .leading,
             endPoint: .trailing
          ),
@@ -389,7 +389,7 @@ struct PulsingView: View {
     let color: Color
     let duration: Double
     
-    init(color: Color = AppTheme.Colors.primary, duration: Double = 1.0) {
+    init(color: Color = Color.primary, duration: Double = 1.0) {
         self.color = color
         self.duration = duration
     }
@@ -530,7 +530,7 @@ extension View {
         typographyStyle(.label, color: color)
     }
     
-    func labelEmphasis(color: Color = Color("Primary")) -> some View {
+    func labelEmphasis(color: Color = Color.primary) -> some View {
         typographyStyle(.labelEmphasis, color: color)
     }
     

@@ -53,9 +53,9 @@ struct LoadingView: View {
             // Same animated background as login
             LinearGradient(
                 gradient: Gradient(colors: [
-                    Color("Primary").opacity(0.2),
+                    Color.primary.opacity(0.2),
                     Color.white.opacity(0.1),
-                    Color("Primary").opacity(0.2)
+                    Color.primary.opacity(0.2)
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -69,8 +69,8 @@ struct LoadingView: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color("Primary"),
-                                    Color("Primary").opacity(0.8)
+                                    Color.primary,
+                                    Color.primary.opacity(0.8)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -89,7 +89,7 @@ struct LoadingView: View {
                 }
                 
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: Color("Primary")))
+                    .progressViewStyle(CircularProgressViewStyle(tint: Color.primary))
                     .scaleEffect(1.2)
                 
                 Text("Loading...")

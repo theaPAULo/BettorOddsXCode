@@ -20,9 +20,9 @@ struct LoginView: View {
     private var backgroundGradient: LinearGradient {
         LinearGradient(
             gradient: Gradient(colors: [
-                Color("Primary").opacity(0.2),
+                Color.primary.opacity(0.2),
                 Color.white.opacity(0.1),
-                Color("Primary").opacity(0.2)
+                Color.primary.opacity(0.2)
             ]),
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -32,8 +32,8 @@ struct LoginView: View {
     private var logoGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color("Primary"),
-                Color("Primary").opacity(0.8)
+                Color.primary,
+                Color.primary.opacity(0.8)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -95,7 +95,7 @@ struct LoginView: View {
                     Circle()
                         .fill(logoGradient)
                         .frame(width: 120, height: 120)
-                        .shadow(color: Color("Primary").opacity(0.3), radius: 20, x: 0, y: 10)
+                        .shadow(color: Color.primary.opacity(0.3), radius: 20, x: 0, y: 10)
                     
                     VStack(spacing: 4) {
                         Text("🎲")
@@ -108,8 +108,8 @@ struct LoginView: View {
                 
                 Text("BettorOdds")
                     .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(Color("Primary"))
-                    .shadow(color: Color("Primary").opacity(0.3), radius: 2, x: 0, y: 2)
+                    .foregroundColor(Color.primary)
+                    .shadow(color: Color.primary.opacity(0.3), radius: 2, x: 0, y: 2)
             }
             
             // Welcome message
@@ -198,7 +198,7 @@ struct LoginView: View {
     private var loadingIndicator: some View {
         HStack(spacing: 8) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: Color("Primary")))
+                .progressViewStyle(CircularProgressViewStyle(tint: Color.primary))
                 .scaleEffect(0.8)
             
             Text("Signing in...")
@@ -219,7 +219,7 @@ struct LoginView: View {
                     // Handle terms of service tap
                 }
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color("Primary"))
+                .foregroundColor(Color.primary)
                 
                 Text("and")
                     .font(.system(size: 12))
@@ -229,7 +229,7 @@ struct LoginView: View {
                     // Handle privacy policy tap
                 }
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color("Primary"))
+                .foregroundColor(Color.primary)
             }
         }
         .padding(.top, 32)

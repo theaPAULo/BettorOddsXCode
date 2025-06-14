@@ -27,7 +27,7 @@ struct ForgotPasswordView: View {
                     VStack(spacing: AppTheme.Spacing.md) {
                         Image(systemName: "lock.rotation")
                             .font(.system(size: 64))
-                            .foregroundColor(AppTheme.Colors.primary)
+                            .foregroundColor(Color.primary)
                         
                         Text("Reset Password")
                             .font(AppTheme.Typography.largeTitle)
@@ -79,7 +79,7 @@ struct ForgotPasswordView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(AppTheme.Colors.primary)
+                        .background(Color.primary)
                         .foregroundColor(.white)
                         .cornerRadius(AppTheme.CornerRadius.medium)
                         .shadow(

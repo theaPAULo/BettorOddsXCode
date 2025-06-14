@@ -67,7 +67,7 @@ struct AdminDashboardView: View {
         HStack {
             Text("Admin Dashboard")
                 .font(AppTheme.Typography.largeTitle)
-                .foregroundColor(AppTheme.Colors.primary)
+                .foregroundColor(Color.primary)
                 .fontWeight(.bold)
             
             Spacer()
@@ -79,7 +79,7 @@ struct AdminDashboardView: View {
             }) {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 20))
-                    .foregroundColor(AppTheme.Colors.primary)
+                    .foregroundColor(Color.primary)
             }
         }
         .padding(.horizontal, AppTheme.Spacing.md)
@@ -221,8 +221,8 @@ struct AdminTabButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppTheme.Spacing.sm)
-            .background(isSelected ? AppTheme.Colors.primary.opacity(0.1) : Color.clear)
-            .foregroundColor(isSelected ? AppTheme.Colors.primary : AppTheme.Colors.textSecondary)
+            .background(isSelected ? Color.primary.opacity(0.1) : Color.clear)
+            .foregroundColor(isSelected ? Color.primary : AppTheme.Colors.textSecondary)
             .cornerRadius(AppTheme.CornerRadius.small)
         }
         .buttonStyle(PlainButtonStyle())

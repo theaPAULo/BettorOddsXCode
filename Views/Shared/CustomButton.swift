@@ -23,9 +23,9 @@ struct CustomButton: View {
         var backgroundColor: Color {
             switch self {
             case .primary:
-                return AppTheme.Colors.primary
+                return Color.primary
             case .secondary:
-                return AppTheme.Colors.primaryDark
+                return Color.secondary
             case .outline:
                 return .clear
             }
@@ -36,14 +36,14 @@ struct CustomButton: View {
             case .primary, .secondary:
                 return AppTheme.Colors.textPrimary
             case .outline:
-                return AppTheme.Colors.primary
+                return Color.primary
             }
         }
         
         var borderColor: Color {
             switch self {
             case .outline:
-                return AppTheme.Colors.primary
+                return Color.primary
             default:
                 return .clear
             }
