@@ -1,8 +1,8 @@
 //
-//  GamesView.swift - Minimal Teal Enhancement
+//  GamesView.swift - Complete Working Version with Visible Teal
 //  BettorOdds
 //
-//  Version: 2.3.0 - Adding ONLY teal accents to working version
+//  Version: 2.4.0 - Complete implementation with guaranteed teal visibility
 //
 
 import SwiftUI
@@ -18,6 +18,9 @@ struct GamesView: View {
     @State private var headerOffset: CGFloat = 0
     @State private var cardsAppeared = false
     
+    // TEAL COLOR DEFINITION - This is what was missing!
+    private let tealColor = Color(red: 0.0, green: 0.9, blue: 0.79)
+    
     var body: some View {
         ZStack {
             // Background gradient (keep original)
@@ -26,14 +29,14 @@ struct GamesView: View {
             
             ScrollView {
                 LazyVStack(spacing: AppTheme.Spacing.lg) {
-                    // Header Section
+                    // Header Section with TEAL
                     headerSection
                         .offset(y: headerOffset)
                     
                     // Featured Game Card
                     featuredGameSection
                     
-                    // Upcoming Games Section
+                    // Upcoming Games Section with TEAL
                     upcomingGamesSection
                 }
                 .padding(.horizontal, AppTheme.Spacing.md)
@@ -62,26 +65,28 @@ struct GamesView: View {
         }
     }
     
-    // MARK: - Header Section (with minimal teal accents)
+    // MARK: - Header Section (WITH VISIBLE TEAL)
     
     private var headerSection: some View {
         VStack(spacing: AppTheme.Spacing.lg) {
-            // App Title with TEAL accent
+            // App Title with BRIGHT TEAL DOT
             HStack(spacing: 8) {
                 Text("BettorOdds")
                     .font(AppTheme.Typography.appTitle)
                     .foregroundColor(.white)
                     .fontWeight(.bold)
                 
-                // TEAL accent dot
+                // BRIGHT TEAL DOT - You should see this!
                 Circle()
-                    .fill(Color.primary)
-                    .frame(width: 8, height: 8)
-                    .shadow(color: Color.primary, radius: 4)
+                    .fill(tealColor)
+                    .frame(width: 12, height: 12) // Made bigger so it's more visible
+                    .shadow(color: tealColor, radius: 6)
+                    .shadow(color: tealColor, radius: 3)
             }
             
-            // Balance Cards (with TEAL accent on green coins)
+            // Balance Cards with TEAL border on green coins
             HStack(spacing: AppTheme.Spacing.md) {
+                // Yellow Coins (original)
                 BalanceCard(
                     emoji: "🟡",
                     amount: authViewModel.user?.yellowCoins ?? 0,
@@ -89,15 +94,16 @@ struct GamesView: View {
                     color: AppTheme.Colors.yellowCoin
                 )
                 
+                // Green Coins with BRIGHT TEAL BORDER
                 BalanceCard(
                     emoji: "💚",
                     amount: authViewModel.user?.greenCoins ?? 0,
                     label: "Real Coins",
-                    color: Color.primary // TEAL accent here
+                    color: tealColor // This should show TEAL border
                 )
             }
             
-            // Daily Limit with TEAL accent
+            // Daily Limit with BRIGHT TEAL ACCENTS
             HStack {
                 Text("Daily Limit")
                     .font(AppTheme.Typography.title3)
@@ -105,30 +111,31 @@ struct GamesView: View {
                 
                 Spacer()
                 
-                HStack(spacing: 4) {
-                    // TEAL heart icon
+                HStack(spacing: 6) {
+                    // BRIGHT TEAL HEART - You should see this!
                     Image(systemName: "heart.fill")
-                        .foregroundColor(Color.primary)
-                        .font(.system(size: 12))
-                        .shadow(color: Color.primary, radius: 2)
+                        .foregroundColor(tealColor)
+                        .font(.system(size: 16, weight: .bold))
+                        .shadow(color: tealColor, radius: 4)
                     
                     Text("$0/100")
                         .font(AppTheme.Typography.callout)
-                        .foregroundColor(Color.primary) // TEAL text
+                        .foregroundColor(tealColor) // TEAL TEXT
+                        .fontWeight(.semibold)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.primary.opacity(0.15))
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(tealColor.opacity(0.2)) // TEAL BACKGROUND
                         .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.primary.opacity(0.3), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(tealColor, lineWidth: 2) // BRIGHT TEAL BORDER
                         )
                 )
             }
             
-            // League Selection with TEAL accent
+            // League Selection with BRIGHT TEAL when selected
             HStack(spacing: AppTheme.Spacing.md) {
                 leagueButton("NBA", isSelected: selectedLeague == "NBA")
                 leagueButton("NFL", isSelected: selectedLeague == "NFL")
@@ -136,30 +143,33 @@ struct GamesView: View {
         }
     }
     
-    // League button with TEAL when selected
+    // League button with BRIGHT TEAL when selected
     private func leagueButton(_ league: String, isSelected: Bool) -> some View {
         Button(action: {
             selectedLeague = league
-            // Add league switching logic here
+            Task {
+                await viewModel.changeLeague(to: league)
+            }
         }) {
             Text(league)
                 .font(AppTheme.Typography.title3)
                 .foregroundColor(isSelected ? .black : .white)
+                .fontWeight(.bold)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, AppTheme.Spacing.sm)
                 .background(
                     RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
-                        .fill(isSelected ? Color.primary : Color.clear) // TEAL when selected
+                        .fill(isSelected ? tealColor : Color.clear) // BRIGHT TEAL FILL when selected
                         .overlay(
                             RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
-                                .stroke(Color.primary.opacity(0.5), lineWidth: 1)
+                                .stroke(tealColor, lineWidth: isSelected ? 3 : 1) // BRIGHT TEAL BORDER
                         )
                 )
         }
         .buttonStyle(PlainButtonStyle())
     }
     
-    // MARK: - Featured Game Section (keep original)
+    // MARK: - Featured Game Section (original)
     
     private var featuredGameSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
@@ -171,8 +181,6 @@ struct GamesView: View {
         .opacity(cardsAppeared ? 1.0 : 0.0)
         .animation(AppTheme.Animation.spring.delay(0.1), value: cardsAppeared)
     }
-    
-    // MARK: - Featured Game Card (keep original)
     
     private func featuredGameCard(_ game: Game) -> some View {
         GameCard(
@@ -188,11 +196,11 @@ struct GamesView: View {
         .animation(AppTheme.Animation.springQuick, value: selectedGame?.id)
     }
     
-    // MARK: - Upcoming Games Section (with TEAL accent line)
+    // MARK: - Upcoming Games Section (WITH BRIGHT TEAL LINE)
     
     private var upcomingGamesSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            // Section header with TEAL accent line
+            // Section header with BRIGHT TEAL ACCENT LINE
             HStack {
                 Text("Upcoming Games")
                     .font(AppTheme.Typography.title2)
@@ -201,12 +209,13 @@ struct GamesView: View {
                 
                 Spacer()
                 
-                // TEAL accent line
+                // BRIGHT TEAL ACCENT LINE - You should see this!
                 Rectangle()
-                    .fill(Color.primary)
-                    .frame(width: 40, height: 3)
-                    .cornerRadius(1.5)
-                    .shadow(color: Color.primary, radius: 2)
+                    .fill(tealColor)
+                    .frame(width: 50, height: 4) // Made bigger and thicker
+                    .cornerRadius(2)
+                    .shadow(color: tealColor, radius: 4)
+                    .shadow(color: tealColor, radius: 2)
             }
             
             LazyVStack(spacing: AppTheme.Spacing.md) {
@@ -228,8 +237,6 @@ struct GamesView: View {
         .animation(AppTheme.Animation.spring.delay(0.2), value: cardsAppeared)
     }
     
-    // MARK: - Upcoming Game Card (keep original)
-    
     private func upcomingGameCard(_ game: Game) -> some View {
         GameCard(
             game: game,
@@ -245,7 +252,7 @@ struct GamesView: View {
     }
 }
 
-// MARK: - Balance Card Component (with TEAL support)
+// MARK: - Enhanced Balance Card (WITH TEAL SUPPORT)
 
 struct BalanceCard: View {
     let emoji: String
@@ -274,7 +281,7 @@ struct BalanceCard: View {
         .cornerRadius(AppTheme.CornerRadius.medium)
         .overlay(
             RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
-                .stroke(color.opacity(0.3), lineWidth: 1) // This will show TEAL for green coins
+                .stroke(color, lineWidth: 2) // This will show BRIGHT TEAL for green coins
         )
     }
 }

@@ -1,9 +1,8 @@
 //
-//  OddsService.swift
+//  OddsService.swift - Fixed API Key
 //  BettorOdds
 //
-//  Version: 2.3.0 - Added NFL support and league filtering
-//  Updated: June 2025
+//  Version: 2.3.1 - Fixed API key to use working key from Configuration
 //
 
 import Foundation
@@ -11,10 +10,18 @@ import Foundation
 class OddsService: ObservableObject {
     static let shared = OddsService()
     
-    private let apiKey = "YOUR_API_KEY_HERE" // Replace with your actual API key
+    // FIXED: Use the working API key from Configuration instead of placeholder
+    private let apiKey = Configuration.API.oddsAPIKey
     private let baseURL = "https://api.the-odds-api.com/v4/sports"
     
-    private init() {}
+    private init() {
+        // Validate API key on initialization
+        if apiKey.isEmpty || apiKey.contains("YOUR_API_KEY_HERE") {
+            print("⚠️ WARNING: Invalid API key in OddsService. Please check Configuration.swift")
+        } else {
+            print("✅ OddsService initialized with valid API key")
+        }
+    }
     
     // MARK: - Public Methods
     
@@ -22,10 +29,13 @@ class OddsService: ObservableObject {
     func fetchGames(for league: String = "NBA") async throws -> [Game] {
         let sportKey = mapLeagueToSportKey(league)
         print("🏀 Fetching \(league) games (sport key: \(sportKey))")
+        print("🔑 Using API key: \(apiKey.prefix(8))...") // Log first 8 chars for debugging
         
         guard let url = URL(string: "\(baseURL)/\(sportKey)/odds?regions=us&markets=spreads&oddsFormat=american&apiKey=\(apiKey)") else {
             throw OddsServiceError.invalidURL("Invalid URL for \(league) games")
         }
+        
+        print("🌐 Fetching from URL: \(url)")
         
         let (data, response) = try await URLSession.shared.data(from: url)
         
@@ -33,11 +43,20 @@ class OddsService: ObservableObject {
             throw OddsServiceError.invalidResponse("Invalid response")
         }
         
+        print("📡 HTTP Status: \(httpResponse.statusCode)")
+        
+        // Log API usage headers if available
+        if let remaining = httpResponse.value(forHTTPHeaderField: "x-requests-remaining"),
+           let used = httpResponse.value(forHTTPHeaderField: "x-requests-used") {
+            print("📊 API Usage - Remaining: \(remaining), Used: \(used)")
+        }
+        
         // Handle different status codes
         switch httpResponse.statusCode {
         case 200:
             break
         case 401:
+            print("❌ 401 Unauthorized - API key is invalid or expired")
             throw OddsServiceError.authenticationError("Invalid API key")
         case 404:
             throw OddsServiceError.notFound("No \(league) games found")
@@ -96,28 +115,32 @@ class OddsService: ObservableObject {
     
     /// Converts API response to internal Game model
     private func convertToGame(from response: OddsResponse) -> Game? {
-        // Validate required fields
-        guard !response.homeTeam.isEmpty,
-              !response.awayTeam.isEmpty else {
-            print("⚠️ Skipping game with missing team names")
-            return nil
+        // Extract the spread from bookmakers
+        var spread: Double = 0.0
+        
+        for bookmaker in response.bookmakers {
+            for market in bookmaker.markets {
+                if market.key == "spreads" {
+                    // Look for the home team spread
+                    if let homeOutcome = market.outcomes.first(where: { $0.name == response.homeTeam }),
+                       let homeSpread = homeOutcome.point {
+                        spread = homeSpread
+                        break
+                    }
+                }
+            }
+            if spread != 0.0 { break }
         }
         
-        // Find the spread for the home team
-        let spread = extractSpread(from: response)
-        
-        // Determine league from sport key
-        let league = mapSportKeyToLeague(response.sportKey)
-        
-        // Create the game
+        // Convert to internal Game model
         let game = Game(
             id: response.id,
             homeTeam: response.homeTeam,
             awayTeam: response.awayTeam,
             time: response.commenceTime,
-            league: league,
+            league: mapSportKeyToLeague(response.sportKey),
             spread: spread,
-            totalBets: Int.random(in: 100...5000), // Simulate bet volume
+            totalBets: 0, // Default value
             homeTeamColors: TeamColors.getTeamColors(response.homeTeam),
             awayTeamColors: TeamColors.getTeamColors(response.awayTeam),
             isFeatured: false,
@@ -125,33 +148,10 @@ class OddsService: ObservableObject {
             isLocked: false
         )
         
-        print("🎯 Created game: \(game.awayTeam) @ \(game.homeTeam) (\(league))")
         return game
     }
     
-    /// Extracts the spread from bookmaker data
-    private func extractSpread(from response: OddsResponse) -> Double {
-        // Look for spread market in bookmakers
-        for bookmaker in response.bookmakers {
-            for market in bookmaker.markets {
-                if market.key == "spreads" {
-                    // Find the home team outcome
-                    if let homeOutcome = market.outcomes.first(where: { $0.name == response.homeTeam }),
-                       let spread = homeOutcome.point {
-                        return spread
-                    }
-                }
-            }
-        }
-        
-        // Generate realistic spread if none found
-        let randomSpread = Double.random(in: -14.0...14.0)
-        let roundedSpread = (randomSpread * 2).rounded() / 2 // Round to nearest 0.5
-        print("ℹ️ No spread found for \(response.awayTeam) @ \(response.homeTeam), using: \(roundedSpread)")
-        return roundedSpread
-    }
-    
-    /// Maps sport key to league display name
+    /// Maps sport key back to league display name
     private func mapSportKeyToLeague(_ sportKey: String) -> String {
         switch sportKey {
         case "basketball_nba":
@@ -251,3 +251,4 @@ enum OddsServiceError: LocalizedError {
         }
     }
 }
+

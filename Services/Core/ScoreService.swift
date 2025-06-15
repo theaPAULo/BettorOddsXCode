@@ -12,7 +12,7 @@ import FirebaseFirestore
 class ScoreService {
     // MARK: - Properties
     static let shared = ScoreService()
-    private let apiKey = "aec5b19b654411a05206d9d67dfb7764" // We should move this to a config file
+    private let apiKey = Configuration.API.oddsAPIKey
     private let baseUrl = "https://api.the-odds-api.com/v4/sports"
     private let db = FirebaseConfig.shared.db
     
