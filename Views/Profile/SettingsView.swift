@@ -12,6 +12,7 @@ import UIKit  // Required for UINotificationFeedbackGenerator
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authViewModel: AuthenticationViewModel
+    @EnvironmentObject var darkModeManager: DarkModeManager
     
     // App Settings
     @AppStorage("isDarkMode") private var isDarkMode = false
@@ -98,12 +99,20 @@ extension SettingsView {
     /// App preferences section
     private var preferencesSection: some View {
         Section("Preferences") {
-            // Dark Mode Toggle
-            PreferenceRow(
-                icon: "moon.fill",
-                title: "Dark Mode",
-                isOn: $isDarkMode
-            )
+            // Dark Mode Toggle - WORKING VERSION
+            HStack {
+                Image(systemName: "moon.fill")
+                    .foregroundColor(.primary)
+                    .frame(width: 20)
+                
+                Text("Dark Mode")
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Toggle("", isOn: $darkModeManager.isDarkMode)
+                    .toggleStyle(SwitchToggleStyle(tint: .primary))
+            }
             
             // Notifications Toggle
             PreferenceRow(
@@ -406,3 +415,4 @@ struct InfoRow: View {
     SettingsView()
         .environmentObject(AuthenticationViewModel())
 }
+

@@ -94,17 +94,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 @main
 struct BettorOddsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    @State private var showLaunch = true
-    
-    // FIXED: Create AuthenticationViewModel here to provide to the entire app
     @StateObject private var authViewModel = AuthenticationViewModel()
+    @StateObject private var darkModeManager = DarkModeManager() // Add this
+    @State private var showLaunch = true
     
     var body: some Scene {
         WindowGroup {
             ZStack {
-                // FIXED: Provide AuthenticationViewModel as environment object
                 ContentView()
                     .environmentObject(authViewModel)
+                    .environmentObject(darkModeManager) // Add this
                 
                 if showLaunch {
                     LaunchScreen()

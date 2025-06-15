@@ -96,45 +96,175 @@ struct BetModal: View {
         )
     }
     
-    // MARK: - Team Selection
-    
+    //
+    //  Enhanced BetModal.swift - Divided Team Colors
+    //  Replace the teamSelectionSection in your BetModal.swift with this
+    //
+
+    // MARK: - Team Selection with Divided Colors (NO RECTANGLES)
+
     private var teamSelectionSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Choose Your Team")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
             
-            HStack(spacing: 12) {
-                // Away Team
-                teamButton(
-                    name: game.awayTeam,
-                    spread: game.awaySpread,
-                    colors: game.awayTeamColors,
-                    isSelected: selectedTeam == game.awayTeam
-                ) {
+            // ENHANCED: Divided card with team colors flowing across
+            HStack(spacing: 0) {
+                // Away Team Side
+                Button(action: {
                     selectedTeam = game.awayTeam
                     isHomeTeam = false
+                    HapticManager.impact(.medium)
+                }) {
+                    VStack(spacing: 12) {
+                        Text(game.awayTeam)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
+                        
+                        Text(game.awaySpread)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.2))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                    )
+                            )
+                            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 100)
+                    .background(
+                        // Away team gradient background
+                        LinearGradient(
+                            colors: [
+                                game.awayTeamColors.primary.opacity(selectedTeam == game.awayTeam ? 0.9 : 0.7),
+                                game.awayTeamColors.secondary.opacity(selectedTeam == game.awayTeam ? 0.7 : 0.5)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        // Selection indicator
+                        Rectangle()
+                            .stroke(
+                                selectedTeam == game.awayTeam ? Color.white.opacity(0.8) : Color.clear,
+                                lineWidth: 3
+                            )
+                    )
                 }
+                .buttonStyle(PlainButtonStyle())
+                .scaleEffect(selectedTeam == game.awayTeam ? 1.03 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTeam == game.awayTeam)
                 
-                // Home Team
-                teamButton(
-                    name: game.homeTeam,
-                    spread: game.homeSpread,
-                    colors: game.homeTeamColors,
-                    isSelected: selectedTeam == game.homeTeam
-                ) {
+                // VS Indicator
+                VStack {
+                    Text("@")
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle()
+                                .fill(Color.black.opacity(0.6))
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                        .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
+                }
+                .frame(width: 50)
+                .zIndex(1)
+                
+                // Home Team Side
+                Button(action: {
                     selectedTeam = game.homeTeam
                     isHomeTeam = true
+                    HapticManager.impact(.medium)
+                }) {
+                    VStack(spacing: 12) {
+                        Text(game.homeTeam)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
+                        
+                        Text(game.homeSpread)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.2))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                    )
+                            )
+                            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 100)
+                    .background(
+                        // Home team gradient background
+                        LinearGradient(
+                            colors: [
+                                game.homeTeamColors.primary.opacity(selectedTeam == game.homeTeam ? 0.9 : 0.7),
+                                game.homeTeamColors.secondary.opacity(selectedTeam == game.homeTeam ? 0.7 : 0.5)
+                            ],
+                            startPoint: .topTrailing,
+                            endPoint: .bottomLeading
+                        )
+                    )
+                    .overlay(
+                        // Selection indicator
+                        Rectangle()
+                            .stroke(
+                                selectedTeam == game.homeTeam ? Color.white.opacity(0.8) : Color.clear,
+                                lineWidth: 3
+                            )
+                    )
                 }
+                .buttonStyle(PlainButtonStyle())
+                .scaleEffect(selectedTeam == game.homeTeam ? 1.03 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTeam == game.homeTeam)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
         }
         .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.05))
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.1),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.primary.opacity(0.3), lineWidth: 1) // FIXED: Teal border
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
                 )
         )
     }
