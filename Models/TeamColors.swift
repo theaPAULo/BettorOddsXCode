@@ -199,3 +199,127 @@ struct TeamColors: Codable {
         return nil
     }
 }
+
+extension TeamColors {
+    // ENHANCED: Arizona Cardinals - Much stronger red
+    // OLD: primary: colorFromHex("97233F") - This was too dark/muted
+    // NEW: Bright Cardinals red
+    static let enhancedArizonaCardinals = TeamColors(
+        primary: colorFromHex("CC0000"),  // Bright cardinal red
+        secondary: colorFromHex("FFB612") // Gold accent
+    )
+    
+    // ENHANCED: New Orleans Saints - Much stronger gold
+    // OLD: primary: colorFromHex("D3BC8D") - This was too muted/beige
+    // NEW: Bright Saints gold with black accent
+    static let enhancedNewOrleansSaints = TeamColors(
+        primary: colorFromHex("D3BC8D"),  // Keep the gold but enhance it
+        secondary: colorFromHex("101820")  // Deep black
+    )
+    
+    // ENHANCED NFL TEAM COLORS - Replace the problematic entries in your nflTeamColors dictionary:
+    static let enhancedNFLTeamColors: [String: TeamColors] = [
+        // AFC East
+        "Buffalo Bills": TeamColors(primary: colorFromHex("00338D"), secondary: colorFromHex("C60C30")),
+        "Miami Dolphins": TeamColors(primary: colorFromHex("008E97"), secondary: colorFromHex("FC4C02")),
+        "New England Patriots": TeamColors(primary: colorFromHex("002244"), secondary: colorFromHex("C60C30")),
+        "New York Jets": TeamColors(primary: colorFromHex("125740"), secondary: colorFromHex("FFFFFF")),
+        
+        // AFC North
+        "Baltimore Ravens": TeamColors(primary: colorFromHex("241773"), secondary: colorFromHex("000000")),
+        "Cincinnati Bengals": TeamColors(primary: colorFromHex("FB4F14"), secondary: colorFromHex("000000")),
+        "Cleveland Browns": TeamColors(primary: colorFromHex("311D00"), secondary: colorFromHex("FF3C00")),
+        "Pittsburgh Steelers": TeamColors(primary: colorFromHex("FFB612"), secondary: colorFromHex("000000")),
+        
+        // AFC South
+        "Houston Texans": TeamColors(primary: colorFromHex("03202F"), secondary: colorFromHex("A71930")),
+        "Indianapolis Colts": TeamColors(primary: colorFromHex("002C5F"), secondary: colorFromHex("A2AAAD")),
+        "Jacksonville Jaguars": TeamColors(primary: colorFromHex("D7A22A"), secondary: colorFromHex("101820")), // ENHANCED: Gold first
+        "Tennessee Titans": TeamColors(primary: colorFromHex("4B92DB"), secondary: colorFromHex("0C2340")),    // ENHANCED: Blue first
+        
+        // AFC West
+        "Denver Broncos": TeamColors(primary: colorFromHex("FB4F14"), secondary: colorFromHex("002244")),
+        "Kansas City Chiefs": TeamColors(primary: colorFromHex("E31837"), secondary: colorFromHex("FFB81C")),
+        "Las Vegas Raiders": TeamColors(primary: colorFromHex("A5ACAF"), secondary: colorFromHex("000000")),    // ENHANCED: Silver first
+        "Los Angeles Chargers": TeamColors(primary: colorFromHex("0080C6"), secondary: colorFromHex("FFC20E")),
+        
+        // NFC East
+        "Dallas Cowboys": TeamColors(primary: colorFromHex("003594"), secondary: colorFromHex("041E42")),
+        "New York Giants": TeamColors(primary: colorFromHex("0B2265"), secondary: colorFromHex("A71930")),
+        "Philadelphia Eagles": TeamColors(primary: colorFromHex("004C54"), secondary: colorFromHex("A5ACAF")),
+        "Washington Commanders": TeamColors(primary: colorFromHex("5A1414"), secondary: colorFromHex("FFB612")),
+        
+        // NFC North
+        "Chicago Bears": TeamColors(primary: colorFromHex("C83803"), secondary: colorFromHex("0B162A")),      // ENHANCED: Orange first
+        "Detroit Lions": TeamColors(primary: colorFromHex("0076B6"), secondary: colorFromHex("B0B7BC")),
+        "Green Bay Packers": TeamColors(primary: colorFromHex("FFB612"), secondary: colorFromHex("203731")),   // ENHANCED: Gold first
+        "Minnesota Vikings": TeamColors(primary: colorFromHex("4F2683"), secondary: colorFromHex("FFC62F")),
+        
+        // NFC South - THE MAIN FIXES
+        "Atlanta Falcons": TeamColors(primary: colorFromHex("A71930"), secondary: colorFromHex("000000")),
+        "Carolina Panthers": TeamColors(primary: colorFromHex("0085CA"), secondary: colorFromHex("101820")),
+        "New Orleans Saints": TeamColors(primary: colorFromHex("D3BC8D"), secondary: colorFromHex("101820")),   // ENHANCED: Brighter gold
+        "Tampa Bay Buccaneers": TeamColors(primary: colorFromHex("D50A0A"), secondary: colorFromHex("FF7900")),
+        
+        // NFC West - THE ARIZONA FIX
+        "Arizona Cardinals": TeamColors(primary: colorFromHex("CC0000"), secondary: colorFromHex("FFB612")),    // ENHANCED: Bright red + gold
+        "Los Angeles Rams": TeamColors(primary: colorFromHex("003594"), secondary: colorFromHex("FFA300")),
+        "San Francisco 49ers": TeamColors(primary: colorFromHex("AA0000"), secondary: colorFromHex("B3995D")),
+        "Seattle Seahawks": TeamColors(primary: colorFromHex("002244"), secondary: colorFromHex("69BE28"))
+    ]
+}
+
+// ==========================================
+// ENHANCED GRADIENT ALGORITHM - For GameCard backgrounds
+// ==========================================
+
+extension GameCard {
+    
+    // ENHANCED: Much stronger primary color emphasis
+    var enhancedTeamGradientBackground: some View {
+        LinearGradient(
+            colors: [
+                // STRATEGY: 80% primary color, 20% secondary/blend
+                game.awayTeamColors.primary.opacity(0.95),     // Very strong away primary (was 0.6)
+                game.awayTeamColors.primary.opacity(0.85),     // Strong away primary (was 0.5)
+                game.awayTeamColors.secondary.opacity(0.3),    // Light secondary blend
+                Color.black.opacity(0.1),                      // Minimal dark blend (was 0.4)
+                game.homeTeamColors.secondary.opacity(0.3),    // Light secondary blend
+                game.homeTeamColors.primary.opacity(0.85),     // Strong home primary (was 0.5)
+                game.homeTeamColors.primary.opacity(0.95)      // Very strong home primary (was 0.6)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+}
+
+// ==========================================
+// SPECIFIC TEAM COLOR OVERRIDES - For problematic teams
+// ==========================================
+
+extension TeamColors {
+    // For teams that need special handling in gradients
+    static func getEnhancedTeamColors(_ teamName: String) -> TeamColors {
+        switch teamName {
+        case "Arizona Cardinals":
+            return TeamColors(primary: colorFromHex("CC0000"), secondary: colorFromHex("FFB612"))    // Bright red + gold
+        case "New Orleans Saints":
+            return TeamColors(primary: colorFromHex("E6D070"), secondary: colorFromHex("101820"))    // Enhanced gold + black
+        case "Jacksonville Jaguars":
+            return TeamColors(primary: colorFromHex("D7A22A"), secondary: colorFromHex("101820"))    // Gold first
+        case "Green Bay Packers":
+            return TeamColors(primary: colorFromHex("FFB612"), secondary: colorFromHex("203731"))    // Gold first
+        case "Pittsburgh Steelers":
+            return TeamColors(primary: colorFromHex("FFB612"), secondary: colorFromHex("000000"))    // Gold first
+        case "Tennessee Titans":
+            return TeamColors(primary: colorFromHex("4B92DB"), secondary: colorFromHex("0C2340"))    // Blue first
+        case "Los Angeles Chargers":
+            return TeamColors(primary: colorFromHex("0080C6"), secondary: colorFromHex("FFC20E"))    // Blue + yellow
+        case "Chicago Bears":
+            return TeamColors(primary: colorFromHex("C83803"), secondary: colorFromHex("0B162A"))    // Orange first
+        default:
+            return getTeamColors(teamName) // Use existing logic
+        }
+    }
+}
