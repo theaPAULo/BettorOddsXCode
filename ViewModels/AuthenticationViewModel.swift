@@ -2,16 +2,17 @@
 //  AuthenticationViewModel.swift
 //  BettorOdds
 //
-//  Created by Claude on 1/31/25.
-//  Version: 3.0.0 - Completely rewritten for Google/Apple Sign-In
+//  Version: 2.7.1 - Fixed GIDConfiguration optional binding issue
+//  Updated: June 2025
 //
 
 import Foundation
+import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 import GoogleSignIn
 import AuthenticationServices
-import SwiftUI
+import CryptoKit
 
 // MARK: - Authentication State
 enum AuthState: Equatable {
@@ -54,52 +55,38 @@ class AuthenticationViewModel: ObservableObject {
             return
         }
         
-        // Configure Google Sign-In
+        // Get Google Client ID
         guard let clientID = getGoogleClientID() else {
-            errorMessage = "Google Sign-In configuration error"
+            errorMessage = "Google configuration not found"
             isLoading = false
             return
         }
         
-        // Create Google Sign-In configuration
+        // FIXED: GIDConfiguration initializer doesn't return optional
         let config = GIDConfiguration(clientID: clientID)
         GIDSignIn.sharedInstance.configuration = config
         
-        // Start the sign-in flow
+        // Sign in
         GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { [weak self] result, error in
             Task { @MainActor in
-                guard let self = self else { return }
-                
                 if let error = error {
-                    self.errorMessage = "Google Sign-In failed: \(error.localizedDescription)"
-                    self.isLoading = false
+                    self?.errorMessage = "Google Sign-In failed: \(error.localizedDescription)"
+                    self?.isLoading = false
                     return
                 }
                 
-                guard let user = result?.user,
-                      let idToken = user.idToken?.tokenString else {
-                    self.errorMessage = "Failed to get Google user information"
-                    self.isLoading = false
+                guard let result = result,
+                      let idToken = result.user.idToken?.tokenString else {
+                    self?.errorMessage = "Failed to get ID token from Google"
+                    self?.isLoading = false
                     return
                 }
                 
-                // Create Firebase credential
-                let credential = GoogleAuthProvider.credential(
-                    withIDToken: idToken,
-                    accessToken: user.accessToken.tokenString
-                )
+                let accessToken = result.user.accessToken.tokenString
+                let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
                 
                 // Sign in to Firebase
-                do {
-                    let authResult = try await Auth.auth().signIn(with: credential)
-                    try await self.handleAuthenticationSuccess(
-                        firebaseUser: authResult.user,
-                        authProvider: "google.com"
-                    )
-                } catch {
-                    self.errorMessage = "Firebase authentication failed: \(error.localizedDescription)"
-                    self.isLoading = false
-                }
+                await self?.signInToFirebase(with: credential, authProvider: "google.com")
             }
         }
     }
@@ -111,66 +98,75 @@ class AuthenticationViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        let request = ASAuthorizationAppleIDProvider().createRequest()
-        request.requestedScopes = [.fullName, .email]
-        
-        let authorizationController = ASAuthorizationController(authorizationRequests: [request])
-        
-        // Create a coordinator to handle the Apple Sign-In flow
-        let coordinator = AppleSignInCoordinator { [weak self] result in
+        appleSignInCoordinator = AppleSignInCoordinator { [weak self] result in
             Task { @MainActor in
-                guard let self = self else { return }
-                
                 switch result {
-                case .success(let authResult):
-                    do {
-                        try await self.handleAuthenticationSuccess(
-                            firebaseUser: authResult,
-                            authProvider: "apple.com"
-                        )
-                    } catch {
-                        self.errorMessage = "Firebase authentication failed: \(error.localizedDescription)"
-                        self.isLoading = false
-                    }
-                    
+                case .success(let credential):
+                    await self?.signInWithAppleCredential(credential)
                 case .failure(let error):
-                    self.errorMessage = "Apple Sign-In failed: \(error.localizedDescription)"
-                    self.isLoading = false
+                    self?.errorMessage = "Apple Sign-In failed: \(error.localizedDescription)"
+                    self?.isLoading = false
                 }
             }
         }
         
-        authorizationController.delegate = coordinator
-        authorizationController.presentationContextProvider = coordinator
-        authorizationController.performRequests()
-        
-        // Keep coordinator alive
-        self.appleSignInCoordinator = coordinator
+        appleSignInCoordinator?.signIn()
     }
     
-    // MARK: - Common Authentication Handling
+    // MARK: - Apple Sign-In Helper Methods
     
-    /// Handles successful authentication from either provider
-    private func handleAuthenticationSuccess(firebaseUser: FirebaseAuth.User, authProvider: String) async throws {
-        print("🔐 Authentication successful with provider: \(authProvider)")
-        print("🆔 User ID: \(firebaseUser.uid)")
-        
-        // Check if user already exists in Firestore
-        let userDoc = try await db.collection("users").document(firebaseUser.uid).getDocument()
-        
-        if userDoc.exists {
-            // Existing user - fetch their data
-            print("👤 Existing user found")
-            try await fetchUser(userId: firebaseUser.uid)
-        } else {
-            // New user - create their profile
-            print("👤 New user - creating profile")
-            try await createNewUser(firebaseUser: firebaseUser, authProvider: authProvider)
+    private func signInWithAppleCredential(_ credential: ASAuthorizationAppleIDCredential) async {
+        guard let idToken = credential.identityToken,
+              let idTokenString = String(data: idToken, encoding: .utf8) else {
+            await MainActor.run {
+                self.errorMessage = "Failed to get ID token from Apple"
+                self.isLoading = false
+            }
+            return
         }
         
-        authState = .signedIn
-        isLoading = false
-        print("✅ Authentication flow completed successfully")
+        // Generate nonce for security
+        let rawNonce = generateNonce()
+        
+        // FIXED: Use the new credential method instead of deprecated one
+        let oauthCredential = OAuthProvider.credential(
+            providerID: AuthProviderID.apple,
+            idToken: idTokenString,
+            rawNonce: rawNonce,
+            accessToken: nil
+        )
+        
+        await signInToFirebase(with: oauthCredential, authProvider: "apple.com")
+    }
+    
+    // MARK: - Firebase Authentication
+    
+    /// Signs in to Firebase with the provided credential
+    private func signInToFirebase(with credential: AuthCredential, authProvider: String) async {
+        do {
+            let result = try await Auth.auth().signIn(with: credential)
+            
+            // Check if user exists in Firestore
+            let userDoc = try await db.collection("users").document(result.user.uid).getDocument()
+            
+            if userDoc.exists {
+                // Existing user - fetch their data
+                print("👤 Existing user found")
+                try await fetchUser(userId: result.user.uid)
+            } else {
+                // New user - create their profile
+                print("👤 New user - creating profile")
+                try await createNewUser(firebaseUser: result.user, authProvider: authProvider)
+            }
+            
+            authState = .signedIn
+            isLoading = false
+            print("✅ Authentication flow completed successfully")
+        } catch {
+            errorMessage = "Authentication failed: \(error.localizedDescription)"
+            isLoading = false
+            print("❌ Authentication error: \(error)")
+        }
     }
     
     /// Creates a new user profile in Firestore
@@ -263,11 +259,15 @@ class AuthenticationViewModel: ObservableObject {
                 Task {
                     do {
                         try await self.fetchUser(userId: currentUser.uid)
-                        self.authState = .signedIn
+                        await MainActor.run {
+                            self.authState = .signedIn
+                        }
                         print("✅ User authenticated successfully")
                     } catch {
                         print("❌ Error fetching user: \(error)")
-                        self.authState = .signedOut
+                        await MainActor.run {
+                            self.authState = .signedOut
+                        }
                     }
                 }
             } else {
@@ -284,73 +284,19 @@ class AuthenticationViewModel: ObservableObject {
         guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
               let plist = NSDictionary(contentsOfFile: path),
               let clientId = plist["CLIENT_ID"] as? String else {
-            print("❌ Failed to get Google Client ID from GoogleService-Info.plist")
             return nil
         }
         return clientId
     }
-}
-
-// MARK: - Apple Sign-In Coordinator
-
-class AppleSignInCoordinator: NSObject {
-    private let completion: (Result<FirebaseAuth.User, Error>) -> Void
     
-    init(completion: @escaping (Result<FirebaseAuth.User, Error>) -> Void) {
-        self.completion = completion
-        super.init()
-    }
-}
-
-// MARK: - ASAuthorizationControllerDelegate
-extension AppleSignInCoordinator: ASAuthorizationControllerDelegate {
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        
-        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-            completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid Apple ID credential"])))
-            return
-        }
-        
-        guard let nonce = currentNonce,
-              let appleIDToken = appleIDCredential.identityToken,
-              let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
-            completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch identity token"])))
-            return
-        }
-        
-        // Create Firebase credential
-        let credential = OAuthProvider.credential(
-            withProviderID: "apple.com",
-            idToken: idTokenString,
-            rawNonce: nonce
-        )
-        
-        // Sign in with Firebase
-        Task {
-            do {
-                let authResult = try await Auth.auth().signIn(with: credential)
-                completion(.success(authResult.user))
-            } catch {
-                completion(.failure(error))
-            }
-        }
-    }
-    
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        completion(.failure(error))
-    }
-    
-    // Generate nonce for Apple Sign-In security
-    private var currentNonce: String? {
-        return randomNonceString()
-    }
-    
-    private func randomNonceString(length: Int = 32) -> String {
+    // Helper method to generate secure nonce
+    private func generateNonce(length: Int = 32) -> String {
         precondition(length > 0)
-        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        let charset: [Character] =
+            Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         var result = ""
         var remainingLength = length
-        
+
         while remainingLength > 0 {
             let randoms: [UInt8] = (0 ..< 16).map { _ in
                 var random: UInt8 = 0
@@ -360,29 +306,85 @@ extension AppleSignInCoordinator: ASAuthorizationControllerDelegate {
                 }
                 return random
             }
-            
+
             randoms.forEach { random in
                 if remainingLength == 0 {
                     return
                 }
-                
+
                 if random < charset.count {
                     result.append(charset[Int(random)])
                     remainingLength -= 1
                 }
             }
         }
-        
+
         return result
+    }
+    
+    // Helper method for SHA256 hashing
+    private func sha256(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        let hashString = hashedData.compactMap {
+            String(format: "%02x", $0)
+        }.joined()
+
+        return hashString
+    }
+    
+    // Helper method to extract name from Apple credential
+    private func extractNameFromAppleCredential(_ credential: ASAuthorizationAppleIDCredential) -> String {
+        if let fullName = credential.fullName {
+            let firstName = fullName.givenName ?? ""
+            let lastName = fullName.familyName ?? ""
+            return "\(firstName) \(lastName)".trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return "Apple User"
     }
 }
 
-// MARK: - ASAuthorizationControllerPresentationContextProviding
-extension AppleSignInCoordinator: ASAuthorizationControllerPresentationContextProviding {
+// MARK: - Apple Sign-In Coordinator
+
+class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var completion: (Result<ASAuthorizationAppleIDCredential, Error>) -> Void
+    
+    init(completion: @escaping (Result<ASAuthorizationAppleIDCredential, Error>) -> Void) {
+        self.completion = completion
+        super.init()
+    }
+    
+    func signIn() {
+        let appleIDProvider = ASAuthorizationAppleIDProvider()
+        let request = appleIDProvider.createRequest()
+        request.requestedScopes = [.fullName, .email]
+        
+        let authorizationController = ASAuthorizationController(authorizationRequests: [request])
+        authorizationController.delegate = self
+        authorizationController.presentationContextProvider = self
+        authorizationController.performRequests()
+    }
+    
+    // MARK: - ASAuthorizationControllerDelegate
+    
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+            completion(.success(appleIDCredential))
+        } else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid credential type"])))
+        }
+    }
+    
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        completion(.failure(error))
+    }
+    
+    // MARK: - ASAuthorizationControllerPresentationContextProviding
+    
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
-            fatalError("Unable to find window for Apple Sign-In presentation")
+            fatalError("Unable to find presentation anchor")
         }
         return window
     }

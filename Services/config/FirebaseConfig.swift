@@ -1,7 +1,17 @@
+//
+//  FirebaseConfig.swift
+//  BettorOdds
+//
+//  Version: 2.7.1 - Fixed Int64 conversion issue and deprecated Firebase methods
+//  Updated: June 2025
+//
+
+import Foundation
 import FirebaseCore
 import FirebaseFirestore
 import FirebaseAuth
 import FirebaseStorage
+import UserNotifications
 
 /// Manages Firebase configuration and initialization
 class FirebaseConfig {
@@ -41,10 +51,14 @@ class FirebaseConfig {
         self.auth = Auth.auth()
         self.storage = Storage.storage()
         
-        // Configure Firestore settings
+        // FIXED: Configure Firestore settings using new cacheSettings API
         let settings = FirestoreSettings()
-        settings.isPersistenceEnabled = true // Enable offline persistence
-        settings.cacheSizeBytes = FirestoreCacheSizeUnlimited // Unlimited cache size
+        
+        // FIXED: Use new cacheSettings instead of deprecated properties
+        // Convert to NSNumber for compatibility
+        let unlimited = NSNumber(value: FirestoreCacheSizeUnlimited)
+        settings.cacheSettings = PersistentCacheSettings(sizeBytes: unlimited)
+        
         self.db.settings = settings
         
         print("✅ Firebase services initialized")
@@ -82,7 +96,8 @@ class FirebaseConfig {
     private func configureDebugSettings() {
         #if DEBUG
         let settings = FirestoreSettings()
-        settings.isPersistenceEnabled = false
+        // FIXED: Use new cacheSettings API for debug mode
+        settings.cacheSettings = MemoryCacheSettings()
         db.settings = settings
         print("🔧 Debug settings configured for Firestore")
         #endif

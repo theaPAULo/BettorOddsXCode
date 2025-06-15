@@ -163,8 +163,8 @@ class BetMonitoringViewModel: ObservableObject {
         
         // Calculate volumes
         let hourAgo = Date().addingTimeInterval(-3600)
-        let dayAgo = Date().addingTimeInterval(-86400)
-        
+        _ = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+
         let hourlySnapshot = try await db.collection("bets")
             .whereField("createdAt", isGreaterThan: Timestamp(date: hourAgo))
             .getDocuments()

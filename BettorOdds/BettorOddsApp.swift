@@ -2,8 +2,8 @@
 //  BettorOddsApp.swift
 //  BettorOdds
 //
-//  Version: 2.2.0 - Fixed Firebase notification handling
-//  Updated: February 2025
+//  Version: 2.7.0 - Fixed environment object injection
+//  Updated: June 2025
 
 import SwiftUI
 import FirebaseCore
@@ -96,10 +96,15 @@ struct BettorOddsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @State private var showLaunch = true
     
+    // FIXED: Create AuthenticationViewModel here to provide to the entire app
+    @StateObject private var authViewModel = AuthenticationViewModel()
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
+                // FIXED: Provide AuthenticationViewModel as environment object
                 ContentView()
+                    .environmentObject(authViewModel)
                 
                 if showLaunch {
                     LaunchScreen()

@@ -2,71 +2,37 @@
 //  LoginView.swift
 //  BettorOdds
 //
-//  Created by Claude on 1/31/25.
-//  Version: 3.0.1 - Fixed compiler timeout issue with simplified background
+//  Version: 2.7.0 - Fixed iOS 17 onChange deprecation warning
+//  Updated: June 2025
 //
 
 import SwiftUI
 import AuthenticationServices
 
 struct LoginView: View {
-    // MARK: - Properties
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @State private var showingError = false
     
-    // MARK: - Computed Properties
-    
-    // Break down complex gradient into separate computed property
-    private var backgroundGradient: LinearGradient {
-        LinearGradient(
-            gradient: Gradient(colors: [
-                Color.primary.opacity(0.2),
-                Color.white.opacity(0.1),
-                Color.primary.opacity(0.2)
-            ]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    private var logoGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color.primary,
-                Color.primary.opacity(0.8)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    // MARK: - Body
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Simplified Background
+                // Background gradient
                 backgroundGradient
                     .ignoresSafeArea()
                 
-                ScrollView {
-                    VStack(spacing: 0) {
-                        // Top spacer for better centering
-                        Spacer()
-                            .frame(height: geometry.size.height * 0.15)
-                        
-                        // Logo and Welcome Section
-                        logoAndWelcomeSection
-                        
-                        // Sign-In Buttons Section
-                        signInButtonsSection
-                        
-                        // Terms and Privacy
-                        termsAndPrivacySection
-                        
-                        // Bottom spacer
-                        Spacer()
-                            .frame(height: geometry.size.height * 0.1)
-                    }
+                // Main content
+                VStack(spacing: 0) {
+                    // Logo and welcome section
+                    logoAndWelcomeSection
+                        .frame(height: geometry.size.height * 0.5)
+                    
+                    // Sign-in buttons section
+                    signInButtonsSection
+                        .frame(height: geometry.size.height * 0.4)
+                    
+                    // Spacer to push content up
+                    Spacer()
+                        .frame(height: geometry.size.height * 0.1)
                 }
             }
         }
@@ -79,7 +45,8 @@ struct LoginView: View {
                 Text(errorMessage)
             }
         }
-        .onChange(of: authViewModel.errorMessage) { errorMessage in
+        // FIXED: Updated onChange for iOS 17 compatibility
+        .onChange(of: authViewModel.errorMessage) { _, errorMessage in
             showingError = errorMessage != nil
         }
     }
@@ -106,10 +73,21 @@ struct LoginView: View {
                     }
                 }
                 
+                // SUGGESTION: Restored the gold gradient BettorOdds title you liked!
                 Text("BettorOdds")
                     .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(Color.primary)
-                    .shadow(color: Color.primary.opacity(0.3), radius: 2, x: 0, y: 2)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: "FFD700"), // Gold
+                                Color(hex: "FFA500"), // Orange-gold
+                                Color(hex: "FF8C00")  // Darker orange
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 2)
             }
             
             // Welcome message
@@ -179,65 +157,100 @@ struct LoginView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(googleButtonBackground)
-            .overlay(googleButtonOverlay)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
         }
         .disabled(authViewModel.isLoading)
     }
     
-    private var googleButtonBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(Color.white)
-            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-    }
-    
-    private var googleButtonOverlay: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-    }
-    
     private var loadingIndicator: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: Color.primary))
                 .scaleEffect(0.8)
             
             Text("Signing in...")
                 .font(.system(size: 14))
-                .foregroundColor(Color("TextSecondary"))
+                .foregroundColor(.secondary)
         }
-        .padding(.top, 8)
+        .padding(.top, 16)
     }
     
-    private var termsAndPrivacySection: some View {
-        VStack(spacing: 8) {
-            Text("By signing in, you agree to our")
-                .font(.system(size: 12))
-                .foregroundColor(Color("TextSecondary"))
-            
-            HStack(spacing: 4) {
-                Button("Terms of Service") {
-                    // Handle terms of service tap
-                }
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color.primary)
-                
-                Text("and")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color("TextSecondary"))
-                
-                Button("Privacy Policy") {
-                    // Handle privacy policy tap
-                }
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color.primary)
-            }
-        }
-        .padding(.top, 32)
-        .padding(.horizontal, 32)
+    // MARK: - Computed Properties
+    
+    private var backgroundGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color("BackgroundPrimary"),
+                Color("BackgroundSecondary").opacity(0.8)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+    
+    private var logoGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.primary,
+                Color.primary.opacity(0.8)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    private var googleButtonBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color("BackgroundPrimary"))
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.1),
+                                Color.clear
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            )
     }
 }
 
-// MARK: - Preview
+// MARK: - Color Extension for Hex Support
+
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
+    }
+}
+
 #Preview {
     LoginView()
         .environmentObject(AuthenticationViewModel())

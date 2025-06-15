@@ -2,8 +2,8 @@
 //  TeamColors.swift
 //  BettorOdds
 //
-//  Created by Paul Soni on 1/28/25.
-//  Version: 2.0.0 - Added local hex support for readability
+//  Version: 2.7.0 - Added comprehensive NFL team colors and improved lookup
+//  Updated: June 2025
 //
 
 import SwiftUI
@@ -38,7 +38,7 @@ struct TeamColors: Codable {
         )
     }
     
-    // MARK: - Static Properties
+    // MARK: - NBA Team Colors
     static let nbaTeamColors: [String: TeamColors] = [
         "Lakers": TeamColors(primary: colorFromHex("552583"), secondary: colorFromHex("FDB927")),
         "Celtics": TeamColors(primary: colorFromHex("007A33"), secondary: colorFromHex("BA9653")),
@@ -72,6 +72,57 @@ struct TeamColors: Codable {
         "Wizards": TeamColors(primary: colorFromHex("002B5C"), secondary: colorFromHex("E31837"))
     ]
     
+    // MARK: - NFL Team Colors (ADDED: Complete NFL team colors)
+    static let nflTeamColors: [String: TeamColors] = [
+        // AFC East
+        "Buffalo Bills": TeamColors(primary: colorFromHex("00338D"), secondary: colorFromHex("C60C30")),
+        "Miami Dolphins": TeamColors(primary: colorFromHex("008E97"), secondary: colorFromHex("FC4C02")),
+        "New England Patriots": TeamColors(primary: colorFromHex("002244"), secondary: colorFromHex("C60C30")),
+        "New York Jets": TeamColors(primary: colorFromHex("125740"), secondary: colorFromHex("000000")),
+        
+        // AFC North
+        "Baltimore Ravens": TeamColors(primary: colorFromHex("241773"), secondary: colorFromHex("000000")),
+        "Cincinnati Bengals": TeamColors(primary: colorFromHex("FB4F14"), secondary: colorFromHex("000000")),
+        "Cleveland Browns": TeamColors(primary: colorFromHex("311D00"), secondary: colorFromHex("FF3C00")),
+        "Pittsburgh Steelers": TeamColors(primary: colorFromHex("FFB612"), secondary: colorFromHex("000000")),
+        
+        // AFC South
+        "Houston Texans": TeamColors(primary: colorFromHex("03202F"), secondary: colorFromHex("A71930")),
+        "Indianapolis Colts": TeamColors(primary: colorFromHex("002C5F"), secondary: colorFromHex("A2AAAD")),
+        "Jacksonville Jaguars": TeamColors(primary: colorFromHex("101820"), secondary: colorFromHex("D7A22A")),
+        "Tennessee Titans": TeamColors(primary: colorFromHex("0C2340"), secondary: colorFromHex("4B92DB")),
+        
+        // AFC West
+        "Denver Broncos": TeamColors(primary: colorFromHex("FB4F14"), secondary: colorFromHex("002244")),
+        "Kansas City Chiefs": TeamColors(primary: colorFromHex("E31837"), secondary: colorFromHex("FFB81C")),
+        "Las Vegas Raiders": TeamColors(primary: colorFromHex("000000"), secondary: colorFromHex("A5ACAF")),
+        "Los Angeles Chargers": TeamColors(primary: colorFromHex("0080C6"), secondary: colorFromHex("FFC20E")),
+        
+        // NFC East
+        "Dallas Cowboys": TeamColors(primary: colorFromHex("003594"), secondary: colorFromHex("041E42")),
+        "New York Giants": TeamColors(primary: colorFromHex("0B2265"), secondary: colorFromHex("A71930")),
+        "Philadelphia Eagles": TeamColors(primary: colorFromHex("004C54"), secondary: colorFromHex("A5ACAF")),
+        "Washington Commanders": TeamColors(primary: colorFromHex("5A1414"), secondary: colorFromHex("FFB612")),
+        
+        // NFC North
+        "Chicago Bears": TeamColors(primary: colorFromHex("0B162A"), secondary: colorFromHex("C83803")),
+        "Detroit Lions": TeamColors(primary: colorFromHex("0076B6"), secondary: colorFromHex("B0B7BC")),
+        "Green Bay Packers": TeamColors(primary: colorFromHex("203731"), secondary: colorFromHex("FFB612")),
+        "Minnesota Vikings": TeamColors(primary: colorFromHex("4F2683"), secondary: colorFromHex("FFC62F")),
+        
+        // NFC South
+        "Atlanta Falcons": TeamColors(primary: colorFromHex("A71930"), secondary: colorFromHex("000000")),
+        "Carolina Panthers": TeamColors(primary: colorFromHex("0085CA"), secondary: colorFromHex("101820")),
+        "New Orleans Saints": TeamColors(primary: colorFromHex("D3BC8D"), secondary: colorFromHex("101820")),
+        "Tampa Bay Buccaneers": TeamColors(primary: colorFromHex("D50A0A"), secondary: colorFromHex("FF7900")),
+        
+        // NFC West
+        "Arizona Cardinals": TeamColors(primary: colorFromHex("97233F"), secondary: colorFromHex("000000")),
+        "Los Angeles Rams": TeamColors(primary: colorFromHex("003594"), secondary: colorFromHex("FFA300")),
+        "San Francisco 49ers": TeamColors(primary: colorFromHex("AA0000"), secondary: colorFromHex("B3995D")),
+        "Seattle Seahawks": TeamColors(primary: colorFromHex("002244"), secondary: colorFromHex("69BE28"))
+    ]
+    
     // MARK: - Coding Keys
     private enum CodingKeys: String, CodingKey {
         case primaryHex, secondaryHex
@@ -100,21 +151,51 @@ struct TeamColors: Codable {
         try container.encode("#000000", forKey: .secondaryHex)
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Helper Methods (IMPROVED: Better team name matching)
     static func getTeamColors(_ teamName: String) -> TeamColors {
-        // Look for exact match first
-        if let colors = nbaTeamColors[teamName] {
+        // Determine league based on team name patterns and search appropriately
+        let cleanedName = teamName.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // First try NBA teams
+        if let colors = findTeamInColors(cleanedName, in: nbaTeamColors) {
             return colors
         }
         
-        // Look for partial matches
-        for (key, colors) in nbaTeamColors {
-            if teamName.contains(key) {
-                return colors
-            }
+        // Then try NFL teams
+        if let colors = findTeamInColors(cleanedName, in: nflTeamColors) {
+            return colors
         }
         
         // Default colors if team not found
         return TeamColors(primary: .gray, secondary: .black)
+    }
+    
+    // MARK: - Private Helper Methods
+    private static func findTeamInColors(_ teamName: String, in colorDict: [String: TeamColors]) -> TeamColors? {
+        // Try exact match first
+        if let colors = colorDict[teamName] {
+            return colors
+        }
+        
+        // Try partial matches (handles cases like "Lakers" vs "Los Angeles Lakers")
+        for (key, colors) in colorDict {
+            if teamName.contains(key) || key.contains(teamName) {
+                return colors
+            }
+        }
+        
+        // Try matching by city or team name components
+        let teamComponents = teamName.components(separatedBy: " ")
+        for component in teamComponents {
+            if component.count > 3 { // Avoid matching short words like "FC", "SC", etc.
+                for (key, colors) in colorDict {
+                    if key.contains(component) {
+                        return colors
+                    }
+                }
+            }
+        }
+        
+        return nil
     }
 }
