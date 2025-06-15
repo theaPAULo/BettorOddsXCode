@@ -305,52 +305,6 @@ private struct ScrollOffsetModifier: ViewModifier {
     }
 }
 
-// MARK: - CoinBalanceCard (matching ProfileView style)
-
-struct CoinBalanceCard: View {
-    let type: CoinType
-    let balance: Int
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text(type == .yellow ? "🟡" : "💚")
-                    .font(.system(size: 24))
-                Spacer()
-                Text(balance.formatted())
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.white)
-            }
-            
-            HStack {
-                Text(type == .yellow ? "Play Coins" : "Real Coins")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.8))
-                Spacer()
-            }
-        }
-        .padding(20)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.1),
-                    Color.white.opacity(0.05)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(type == .yellow ?
-                    Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.3) :
-                    Color(red: 0.0, green: 0.9, blue: 0.79).opacity(0.3),
-                    lineWidth: 1)
-        )
-    }
-}
-
 #Preview {
     GamesView()
         .environmentObject(AuthenticationViewModel())
