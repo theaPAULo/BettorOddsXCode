@@ -2,7 +2,7 @@
 //  GameCard.swift
 //  BettorOdds
 //
-//  Version: 2.7.0 - Enhanced team color gradients (No conflicts)
+//  Version: 2.8.0 - No rectangle overlays, vibrant team gradients
 //  Updated: June 2025
 //
 
@@ -37,13 +37,13 @@ struct GameCard: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
             
-            // Teams Section with Integrated Gradients
-            enhancedTeamsSection
+            // Teams Section - NO RECTANGLES, just gradients
+            vibrantTeamsSection
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
                 .padding(.top, 12)
         }
-        .background(integratedTeamGradientBackground)
+        .background(vibrantTeamGradientBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(enhancedBorderOverlay)
         .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
@@ -129,23 +129,23 @@ struct GameCard: View {
         }
     }
     
-    // MARK: - Enhanced Teams Section with Integrated Colors
+    // MARK: - VIBRANT Teams Section (NO RECTANGLES)
     
-    private var enhancedTeamsSection: some View {
+    private var vibrantTeamsSection: some View {
         HStack(spacing: 0) {
-            // Away Team Side with Blended Gradient
-            awayTeamSide
+            // Away Team Side - CLEAN, no rectangles
+            awayTeamSideClean
             
             // VS Indicator in Center
             vsIndicator
                 .zIndex(1)
             
-            // Home Team Side with Blended Gradient
-            homeTeamSide
+            // Home Team Side - CLEAN, no rectangles
+            homeTeamSideClean
         }
     }
     
-    private var awayTeamSide: some View {
+    private var awayTeamSideClean: some View {
         Button(action: {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 globalSelectedTeam = (game.id, TeamSelection.away)
@@ -153,28 +153,34 @@ struct GameCard: View {
             hapticFeedback()
             onSelect()
         }) {
-            VStack(spacing: 10) {
-                teamNameText(game.awayTeam)
-                spreadDisplay(game.awaySpread, teamSide: TeamSelection.away)
+            VStack(spacing: 12) {
+                // Team name - NO RECTANGLE BACKGROUND
+                Text(game.awayTeam)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .shadow(color: .black.opacity(0.7), radius: 2, x: 0, y: 1)
+                
+                // Spread - CLEAN capsule design
+                Text(game.awaySpread)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(vibrantSpreadBackground(for: TeamSelection.away))
+                    .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(awayTeamGradientBackground)
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 12,
-                    bottomLeadingRadius: 12,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 0
-                )
-            )
+            .frame(height: 90)
         }
         .buttonStyle(PlainButtonStyle())
-        .scaleEffect(selectedTeam == TeamSelection.away ? 1.03 : 1.0)
+        .scaleEffect(selectedTeam == TeamSelection.away ? 1.05 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTeam == TeamSelection.away)
     }
     
-    private var homeTeamSide: some View {
+    private var homeTeamSideClean: some View {
         Button(action: {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 globalSelectedTeam = (game.id, TeamSelection.home)
@@ -182,24 +188,30 @@ struct GameCard: View {
             hapticFeedback()
             onSelect()
         }) {
-            VStack(spacing: 10) {
-                teamNameText(game.homeTeam)
-                spreadDisplay(game.homeSpread, teamSide: TeamSelection.home)
+            VStack(spacing: 12) {
+                // Team name - NO RECTANGLE BACKGROUND
+                Text(game.homeTeam)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .shadow(color: .black.opacity(0.7), radius: 2, x: 0, y: 1)
+                
+                // Spread - CLEAN capsule design
+                Text(game.homeSpread)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(vibrantSpreadBackground(for: TeamSelection.home))
+                    .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(homeTeamGradientBackground)
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 0,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 12,
-                    topTrailingRadius: 12
-                )
-            )
+            .frame(height: 90)
         }
         .buttonStyle(PlainButtonStyle())
-        .scaleEffect(selectedTeam == TeamSelection.home ? 1.03 : 1.0)
+        .scaleEffect(selectedTeam == TeamSelection.home ? 1.05 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTeam == TeamSelection.home)
     }
     
@@ -216,8 +228,8 @@ struct GameCard: View {
             .fill(
                 LinearGradient(
                     colors: [
-                        Color.black.opacity(0.6),
-                        Color.black.opacity(0.4)
+                        Color.black.opacity(0.7),
+                        Color.black.opacity(0.5)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -225,33 +237,14 @@ struct GameCard: View {
             )
             .overlay(
                 Circle()
-                    .stroke(Color.white.opacity(0.3), lineWidth: 2)
+                    .stroke(Color.white.opacity(0.4), lineWidth: 2)
             )
-            .shadow(color: Color.black.opacity(0.3), radius: 4, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 3)
     }
     
-    // MARK: - Helper Views
+    // MARK: - VIBRANT Spread Background (Clean Capsules)
     
-    private func teamNameText(_ name: String) -> some View {
-        Text(name)
-            .font(.system(size: 15, weight: .bold))
-            .foregroundColor(.white)
-            .multilineTextAlignment(.center)
-            .lineLimit(2)
-            .minimumScaleFactor(0.8)
-            .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
-    }
-    
-    private func spreadDisplay(_ spread: String, teamSide: TeamSelection) -> some View {
-        Text(spread)
-            .font(.system(size: 18, weight: .bold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(spreadDisplayBackground(for: teamSide))
-    }
-    
-    private func spreadDisplayBackground(for teamSide: TeamSelection) -> some View {
+    private func vibrantSpreadBackground(for teamSide: TeamSelection) -> some View {
         let colors = teamSide == TeamSelection.away ? game.awayTeamColors : game.homeTeamColors
         let isSelected = selectedTeam == teamSide
         
@@ -259,61 +252,63 @@ struct GameCard: View {
             .fill(
                 LinearGradient(
                     colors: [
-                        colors.primary.opacity(isSelected ? 0.8 : 0.4),
-                        colors.secondary.opacity(isSelected ? 0.6 : 0.3)
+                        // MUCH MORE VIBRANT - increased opacity and saturation
+                        colors.primary.opacity(isSelected ? 0.95 : 0.8),
+                        colors.secondary.opacity(isSelected ? 0.85 : 0.7)
                     ],
-                    startPoint: .top,
-                    endPoint: .bottom
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
             )
             .overlay(
                 Capsule()
-                    .stroke(Color.white.opacity(isSelected ? 0.6 : 0.2), lineWidth: isSelected ? 2 : 1)
+                    .stroke(Color.white.opacity(isSelected ? 0.8 : 0.4), lineWidth: isSelected ? 2 : 1)
             )
             .shadow(
-                color: colors.primary.opacity(isSelected ? 0.4 : 0.1),
-                radius: isSelected ? 4 : 2,
+                color: colors.primary.opacity(isSelected ? 0.6 : 0.3),
+                radius: isSelected ? 6 : 3,
                 x: 0,
-                y: isSelected ? 2 : 1
+                y: isSelected ? 3 : 2
             )
     }
     
-    // MARK: - Enhanced Background Gradients (INTEGRATED TEAM COLORS)
+    // MARK: - VIBRANT Background Gradients
     
-    private var integratedTeamGradientBackground: some View {
+    private var vibrantTeamGradientBackground: some View {
         ZStack {
-            // Base card background
+            // Base card background - deeper, richer
             RoundedRectangle(cornerRadius: 16)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.black.opacity(0.3),
-                            Color.black.opacity(0.2)
+                            Color.black.opacity(0.4),
+                            Color.black.opacity(0.3)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             
-            // Integrated team colors that blend naturally into the card
+            // VIBRANT team colors that flow across the entire card
             LinearGradient(
                 colors: [
-                    game.awayTeamColors.primary.opacity(0.4),
-                    game.awayTeamColors.secondary.opacity(0.3),
+                    // MUCH MORE VIBRANT - increased opacity and saturation
+                    game.awayTeamColors.primary.opacity(0.7),
+                    game.awayTeamColors.secondary.opacity(0.5),
                     Color.clear,
-                    game.homeTeamColors.secondary.opacity(0.3),
-                    game.homeTeamColors.primary.opacity(0.4)
+                    game.homeTeamColors.secondary.opacity(0.5),
+                    game.homeTeamColors.primary.opacity(0.7)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             
-            // Glass effect overlay
+            // Enhanced glass effect overlay
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.1),
+                    Color.white.opacity(0.15),
                     Color.clear,
-                    Color.white.opacity(0.05)
+                    Color.white.opacity(0.08)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -321,56 +316,16 @@ struct GameCard: View {
         }
     }
     
-    private var awayTeamGradientBackground: some View {
-        LinearGradient(
-            colors: [
-                game.awayTeamColors.primary.opacity(selectedTeam == TeamSelection.away ? 0.8 : 0.5),
-                game.awayTeamColors.secondary.opacity(selectedTeam == TeamSelection.away ? 0.6 : 0.3),
-                game.awayTeamColors.primary.opacity(selectedTeam == TeamSelection.away ? 0.4 : 0.2)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .overlay(
-            // Selection indicator
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(
-                    selectedTeam == TeamSelection.away ? Color.white.opacity(0.6) : Color.clear,
-                    lineWidth: 2
-                )
-        )
-    }
-    
-    private var homeTeamGradientBackground: some View {
-        LinearGradient(
-            colors: [
-                game.homeTeamColors.primary.opacity(selectedTeam == TeamSelection.home ? 0.8 : 0.5),
-                game.homeTeamColors.secondary.opacity(selectedTeam == TeamSelection.home ? 0.6 : 0.3),
-                game.homeTeamColors.primary.opacity(selectedTeam == TeamSelection.home ? 0.4 : 0.2)
-            ],
-            startPoint: .topTrailing,
-            endPoint: .bottomLeading
-        )
-        .overlay(
-            // Selection indicator
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(
-                    selectedTeam == TeamSelection.home ? Color.white.opacity(0.6) : Color.clear,
-                    lineWidth: 2
-                )
-        )
-    }
-    
     private var enhancedBorderOverlay: some View {
         RoundedRectangle(cornerRadius: 16)
             .stroke(
                 LinearGradient(
                     colors: [
-                        Color.primary.opacity(isFeatured ? 0.8 : 0.4),
-                        game.awayTeamColors.primary.opacity(0.3),
-                        Color.primary.opacity(isFeatured ? 0.6 : 0.3),
-                        game.homeTeamColors.primary.opacity(0.3),
-                        Color.primary.opacity(isFeatured ? 0.8 : 0.4)
+                        Color.primary.opacity(isFeatured ? 0.9 : 0.6),
+                        game.awayTeamColors.primary.opacity(0.5),
+                        Color.primary.opacity(isFeatured ? 0.7 : 0.4),
+                        game.homeTeamColors.primary.opacity(0.5),
+                        Color.primary.opacity(isFeatured ? 0.9 : 0.6)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -383,18 +338,18 @@ struct GameCard: View {
     
     private var shadowColor: Color {
         if isFeatured {
-            return Color.primary.opacity(0.3)
+            return Color.primary.opacity(0.4)
         } else {
-            return Color.black.opacity(0.2)
+            return Color.black.opacity(0.3)
         }
     }
     
     private var shadowRadius: CGFloat {
-        isFeatured ? 12 : 8
+        isFeatured ? 15 : 10
     }
     
     private var shadowY: CGFloat {
-        isFeatured ? 6 : 4
+        isFeatured ? 8 : 5
     }
     
     private var gameOpacity: Double {

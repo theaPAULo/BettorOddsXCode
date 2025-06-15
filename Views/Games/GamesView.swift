@@ -65,80 +65,143 @@ struct GamesView: View {
         }
     }
     
-    // MARK: - Header Section (WITH VISIBLE TEAL)
-    
+    //
+    //  Enhanced GamesView.swift Header Section
+    //  Add this to replace the headerSection in your GamesView.swift
+    //
+
+    //
+    //  Fixed GamesView.swift Header Section
+    //  Replace the headerSection in your GamesView.swift with this
+    //
+
+    // MARK: - Enhanced Header Section (WITH GOLD GRADIENT - FIXED TYPOGRAPHY)
+
     private var headerSection: some View {
         VStack(spacing: AppTheme.Spacing.lg) {
-            // App Title with BRIGHT TEAL DOT
+            // App Title with STUNNING GOLD GRADIENT
             HStack(spacing: 8) {
                 Text("BettorOdds")
-                    .font(AppTheme.Typography.appTitle)
-                    .foregroundColor(.white)
-                    .fontWeight(.bold)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 1.0, green: 0.84, blue: 0.0),    // Pure Gold #FFD700
+                                Color(red: 1.0, green: 0.65, blue: 0.0),    // Orange-Gold #FFA500
+                                Color(red: 1.0, green: 0.55, blue: 0.0),    // Darker Orange #FF8C00
+                                Color(red: 0.85, green: 0.47, blue: 0.0)    // Bronze accent
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.3), radius: 2, x: 0, y: 1)
                 
-                // BRIGHT TEAL DOT - You should see this!
+                // BRIGHT TEAL DOT - Enhanced visibility
                 Circle()
                     .fill(tealColor)
-                    .frame(width: 12, height: 12) // Made bigger so it's more visible
-                    .shadow(color: tealColor, radius: 6)
-                    .shadow(color: tealColor, radius: 3)
+                    .frame(width: 12, height: 12)
+                    .shadow(color: tealColor.opacity(0.6), radius: 4, x: 0, y: 0)
             }
             
-            // Balance Cards with TEAL border on green coins
+            // Balance Cards Row
             HStack(spacing: AppTheme.Spacing.md) {
-                // Yellow Coins (original)
+                // Play Coins (Yellow)
                 BalanceCard(
                     emoji: "🟡",
                     amount: authViewModel.user?.yellowCoins ?? 0,
                     label: "Play Coins",
-                    color: AppTheme.Colors.yellowCoin
+                    color: Color(red: 1.0, green: 0.84, blue: 0.0) // Gold
                 )
                 
-                // Green Coins with BRIGHT TEAL BORDER
+                // Real Coins (Teal) - ENHANCED VISIBILITY
                 BalanceCard(
                     emoji: "💚",
                     amount: authViewModel.user?.greenCoins ?? 0,
                     label: "Real Coins",
-                    color: tealColor // This should show TEAL border
+                    color: tealColor // Bright teal
                 )
             }
             
-            // Daily Limit with BRIGHT TEAL ACCENTS
+            // Daily Limit Display - Enhanced
             HStack {
                 Text("Daily Limit")
-                    .font(AppTheme.Typography.title3)
+                    .font(AppTheme.Typography.title3) // FIXED: Use correct typography
                     .foregroundColor(.white)
                 
                 Spacer()
                 
-                HStack(spacing: 6) {
-                    // BRIGHT TEAL HEART - You should see this!
+                // Enhanced daily limit with teal accent
+                HStack(spacing: 4) {
                     Image(systemName: "heart.fill")
+                        .font(.system(size: 12))
                         .foregroundColor(tealColor)
-                        .font(.system(size: 16, weight: .bold))
-                        .shadow(color: tealColor, radius: 4)
                     
-                    Text("$0/100")
-                        .font(AppTheme.Typography.callout)
-                        .foregroundColor(tealColor) // TEAL TEXT
+                    Text("$\(authViewModel.user?.dailyGreenCoinsUsed ?? 0)/100")
+                        .font(AppTheme.Typography.title3) // FIXED: Use correct typography
+                        .foregroundColor(tealColor)
                         .fontWeight(.semibold)
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(tealColor.opacity(0.2)) // TEAL BACKGROUND
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(tealColor, lineWidth: 2) // BRIGHT TEAL BORDER
+                    Capsule()
+                        .stroke(tealColor, lineWidth: 2)
+                        .background(
+                            Capsule()
+                                .fill(tealColor.opacity(0.1))
                         )
                 )
             }
             
-            // League Selection with BRIGHT TEAL when selected
-            HStack(spacing: AppTheme.Spacing.md) {
-                leagueButton("NBA", isSelected: selectedLeague == "NBA")
-                leagueButton("NFL", isSelected: selectedLeague == "NFL")
+            // League Selection - Enhanced with better animations
+            HStack(spacing: AppTheme.Spacing.sm) {
+                ForEach(["NBA", "NFL"], id: \.self) { league in
+                    Button(action: {
+                        Task {
+                            selectedLeague = league
+                            await viewModel.changeLeague(to: league)
+                            HapticManager.impact(.medium)
+                        }
+                    }) {
+                        Text(league)
+                            .font(AppTheme.Typography.callout) // FIXED: Use correct typography
+                            .fontWeight(.bold)
+                            .foregroundColor(selectedLeague == league ? .black : .white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(leagueButtonBackground(isSelected: selectedLeague == league))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+                    }
+                    .scaleEffect(selectedLeague == league ? 1.02 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedLeague)
+                }
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.md)
+    }
+
+    // Enhanced league button background
+    private func leagueButtonBackground(isSelected: Bool) -> some View {
+        Group {
+            if isSelected {
+                // BRIGHT TEAL for selected
+                LinearGradient(
+                    colors: [
+                        tealColor,
+                        tealColor.opacity(0.8)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            } else {
+                // Subtle outline for unselected
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                    .stroke(tealColor.opacity(0.5), lineWidth: 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                            .fill(Color.clear)
+                    )
             }
         }
     }
