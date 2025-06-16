@@ -2,7 +2,7 @@
 //  BetModal.swift
 //  BettorOdds
 //
-//  Version: 2.4.1 - Fixed complex expression compilation issue
+//  Version: 3.0.0 - Complete redesign with Firebase integration and consistent UI
 //  Updated: June 2025
 
 import Foundation
@@ -13,48 +13,50 @@ struct BetModal: View {
     let user: User
     @Binding var isPresented: Bool
     
+    // ViewModel for proper bet management
+    @StateObject private var viewModel: BetModalViewModel
+    
+    // Local UI state
     @State private var selectedTeam: String = ""
     @State private var isHomeTeam: Bool = false
-    @State private var selectedCoinType: CoinType = .yellow
-    @State private var betAmount: String = ""
-    @State private var isProcessing = false
     @State private var showSuccess = false
-    @State private var validationMessage = ""
+    @State private var showError = false
     
     // MARK: - Computed Properties
     
     private var canShowWinnings: Bool {
-        !betAmount.isEmpty && Int(betAmount) != nil && Int(betAmount)! > 0 && !selectedTeam.isEmpty
+        !viewModel.betAmount.isEmpty &&
+        Int(viewModel.betAmount) != nil &&
+        Int(viewModel.betAmount)! > 0 &&
+        !selectedTeam.isEmpty
     }
     
-    private var canPlaceBet: Bool {
-        guard let amount = Int(betAmount), amount > 0 else { return false }
-        guard !selectedTeam.isEmpty else { return false }
-        guard !game.isLocked else { return false }
-        
-        if selectedCoinType == .green {
-            let remainingDailyLimit = user.remainingDailyGreenCoins
-            return amount <= remainingDailyLimit && amount <= user.greenCoins
-        }
-        
-        return amount <= user.yellowCoins
+    private var homeSpread: Double {
+        game.spread
     }
     
-    private var potentialWinnings: String {
-        guard let amount = Double(betAmount) else { return "0" }
-        return String(format: "%.0f", amount)
+    private var awaySpread: Double {
+        -game.spread
+    }
+    
+    // MARK: - Initialization
+    init(game: Game, user: User, isPresented: Binding<Bool>) {
+        self.game = game
+        self.user = user
+        self._isPresented = isPresented
+        self._viewModel = StateObject(wrappedValue: BetModalViewModel(game: game, user: user))
     }
     
     var body: some View {
         NavigationView {
             ZStack {
-                // Background gradient
+                // Background gradient matching Games view
                 AppTheme.Colors.background
                     .ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(spacing: 24) {
-                        gameInfoSection
+                    VStack(spacing: 20) {
+                        gameInfoHeader
                         teamSelectionSection
                         coinTypeSection
                         betAmountSection
@@ -84,47 +86,57 @@ struct BetModal: View {
         } message: {
             Text("Your bet has been placed successfully!")
         }
+        .alert("Error", isPresented: $showError) {
+            Button("OK") { }
+        } message: {
+            Text(viewModel.validationMessage ?? "An error occurred")
+        }
+        .onChange(of: viewModel.showSuccess) { success in
+            showSuccess = success
+        }
+        .onChange(of: viewModel.validationMessage) { message in
+            showError = message != nil
+        }
     }
     
-    // MARK: - Game Info Section
+    // MARK: - Game Info Header (Compact Design)
     
-    private var gameInfoSection: some View {
-        VStack(spacing: 12) {
-            Text("\(game.awayTeam) @ \(game.homeTeam)")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
+    private var gameInfoHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(game.awayTeam) @ \(game.homeTeam)")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                
+                Text(game.time.formatted(date: .abbreviated, time: .shortened))
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+            }
             
-            Text(game.time.formatted(date: .abbreviated, time: .shortened))
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
+            Spacer()
             
             Text(game.league)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
                 .background(
                     Capsule()
                         .fill(Color.primary.opacity(0.8))
                 )
         }
-        .padding(20)
-        .background(gameInfoBackground)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.primary.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
     
-    // MARK: - Helper Views for Complex Expressions
-    
-    private var gameInfoBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(Color.white.opacity(0.05))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.primary.opacity(0.3), lineWidth: 1)
-            )
-    }
-    
-    // MARK: - Team Selection Section (FIXED - Split Complex Expression)
+    // MARK: - Team Selection Section (With Team Gradients)
     
     private var teamSelectionSection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -132,211 +144,113 @@ struct BetModal: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
             
-            teamSelectionCard
-        }
-        .padding(20)
-        .background(teamSelectionBackground)
-    }
-    
-    // Broken down complex team selection into smaller components
-    private var teamSelectionCard: some View {
-        HStack(spacing: 0) {
-            awayTeamButton
-            vsIndicator
-            homeTeamButton
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(teamSelectionBorder)
-        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-    }
-    
-    private var teamSelectionBackground: some View {
-        RoundedRectangle(cornerRadius: 20)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.1),
-                        Color.white.opacity(0.05)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
-            )
-    }
-    
-    private var teamSelectionBorder: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-    }
-    
-    // Away Team Button
-    private var awayTeamButton: some View {
-        Button(action: {
-            selectedTeam = game.awayTeam
-            isHomeTeam = false
-            HapticManager.impact(.medium)
-        }) {
-            awayTeamContent
-                .frame(maxWidth: .infinity)
-                .frame(height: 100)
-                .background(awayTeamBackground)
-                .overlay(awayTeamSelectionBorder)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(selectedTeam == game.awayTeam ? 1.03 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTeam == game.awayTeam)
-    }
-    
-    private var awayTeamContent: some View {
-        VStack(spacing: 12) {
-            Text(game.awayTeam)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-                .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
-            
-            awaySpreadLabel
-        }
-    }
-    
-    private var awaySpreadLabel: some View {
-        Text(game.awaySpread)
-            .font(.system(size: 18, weight: .bold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(awaySpreadBackground)
-            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-    }
-    
-    private var awaySpreadBackground: some View {
-        Capsule()
-            .fill(Color.white.opacity(0.2))
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(0.4), lineWidth: 1)
-            )
-    }
-    
-    private var awayTeamBackground: some View {
-        LinearGradient(
-            colors: [
-                game.awayTeamColors.primary.opacity(selectedTeam == game.awayTeam ? 0.9 : 0.7),
-                game.awayTeamColors.secondary.opacity(selectedTeam == game.awayTeam ? 0.7 : 0.5)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    private var awayTeamSelectionBorder: some View {
-        Rectangle()
-            .stroke(
-                selectedTeam == game.awayTeam ? Color.white.opacity(0.8) : Color.clear,
-                lineWidth: 3
-            )
-    }
-    
-    // VS Indicator
-    private var vsIndicator: some View {
-        VStack {
-            Text("@")
-                .font(.system(size: 16, weight: .black))
-                .foregroundColor(.white)
-                .frame(width: 32, height: 32)
-                .background(vsIndicatorBackground)
-                .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
-        }
-        .frame(width: 50)
-        .zIndex(1)
-    }
-    
-    private var vsIndicatorBackground: some View {
-        Circle()
-            .fill(Color.black.opacity(0.6))
-            .overlay(
-                Circle()
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-            )
-    }
-    
-    // Home Team Button
-    private var homeTeamButton: some View {
-        Button(action: {
-            selectedTeam = game.homeTeam
-            isHomeTeam = true
-            HapticManager.impact(.medium)
-        }) {
-            homeTeamContent
-                .frame(maxWidth: .infinity)
-                .frame(height: 100)
-                .background(homeTeamBackground)
-                .overlay(homeTeamSelectionBorder)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(selectedTeam == game.homeTeam ? 1.03 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTeam == game.homeTeam)
-    }
-    
-    private var homeTeamContent: some View {
-        VStack(spacing: 12) {
-            Text(game.homeTeam)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-                .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
-            
-            homeSpreadLabel
+            HStack(spacing: 0) {
+                // Away Team Button
+                Button(action: {
+                    selectedTeam = game.awayTeam
+                    isHomeTeam = false
+                }) {
+                    VStack(spacing: 8) {
+                        Text(game.awayTeam)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("\(awaySpread > 0 ? "+" : "")\(String(format: "%.1f", awaySpread))")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.2))
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 80)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                TeamColors.getTeamColors(game.awayTeam).primary,
+                                TeamColors.getTeamColors(game.awayTeam).secondary
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        Rectangle()
+                            .stroke(
+                                selectedTeam == game.awayTeam ? Color.white : Color.clear,
+                                lineWidth: 3
+                            )
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // VS Divider
+                VStack {
+                    Text("@")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            Circle()
+                                .fill(Color.black.opacity(0.6))
+                        )
+                }
+                .frame(width: 40)
+                .zIndex(1)
+                
+                // Home Team Button
+                Button(action: {
+                    selectedTeam = game.homeTeam
+                    isHomeTeam = true
+                }) {
+                    VStack(spacing: 8) {
+                        Text(game.homeTeam)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("\(homeSpread > 0 ? "+" : "")\(String(format: "%.1f", homeSpread))")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.2))
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 80)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                TeamColors.getTeamColors(game.homeTeam).primary,
+                                TeamColors.getTeamColors(game.homeTeam).secondary
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        Rectangle()
+                            .stroke(
+                                selectedTeam == game.homeTeam ? Color.white : Color.clear,
+                                lineWidth: 3
+                            )
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
         }
     }
     
-    private var homeSpreadLabel: some View {
-        Text(game.homeSpread)
-            .font(.system(size: 18, weight: .bold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(homeSpreadBackground)
-            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-    }
-    
-    private var homeSpreadBackground: some View {
-        Capsule()
-            .fill(Color.white.opacity(0.2))
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(0.4), lineWidth: 1)
-            )
-    }
-    
-    private var homeTeamBackground: some View {
-        LinearGradient(
-            colors: [
-                game.homeTeamColors.primary.opacity(selectedTeam == game.homeTeam ? 0.9 : 0.7),
-                game.homeTeamColors.secondary.opacity(selectedTeam == game.homeTeam ? 0.7 : 0.5)
-            ],
-            startPoint: .topTrailing,
-            endPoint: .bottomLeading
-        )
-    }
-    
-    private var homeTeamSelectionBorder: some View {
-        Rectangle()
-            .stroke(
-                selectedTeam == game.homeTeam ? Color.white.opacity(0.8) : Color.clear,
-                lineWidth: 3
-            )
-    }
-    
-    // MARK: - Coin Type Selection
+    // MARK: - Coin Type Section
     
     private var coinTypeSection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -345,53 +259,53 @@ struct BetModal: View {
                 .foregroundColor(.white)
             
             HStack(spacing: 12) {
-                coinTypeButton(
-                    type: .yellow,
-                    emoji: "🟡",
-                    title: "Play Coins",
-                    isSelected: selectedCoinType == .yellow
-                )
+                // Yellow Coins
+                Button(action: {
+                    viewModel.selectedCoinType = .yellow
+                }) {
+                    VStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.yellow)
+                            .frame(width: 30, height: 30)
+                        
+                        Text("Play Coins")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                        
+                        Text("Balance: \(user.yellowCoins)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 80)
+                    .background(coinTypeButtonBackground(isSelected: viewModel.selectedCoinType == .yellow))
+                }
+                .buttonStyle(PlainButtonStyle())
                 
-                coinTypeButton(
-                    type: .green,
-                    emoji: "💚",
-                    title: "Real Coins",
-                    isSelected: selectedCoinType == .green
-                )
+                // Green Coins
+                Button(action: {
+                    viewModel.selectedCoinType = .green
+                }) {
+                    VStack(spacing: 8) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.green)
+                        
+                        Text("Real Coins")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                        
+                        Text("Balance: \(user.greenCoins)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 80)
+                    .background(coinTypeButtonBackground(isSelected: viewModel.selectedCoinType == .green))
+                }
+                .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding(20)
-        .background(coinTypeSectionBackground)
-    }
-    
-    private var coinTypeSectionBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(Color.white.opacity(0.05))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.primary.opacity(0.3), lineWidth: 1)
-            )
-    }
-    
-    private func coinTypeButton(type: CoinType, emoji: String, title: String, isSelected: Bool) -> some View {
-        Button(action: {
-            selectedCoinType = type
-        }) {
-            VStack(spacing: 8) {
-                Text(emoji)
-                    .font(.system(size: 32))
-                
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(coinTypeButtonBackground(isSelected: isSelected))
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isSelected ? 1.05 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
     }
     
     private func coinTypeButtonBackground(isSelected: Bool) -> some View {
@@ -415,17 +329,32 @@ struct BetModal: View {
                 .foregroundColor(.white)
             
             VStack(spacing: 12) {
-                TextField("Enter amount", text: $betAmount)
+                TextField("Enter amount", text: $viewModel.betAmount)
                     .keyboardType(.numberPad)
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(16)
                     .background(betAmountFieldBackground)
                 
-                if !validationMessage.isEmpty {
-                    Text(validationMessage)
+                if let message = viewModel.validationMessage {
+                    Text(message)
                         .font(.caption)
                         .foregroundColor(.red)
+                }
+                
+                // Show daily limit for green coins
+                if viewModel.selectedCoinType == .green {
+                    HStack {
+                        Text("Daily Limit Remaining:")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.7))
+                        
+                        Spacer()
+                        
+                        Text("💚 \(viewModel.remainingDailyLimit)")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.green)
+                    }
                 }
             }
         }
@@ -460,10 +389,10 @@ struct BetModal: View {
                 .foregroundColor(.white)
             
             HStack {
-                Text(selectedCoinType == .yellow ? "🟡" : "💚")
+                Text(viewModel.coinTypeEmoji)
                     .font(.system(size: 24))
                 
-                Text(potentialWinnings)
+                Text(viewModel.potentialWinnings)
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.white)
             }
@@ -490,7 +419,7 @@ struct BetModal: View {
             }
         }) {
             HStack {
-                if isProcessing {
+                if viewModel.isProcessing {
                     ProgressView()
                         .scaleEffect(0.8)
                         .foregroundColor(.white)
@@ -504,18 +433,20 @@ struct BetModal: View {
             .frame(height: 54)
             .background(placeBetButtonBackground)
         }
-        .disabled(!canPlaceBet || isProcessing)
+        .disabled(!viewModel.canPlaceBet || viewModel.isProcessing || selectedTeam.isEmpty)
         .buttonStyle(PlainButtonStyle())
-        .scaleEffect(canPlaceBet && !isProcessing ? 1.0 : 0.95)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: canPlaceBet)
+        .scaleEffect(viewModel.canPlaceBet && !viewModel.isProcessing && !selectedTeam.isEmpty ? 1.0 : 0.95)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.canPlaceBet)
         .padding(.top, 8)
     }
     
     private var placeBetButtonBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
+        let canPlace = viewModel.canPlaceBet && !viewModel.isProcessing && !selectedTeam.isEmpty
+        
+        return RoundedRectangle(cornerRadius: 16)
             .fill(
                 LinearGradient(
-                    colors: canPlaceBet && !isProcessing ?
+                    colors: canPlace ?
                         [Color.primary, Color.primary.opacity(0.8)] :
                         [Color.gray.opacity(0.6), Color.gray.opacity(0.4)],
                     startPoint: .topLeading,
@@ -523,7 +454,7 @@ struct BetModal: View {
                 )
             )
             .shadow(
-                color: canPlaceBet && !isProcessing ? Color.primary.opacity(0.3) : Color.clear,
+                color: canPlace ? Color.primary.opacity(0.3) : Color.clear,
                 radius: 8,
                 x: 0,
                 y: 4
@@ -533,17 +464,24 @@ struct BetModal: View {
     // MARK: - Helper Functions
     
     private func placeBet() async {
-        guard canPlaceBet else { return }
+        guard !selectedTeam.isEmpty else {
+            viewModel.validationMessage = "Please select a team"
+            return
+        }
         
-        isProcessing = true
-        validationMessage = ""
-        
-        // Simulate API call
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
-        
-        // Show success and dismiss
-        showSuccess = true
-        isProcessing = false
+        do {
+            let success = try await viewModel.placeBet(team: selectedTeam, isHomeTeam: isHomeTeam)
+            if success {
+                showSuccess = true
+                // Small delay before dismissing to show success message
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isPresented = false
+                }
+            }
+        } catch {
+            print("❌ Error placing bet: \(error)")
+            viewModel.validationMessage = error.localizedDescription
+        }
     }
 }
 
