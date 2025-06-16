@@ -2,10 +2,11 @@
 //  BetModal.swift
 //  BettorOdds
 //
-//  Version: 3.1.0 - Redesigned with larger team selection and cleaner UI
+//  Version: 4.3.0 - Complete clean implementation
+//  Replace entire file with this version
 //  Updated: June 2025
+//
 
-import Foundation
 import SwiftUI
 
 struct BetModal: View {
@@ -14,36 +15,14 @@ struct BetModal: View {
     @Binding var isPresented: Bool
     let preselectedTeam: String?
     
-    // ViewModel for proper bet management
     @StateObject private var viewModel: BetModalViewModel
-    
-    // Local UI state
-    @State private var selectedTeam: String = ""
-    @State private var isHomeTeam: Bool = false
+    @State private var selectedTeam: String?
     @State private var showSuccess = false
-    @State private var showError = false
+    @State private var isProcessing = false
     
-    // Theme colors
-    private let tealColor = Color(red: 0.2, green: 0.8, blue: 0.8)
+    // Teal color definition for consistency
+    private let tealColor = Color(red: 0.0, green: 0.9, blue: 0.79)
     
-    // MARK: - Computed Properties
-    
-    private var canShowWinnings: Bool {
-        !viewModel.betAmount.isEmpty &&
-        Int(viewModel.betAmount) != nil &&
-        Int(viewModel.betAmount)! > 0 &&
-        !selectedTeam.isEmpty
-    }
-    
-    private var homeSpread: Double {
-        game.spread
-    }
-    
-    private var awaySpread: Double {
-        -game.spread
-    }
-    
-    // MARK: - Initialization
     init(game: Game, user: User, isPresented: Binding<Bool>, preselectedTeam: String? = nil) {
         self.game = game
         self.user = user
@@ -55,284 +34,251 @@ struct BetModal: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background gradient matching Games view
-                AppTheme.Colors.background
-                    .ignoresSafeArea()
+                // Background
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.06, green: 0.13, blue: 0.15),
+                        Color(red: 0.13, green: 0.23, blue: 0.26),
+                        Color(red: 0.17, green: 0.33, blue: 0.39)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(spacing: 16) {
-                        compactGameHeader
-                        largeTeamSelectionArea
+                    VStack(spacing: 24) {
+                        // IMPROVED: Top info section with better hierarchy
+                        improvedTopSection
+                        
+                        // Team selection
+                        teamSelectionSection
+                        
+                        // Coin type selection
                         coinTypeSection
+                        
+                        // Bet amount
                         betAmountSection
-                        if canShowWinnings {
-                            potentialWinningsSection
-                        }
+                        
+                        // Potential winnings
+                        potentialWinningsSection
+                        
+                        // Place bet button
                         placeBetButton
                     }
-                    .padding(20)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 100)
                 }
             }
-            .navigationTitle("Place Your Bet")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        print("🔄 Cancel button tapped")
-                        isPresented = false
-                    }
-                    .foregroundColor(.white)
-                }
-            }
-            .navigationBarBackButtonHidden(true)
         }
-        .alert("Success!", isPresented: $showSuccess) {
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Cancel") {
+                    isPresented = false
+                }
+                .foregroundColor(.white)
+            }
+            
+            ToolbarItem(placement: .principal) {
+                Text("Place Your Bet")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+        }
+        .onAppear {
+            if let preselected = preselectedTeam {
+                selectedTeam = preselected
+            }
+        }
+        .alert("Bet Placed!", isPresented: $showSuccess) {
             Button("OK") {
-                print("🎉 Success acknowledged, dismissing modal")
                 isPresented = false
             }
         } message: {
-            Text("Your bet has been placed successfully!")
-        }
-        .alert("Error", isPresented: $showError) {
-            Button("OK") {
-                showError = false
-                viewModel.validationMessage = nil
-            }
-        } message: {
-            Text(viewModel.validationMessage ?? "An error occurred")
-        }
-        .onChange(of: viewModel.showSuccess) { success in
-            showSuccess = success
-        }
-        .onChange(of: viewModel.validationMessage) { message in
-            showError = message != nil
-        }
-        .onAppear {
-            // Set preselected team if provided
-            if let preselected = preselectedTeam {
-                selectedTeam = preselected
-                isHomeTeam = (preselected == game.homeTeam)
-            }
+            Text("Your bet has been successfully placed and will be matched with another player.")
         }
     }
     
-    // MARK: - Compact Game Header (Much Smaller)
+    // MARK: - IMPROVED Top Section (Better Hierarchy)
     
-    private var compactGameHeader: some View {
-        VStack(spacing: 4) {
-            Text("\(game.awayTeam) @ \(game.homeTeam)")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white)
-            
-            HStack {
-                Text(game.time.formatted(date: .abbreviated, time: .shortened))
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.6))
+    private var improvedTopSection: some View {
+        VStack(spacing: 16) {
+            // Main matchup display
+            HStack(spacing: 12) {
+                // Away team
+                VStack(spacing: 4) {
+                    Text(game.awayTeam)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                    
+                    Text(game.awaySpread)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .frame(maxWidth: .infinity)
                 
+                // VS indicator with improved styling
+                VStack(spacing: 2) {
+                    Text("@")
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundColor(.white)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(tealColor.opacity(0.3))
+                                .overlay(
+                                    Circle()
+                                        .stroke(tealColor, lineWidth: 1)
+                                )
+                        )
+                }
+                
+                // Home team
+                VStack(spacing: 4) {
+                    Text(game.homeTeam)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                    
+                    Text(game.homeSpread)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .frame(maxWidth: .infinity)
+            }
+            
+            // IMPROVED: Smaller, less assuming date/time section
+            HStack {
+                Spacer()
+                
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    Text(game.time.formatted(.dateTime.month().day().hour().minute()))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.white.opacity(0.1))
+                )
+                
+                Spacer()
+            }
+            
+            // League badge
+            HStack {
                 Spacer()
                 
                 Text(game.league)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
                     .background(
                         Capsule()
-                            .fill(Color.white.opacity(0.15))
+                            .fill(tealColor.opacity(0.3))
+                            .overlay(
+                                Capsule()
+                                    .stroke(tealColor, lineWidth: 1)
+                            )
                     )
+                
+                Spacer()
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(tealColor.opacity(0.2), lineWidth: 1)
+                )
         )
     }
     
-    // MARK: - Large Team Selection Area (Main Focus)
+    // MARK: - Enhanced Team Selection Section
     
-    private var largeTeamSelectionArea: some View {
-        VStack(spacing: 16) {
+    private var teamSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Choose Your Team")
-                .font(.system(size: 20, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
             
-            // Large Connected Team Cards (No Gap)
-            HStack(spacing: 0) {
-                // Away Team Button
-                Button(action: {
-                    selectedTeam = game.awayTeam
-                    isHomeTeam = false
-                }) {
-                    VStack(spacing: 8) {
-                        Text(shortTeamName(game.awayTeam))
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.7)
-                            .padding(.horizontal, 8)
-                        
-                        Text("\(awaySpread > 0 ? "+" : "")\(String(format: "%.1f", awaySpread))")
-                            .font(.system(size: 32, weight: .heavy))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+            HStack(spacing: 16) {
+                // Away team button
+                teamSelectionButton(
+                    teamName: game.awayTeam,
+                    spread: game.awaySpread,
+                    isSelected: selectedTeam == game.awayTeam,
+                    action: {
+                        selectedTeam = game.awayTeam
+                        HapticManager.impact(.medium)
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 140)
-                    .background(awayTeamBackground)
-                    .overlay(awayTeamBorder)
-                }
-                .buttonStyle(PlainButtonStyle())
+                )
                 
-                // Home Team Button (Touching)
-                Button(action: {
-                    selectedTeam = game.homeTeam
-                    isHomeTeam = true
-                }) {
-                    VStack(spacing: 8) {
-                        Text(shortTeamName(game.homeTeam))
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.7)
-                            .padding(.horizontal, 8)
-                        
-                        Text("\(homeSpread > 0 ? "+" : "")\(String(format: "%.1f", homeSpread))")
-                            .font(.system(size: 32, weight: .heavy))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                // Home team button
+                teamSelectionButton(
+                    teamName: game.homeTeam,
+                    spread: game.homeSpread,
+                    isSelected: selectedTeam == game.homeTeam,
+                    action: {
+                        selectedTeam = game.homeTeam
+                        HapticManager.impact(.medium)
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 140)
-                    .background(homeTeamBackground)
-                    .overlay(homeTeamBorder)
-                }
-                .buttonStyle(PlainButtonStyle())
+                )
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .overlay(
-                // Central divider line
-                Rectangle()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(width: 1)
+        }
+        .padding(.vertical, 8)
+    }
+    
+    private func teamSelectionButton(teamName: String, spread: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Text(teamName)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                
+                Text(spread)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 80)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        isSelected ?
+                            tealColor.opacity(0.3) :
+                            Color.white.opacity(0.05)
+                    )
                     .overlay(
-                        Circle()
-                            .fill(Color.black.opacity(0.7))
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Text("@")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                isSelected ? tealColor : Color.white.opacity(0.2),
+                                lineWidth: isSelected ? 2 : 1
                             )
                     )
             )
-            .shadow(color: .black.opacity(0.4), radius: 12, x: 0, y: 6)
         }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
     
-    // MARK: - Helper function for team names
-    
-    private func shortTeamName(_ fullName: String) -> String {
-        // Handle long team names
-        switch fullName {
-        case "Oklahoma City Thunder":
-            return "Oklahoma City\nThunder"
-        case "Los Angeles Lakers", "Los Angeles Clippers", "Los Angeles Rams", "Los Angeles Chargers":
-            return fullName.replacingOccurrences(of: "Los Angeles ", with: "LA ")
-        case "Golden State Warriors":
-            return "Golden State\nWarriors"
-        case "Portland Trail Blazers":
-            return "Portland\nTrail Blazers"
-        case "New Orleans Saints", "New Orleans Pelicans":
-            return fullName.replacingOccurrences(of: "New Orleans ", with: "New Orleans\n")
-        case "New York Giants", "New York Jets", "New York Knicks", "New York Rangers":
-            return fullName.replacingOccurrences(of: "New York ", with: "NY ")
-        case "Tampa Bay Buccaneers", "Tampa Bay Lightning":
-            return fullName.replacingOccurrences(of: "Tampa Bay ", with: "Tampa Bay\n")
-        case "San Francisco 49ers":
-            return "San Francisco\n49ers"
-        case "Green Bay Packers":
-            return "Green Bay\nPackers"
-        default:
-            // Split long names automatically
-            let words = fullName.components(separatedBy: " ")
-            if words.count >= 3 && fullName.count > 15 {
-                let midPoint = words.count / 2
-                let firstLine = words[0..<midPoint].joined(separator: " ")
-                let secondLine = words[midPoint...].joined(separator: " ")
-                return "\(firstLine)\n\(secondLine)"
-            }
-            return fullName
-        }
-    }
-    
-    // MARK: - Team Selection Backgrounds & Borders
-    
-    private var awayTeamBackground: some View {
-        let isSelected = selectedTeam == game.awayTeam
-        let teamColors = TeamColors.getTeamColors(game.awayTeam)
-        
-        return LinearGradient(
-            colors: [
-                teamColors.primary.opacity(isSelected ? 1.0 : 0.8),
-                teamColors.primary.opacity(isSelected ? 0.9 : 0.7),
-                teamColors.secondary.opacity(isSelected ? 0.8 : 0.5)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .overlay(
-            // Darker overlay when selected
-            Color.black.opacity(isSelected ? 0.2 : 0.0)
-        )
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-    }
-    
-    private var homeTeamBackground: some View {
-        let isSelected = selectedTeam == game.homeTeam
-        let teamColors = TeamColors.getTeamColors(game.homeTeam)
-        
-        return LinearGradient(
-            colors: [
-                teamColors.primary.opacity(isSelected ? 1.0 : 0.8),
-                teamColors.primary.opacity(isSelected ? 0.9 : 0.7),
-                teamColors.secondary.opacity(isSelected ? 0.8 : 0.5)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .overlay(
-            // Darker overlay when selected
-            Color.black.opacity(isSelected ? 0.2 : 0.0)
-        )
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-    }
-    
-    private var awayTeamBorder: some View {
-        let isSelected = selectedTeam == game.awayTeam
-        return Rectangle()
-            .stroke(
-                isSelected ? tealColor : Color.clear,
-                lineWidth: isSelected ? 4 : 0
-            )
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-    }
-    
-    private var homeTeamBorder: some View {
-        let isSelected = selectedTeam == game.homeTeam
-        return Rectangle()
-            .stroke(
-                isSelected ? tealColor : Color.clear,
-                lineWidth: isSelected ? 4 : 0
-            )
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-    }
-    
-    // MARK: - Coin Type Section (Streamlined)
+    // MARK: - Enhanced Coin Type Section
     
     private var coinTypeSection: some View {
         VStack(spacing: 12) {
@@ -344,7 +290,7 @@ struct BetModal: View {
                     HStack(spacing: 8) {
                         Circle()
                             .fill(Color.yellow)
-                            .frame(width: 24, height: 24)
+                            .frame(width: 20, height: 20)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Play Coins")
@@ -363,14 +309,14 @@ struct BetModal: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                // Green Coins
+                // Green Coins with teal heart
                 Button(action: {
                     viewModel.selectedCoinType = .green
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: "heart.fill")
                             .font(.system(size: 16))
-                            .foregroundColor(.green)
+                            .foregroundColor(tealColor) // Using teal as requested
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Real Coins")
@@ -399,9 +345,15 @@ struct BetModal: View {
                     
                     Spacer()
                     
-                    Text("💚 \(viewModel.remainingDailyLimit)")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.green)
+                    HStack(spacing: 4) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(tealColor)
+                        
+                        Text("\(viewModel.remainingDailyLimit)")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(tealColor)
+                    }
                 }
                 .padding(.horizontal, 4)
             }
@@ -420,66 +372,109 @@ struct BetModal: View {
             )
     }
     
-    // MARK: - Bet Amount Section (Simplified)
+    // MARK: - Bet Amount Section
     
     private var betAmountSection: some View {
-        VStack(spacing: 12) {
-            TextField("Enter amount", text: $viewModel.betAmount)
-                .keyboardType(.numberPad)
-                .font(.system(size: 20, weight: .semibold))
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Enter Bet Amount")
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
-                .multilineTextAlignment(.center)
-                .padding(16)
-                .background(betAmountFieldBackground)
             
-            if let message = viewModel.validationMessage {
-                Text(message)
-                    .font(.system(size: 13))
-                    .foregroundColor(.red)
+            VStack(spacing: 12) {
+                TextField("Enter amount", text: $viewModel.betAmount)
+                    .keyboardType(.numberPad)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(16)
+                    .background(betAmountFieldBackground)
+                
+                // FIXED: Optional string handling
+                if let validationMessage = viewModel.validationMessage, !validationMessage.isEmpty {
+                    Text(validationMessage)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
             }
         }
+        .padding(20)
+        .background(betAmountSectionBackground)
     }
     
     private var betAmountFieldBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
+        RoundedRectangle(cornerRadius: 12)
             .fill(Color.white.opacity(0.1))
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(tealColor.opacity(0.3), lineWidth: 1)
             )
     }
     
-    // MARK: - Potential Winnings (Compact)
-    
-    private var potentialWinningsSection: some View {
-        HStack {
-            Text("Win:")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
-            
-            Spacer()
-            
-            HStack(spacing: 4) {
-                Text(viewModel.coinTypeEmoji)
-                    .font(.system(size: 20))
-                
-                Text(viewModel.potentialWinnings)
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(tealColor.opacity(0.3), lineWidth: 1)
-                )
-        )
+    private var betAmountSectionBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color.white.opacity(0.05))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(tealColor.opacity(0.3), lineWidth: 1)
+            )
     }
     
-    // MARK: - Place Bet Button
+    // MARK: - Enhanced Potential Winnings (More Prominent)
+    
+    private var potentialWinningsSection: some View {
+        VStack(spacing: 16) {
+            Text("Potential Winnings")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+            
+            HStack(spacing: 12) {
+                // Coin icon
+                Text(viewModel.selectedCoinType == .yellow ? "🟡" : "💚")
+                    .font(.system(size: 32))
+                
+                // Amount with enhanced styling
+                Text(viewModel.potentialWinnings)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+                    .shadow(color: tealColor.opacity(0.3), radius: 4, x: 0, y: 2)
+                
+                Spacer()
+                
+                // Win indicator
+                VStack {
+                    Text("YOU WIN")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(tealColor)
+                    
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(tealColor)
+                }
+            }
+        }
+        .padding(24)
+        .background(potentialWinningsBackground)
+    }
+    
+    private var potentialWinningsBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        tealColor.opacity(0.15),
+                        tealColor.opacity(0.05)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(tealColor.opacity(0.4), lineWidth: 2)
+            )
+            .shadow(color: tealColor.opacity(0.2), radius: 8, x: 0, y: 4)
+    }
+    
+    // MARK: - Enhanced Place Bet Button
     
     private var placeBetButton: some View {
         Button(action: {
@@ -487,34 +482,36 @@ struct BetModal: View {
                 await placeBet()
             }
         }) {
-            HStack {
-                if viewModel.isProcessing {
+            HStack(spacing: 12) {
+                if isProcessing {
                     ProgressView()
                         .scaleEffect(0.8)
                         .foregroundColor(.white)
                 } else {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18))
+                    
                     Text("Place Bet")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
                 }
             }
+            .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(placeBetButtonBackground)
         }
-        .disabled(!viewModel.canPlaceBet || viewModel.isProcessing || selectedTeam.isEmpty)
+        .disabled(!viewModel.canPlaceBet || isProcessing)
         .buttonStyle(PlainButtonStyle())
-        .scaleEffect(viewModel.canPlaceBet && !viewModel.isProcessing && !selectedTeam.isEmpty ? 1.0 : 0.95)
+        .scaleEffect(viewModel.canPlaceBet && !isProcessing ? 1.0 : 0.95)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.canPlaceBet)
+        .padding(.top, 8)
     }
     
     private var placeBetButtonBackground: some View {
-        let canPlace = viewModel.canPlaceBet && !viewModel.isProcessing && !selectedTeam.isEmpty
-        
-        return RoundedRectangle(cornerRadius: 16)
+        RoundedRectangle(cornerRadius: 16)
             .fill(
                 LinearGradient(
-                    colors: canPlace ?
+                    colors: viewModel.canPlaceBet && !isProcessing ?
                         [tealColor, tealColor.opacity(0.8)] :
                         [Color.gray.opacity(0.6), Color.gray.opacity(0.4)],
                     startPoint: .topLeading,
@@ -522,7 +519,7 @@ struct BetModal: View {
                 )
             )
             .shadow(
-                color: canPlace ? tealColor.opacity(0.4) : Color.clear,
+                color: viewModel.canPlaceBet && !isProcessing ? tealColor.opacity(0.3) : Color.clear,
                 radius: 8,
                 x: 0,
                 y: 4
@@ -532,31 +529,28 @@ struct BetModal: View {
     // MARK: - Helper Functions
     
     private func placeBet() async {
-        guard !selectedTeam.isEmpty else {
-            viewModel.validationMessage = "Please select a team"
-            return
-        }
+        guard viewModel.canPlaceBet else { return }
+        guard let selectedTeam = selectedTeam else { return }
         
-        print("🎯 Placing bet: \(selectedTeam), amount: \(viewModel.betAmount)")
+        isProcessing = true
+        
+        // Use existing viewModel method
+        let isHomeTeam = selectedTeam == game.homeTeam
         
         do {
             let success = try await viewModel.placeBet(team: selectedTeam, isHomeTeam: isHomeTeam)
-            print("✅ Bet placement result: \(success)")
             
             if success {
-                print("🎉 Showing success alert")
                 showSuccess = true
-                
-                // Auto-dismiss after showing success
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    print("🔄 Auto-dismissing modal")
-                    isPresented = false
-                }
+                // FIXED: Use proper haptic feedback method
+                HapticManager.impact(.light)
             }
         } catch {
-            print("❌ Error placing bet: \(error)")
-            viewModel.validationMessage = error.localizedDescription
+            // Handle error appropriately
+            print("Error placing bet: \(error)")
         }
+        
+        isProcessing = false
     }
 }
 
@@ -564,7 +558,6 @@ struct BetModal: View {
     BetModal(
         game: Game.sampleGames[0],
         user: User.preview,
-        isPresented: .constant(true),
-        preselectedTeam: Game.sampleGames[0].homeTeam
+        isPresented: .constant(true)
     )
 }
