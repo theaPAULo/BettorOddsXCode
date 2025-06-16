@@ -1,12 +1,12 @@
 // FeaturedGameCard.swift
-// Version: 2.1.0
-// Updated with local hex support (preserves readability)
+// Version: 3.0.0 - Updated for team preselection support
+// Updated: June 2025
 
 import SwiftUI
 
 struct FeaturedGameCard: View {
     let game: Game
-    let onSelect: () -> Void
+    let onSelect: (String?) -> Void  // Updated to match new GameCard signature
     
     @State private var isGlowing = false // For animation
     
@@ -40,7 +40,7 @@ struct FeaturedGameCard: View {
         GameCard(
             game: game,
             isFeatured: true,
-            onSelect: onSelect,
+            onSelect: onSelect,  // Now passes through the selectedTeam parameter
             globalSelectedTeam: .constant(nil)
         )
         .overlay(
@@ -78,6 +78,7 @@ struct FeaturedGameCard: View {
                     LinearGradient(
                         colors: [
                             Self.colorFromHex("00E6CA").opacity(isGlowing ? 0.7 : 0.3),
+                            Self.colorFromHex("00E6CA").opacity(isGlowing ? 0.7 : 0.3),
                             Self.colorFromHex("00E6CA").opacity(isGlowing ? 0.4 : 0.1)
                         ],
                         startPoint: .topLeading,
@@ -103,7 +104,9 @@ struct FeaturedGameCard: View {
 #Preview {
     FeaturedGameCard(
         game: Game.sampleGames[0],
-        onSelect: {}
+        onSelect: { selectedTeam in
+            print("Selected team: \(selectedTeam ?? "none")")
+        }
     )
     .padding()
 }

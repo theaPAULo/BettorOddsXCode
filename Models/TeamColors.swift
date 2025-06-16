@@ -270,31 +270,6 @@ extension TeamColors {
 }
 
 // ==========================================
-// ENHANCED GRADIENT ALGORITHM - For GameCard backgrounds
-// ==========================================
-
-extension GameCard {
-    
-    // ENHANCED: Much stronger primary color emphasis
-    var enhancedTeamGradientBackground: some View {
-        LinearGradient(
-            colors: [
-                // STRATEGY: 80% primary color, 20% secondary/blend
-                game.awayTeamColors.primary.opacity(0.95),     // Very strong away primary (was 0.6)
-                game.awayTeamColors.primary.opacity(0.85),     // Strong away primary (was 0.5)
-                game.awayTeamColors.secondary.opacity(0.3),    // Light secondary blend
-                Color.black.opacity(0.1),                      // Minimal dark blend (was 0.4)
-                game.homeTeamColors.secondary.opacity(0.3),    // Light secondary blend
-                game.homeTeamColors.primary.opacity(0.85),     // Strong home primary (was 0.5)
-                game.homeTeamColors.primary.opacity(0.95)      // Very strong home primary (was 0.6)
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-}
-
-// ==========================================
 // SPECIFIC TEAM COLOR OVERRIDES - For problematic teams
 // ==========================================
 

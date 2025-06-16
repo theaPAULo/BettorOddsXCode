@@ -2,10 +2,8 @@
 //  GamesView.swift
 //  BettorOdds
 //
-//  Version: 3.5.0 - UI Polish fixes
-//  - Removed spread button backgrounds completely
-//  - Changed Daily Limit to subtle line style (like old UI)
-//  - Fixed border glow animation
+//  Version: 3.6.0 - Fixed BetModal integration and team preselection
+//  Updated: June 2025
 //
 
 import SwiftUI
@@ -16,6 +14,7 @@ struct GamesView: View {
     @State private var selectedLeague = "NBA"
     @State private var showBetModal = false
     @State private var selectedGame: Game?
+    @State private var preselectedTeam: String?
     @State private var scrollOffset: CGFloat = 0
     
     // Animation states
@@ -73,15 +72,29 @@ struct GamesView: View {
             // FIXED: Start border animation immediately when view appears
             borderGlow = true
         }
-        // FIXED: Modal presentation working!
+        // FIXED: Modal presentation with proper BetModal integration
         .sheet(item: Binding<IdentifiableGame?>(
             get: { selectedGame.map(IdentifiableGame.init) },
-            set: { _ in selectedGame = nil }
+            set: { _ in
+                selectedGame = nil
+                showBetModal = false
+                preselectedTeam = nil
+            }
         )) { gameWrapper in
             BetModal(
                 game: gameWrapper.game,
                 user: authViewModel.user ?? User.preview,
-                isPresented: $showBetModal
+                isPresented: Binding(
+                    get: { showBetModal },
+                    set: { newValue in
+                        showBetModal = newValue
+                        if !newValue {
+                            selectedGame = nil
+                            preselectedTeam = nil
+                        }
+                    }
+                ),
+                preselectedTeam: preselectedTeam
             )
         }
     }
@@ -142,23 +155,20 @@ struct GamesView: View {
                             .background(leagueButtonBackground(isSelected: selectedLeague == league))
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
-                    .scaleEffect(selectedLeague == league ? 1.02 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedLeague)
+                    .scaleEffect(selectedLeague == league ? 1.05 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedLeague == league)
                 }
             }
         }
-        .scaleEffect(cardsAppeared ? 1.0 : 0.8)
-        .opacity(cardsAppeared ? 1.0 : 0.0)
-        .animation(.spring(response: 0.8, dampingFraction: 0.8), value: cardsAppeared)
     }
     
-    // MARK: - OLD UI STYLE: Daily Limit (Subtle Line)
+    // MARK: - Old UI Style Daily Limit
     
     private var oldUIStyleDailyLimit: some View {
         HStack {
             Text("Daily Limit")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
             
             Spacer()
             
@@ -168,40 +178,36 @@ struct GamesView: View {
                     .foregroundColor(tealColor)
                 
                 Text("$\(authViewModel.user?.dailyGreenCoinsUsed ?? 0)/100")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(tealColor)
             }
         }
-        .padding(.vertical, 12)
-        .overlay(
-            // OLD UI STYLE: Subtle line instead of full card
-            Rectangle()
-                .fill(Color.white.opacity(0.1))
-                .frame(height: 1),
-            alignment: .bottom
-        )
+        .padding(.horizontal, 4)
     }
     
-    // MARK: - Featured Game with Animated Teal Border
+    // MARK: - Featured Game with Animated Border
     
     private func featuredGameWithAnimatedBorder(game: Game) -> some View {
-        EnhancedGameCard(
+        GameCard(
             game: game,
             isFeatured: true,
-            onSelect: {
-                presentBetModal(for: game, type: "Featured")
+            onSelect: { selectedTeam in
+                presentBetModal(for: game, type: "Featured", selectedTeam: selectedTeam)
             },
             globalSelectedTeam: .constant(nil)
         )
-        .overlay(animatedTealBorder)
+        .overlay(animatedBorderGlow)
         .scaleEffect(cardsAppeared ? 1.0 : 0.9)
         .opacity(cardsAppeared ? 1.0 : 0.0)
-        .animation(.spring(response: 0.8, dampingFraction: 0.8).delay(0.2), value: cardsAppeared)
+        .animation(
+            .spring(response: 0.8, dampingFraction: 0.8).delay(0.3),
+            value: cardsAppeared
+        )
     }
     
-    // MARK: - FIXED: Animated Teal Border for Featured Game
+    // MARK: - Animated Border Glow for Featured Game
     
-    private var animatedTealBorder: some View {
+    private var animatedBorderGlow: some View {
         RoundedRectangle(cornerRadius: 16)
             .stroke(
                 LinearGradient(
@@ -259,11 +265,11 @@ struct GamesView: View {
             LazyVStack(spacing: 16) {
                 // Proper filtering to exclude featured game
                 ForEach(Array(nonFeaturedGames.enumerated()), id: \.element.id) { index, game in
-                    EnhancedGameCard(
+                    GameCard(
                         game: game,
                         isFeatured: false,
-                        onSelect: {
-                            presentBetModal(for: game, type: "Upcoming")
+                        onSelect: { selectedTeam in
+                            presentBetModal(for: game, type: "Upcoming", selectedTeam: selectedTeam)
                         },
                         globalSelectedTeam: .constant(nil)
                     )
@@ -287,12 +293,14 @@ struct GamesView: View {
         }
     }
     
-    // MARK: - Modal Presentation Helper
+    // MARK: - Modal Presentation Helper (UPDATED with team selection support)
     
-    private func presentBetModal(for game: Game, type: String) {
+    private func presentBetModal(for game: Game, type: String, selectedTeam: String? = nil) {
         print("🎯 \(type) game selected: \(game.homeTeam) vs \(game.awayTeam)")
         selectedGame = game
-        print("✅ Modal data set - game: \(game.id)")
+        preselectedTeam = selectedTeam
+        showBetModal = true
+        print("✅ Modal data set - game: \(game.id), preselected team: \(selectedTeam ?? "none")")
     }
     
     // MARK: - Helper Views
@@ -328,280 +336,6 @@ struct GamesView: View {
 struct IdentifiableGame: Identifiable {
     let id = UUID()
     let game: Game
-}
-
-// MARK: - Enhanced GameCard with OLD UI Style (NO SPREAD BACKGROUNDS)
-
-struct EnhancedGameCard: View {
-    // MARK: - Properties
-    let game: Game
-    let isFeatured: Bool
-    let onSelect: () -> Void
-    @Binding var globalSelectedTeam: (gameId: String, team: TeamSelection)?
-    
-    private var isTeamSelected: Bool {
-        globalSelectedTeam?.gameId == game.id
-    }
-    
-    private var selectedTeam: TeamSelection? {
-        isTeamSelected ? globalSelectedTeam?.team : nil
-    }
-    
-    // MARK: - Computed Properties
-    private var formattedDateTime: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, h:mm a"
-        return formatter.string(from: game.time)
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header Section
-            headerSection
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-            
-            // Teams Section with OLD UI DIAGONAL GRADIENTS
-            diagonalTeamsSection
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
-                .padding(.top, 12)
-        }
-        .background(oldUIStyleDiagonalBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(enhancedBorderOverlay)
-        .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
-        .scaleEffect(isFeatured ? 1.02 : 1.0)
-        .opacity(gameOpacity)
-        .disabled(game.shouldBeLocked || game.isLocked)
-        .onTapGesture {
-            if !game.shouldBeLocked && !game.isLocked {
-                onSelect()
-            }
-        }
-    }
-    
-    // MARK: - Header Section
-    
-    private var headerSection: some View {
-        HStack {
-            leagueBadge
-            Spacer()
-            statusAndTime
-        }
-    }
-    
-    private var leagueBadge: some View {
-        Text(game.league)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(leagueBadgeBackground)
-    }
-    
-    private var leagueBadgeBackground: some View {
-        Capsule()
-            .fill(Color.white.opacity(0.15))
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-            )
-    }
-    
-    private var statusAndTime: some View {
-        HStack(spacing: 6) {
-            if game.status == .upcoming {
-                upcomingTimeInfo
-            }
-        }
-    }
-    
-    private var upcomingTimeInfo: some View {
-        VStack(spacing: 2) {
-            Text("UPCOMING")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(Color.primary)
-                .tracking(1)
-            
-            Text(formattedDateTime)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
-        }
-    }
-    
-    // MARK: - OLD UI Style Diagonal Teams Section
-    
-    private var diagonalTeamsSection: some View {
-        HStack(spacing: 0) {
-            // Away Team Side
-            diagonalAwayTeamSide
-            
-            // VS Indicator in Center
-            vsIndicator
-                .zIndex(1)
-            
-            // Home Team Side
-            diagonalHomeTeamSide
-        }
-    }
-    
-    private var diagonalAwayTeamSide: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                globalSelectedTeam = (game.id, TeamSelection.away)
-            }
-            hapticFeedback()
-            onSelect()
-        }) {
-            VStack(spacing: 12) {
-                Text(game.awayTeam)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .shadow(color: .black.opacity(0.7), radius: 2, x: 0, y: 1)
-                
-                // FIXED: OLD UI STYLE - NO BACKGROUND AT ALL
-                Text(game.awaySpread)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 2)
-                // NO .background() - completely removed!
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 90)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(selectedTeam == TeamSelection.away ? 1.05 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTeam == TeamSelection.away)
-    }
-    
-    private var diagonalHomeTeamSide: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                globalSelectedTeam = (game.id, TeamSelection.home)
-            }
-            hapticFeedback()
-            onSelect()
-        }) {
-            VStack(spacing: 12) {
-                Text(game.homeTeam)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .shadow(color: .black.opacity(0.7), radius: 2, x: 0, y: 1)
-                
-                // FIXED: OLD UI STYLE - NO BACKGROUND AT ALL
-                Text(game.homeSpread)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 2)
-                // NO .background() - completely removed!
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 90)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(selectedTeam == TeamSelection.home ? 1.05 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTeam == TeamSelection.home)
-    }
-    
-    private var vsIndicator: some View {
-        Text("@")
-            .font(.system(size: 18, weight: .black))
-            .foregroundColor(.white)
-            .frame(width: 36, height: 36)
-            .background(vsIndicatorBackground)
-    }
-    
-    private var vsIndicatorBackground: some View {
-        Circle()
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.7),
-                        Color.black.opacity(0.5)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .overlay(
-                Circle()
-                    .stroke(Color.white.opacity(0.4), lineWidth: 2)
-            )
-            .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 3)
-    }
-    
-    // MARK: - OLD UI STYLE: Diagonal Background
-    
-    private var oldUIStyleDiagonalBackground: some View {
-        LinearGradient(
-            colors: [
-                // OLD UI STYLE: Strong diagonal gradient from top-left to bottom-right
-                game.awayTeamColors.primary.opacity(0.9),      // Strong away color top-left
-                game.awayTeamColors.primary.opacity(0.7),      // Fade away color
-                game.awayTeamColors.secondary.opacity(0.4),    // Away secondary blend
-                Color.black.opacity(0.15),                     // Dark center blend
-                game.homeTeamColors.secondary.opacity(0.4),    // Home secondary blend
-                game.homeTeamColors.primary.opacity(0.7),      // Fade home color
-                game.homeTeamColors.primary.opacity(0.9)       // Strong home color bottom-right
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing  // OLD UI STYLE: Diagonal instead of horizontal
-        )
-    }
-    
-    // MARK: - Enhanced Border Overlay
-    
-    private var enhancedBorderOverlay: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .stroke(
-                LinearGradient(
-                    colors: [
-                        game.awayTeamColors.primary.opacity(0.6),
-                        Color.primary.opacity(isFeatured ? 0.7 : 0.4),
-                        game.homeTeamColors.primary.opacity(0.6)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: isFeatured ? 2 : 1
-            )
-    }
-    
-    // MARK: - Styling Properties
-    
-    private var shadowColor: Color {
-        if isFeatured {
-            return Color.primary.opacity(0.4)
-        } else {
-            return Color.black.opacity(0.3)
-        }
-    }
-    
-    private var shadowRadius: CGFloat {
-        isFeatured ? 15 : 10
-    }
-    
-    private var shadowY: CGFloat {
-        isFeatured ? 8 : 5
-    }
-    
-    private var gameOpacity: Double {
-        game.shouldBeLocked || game.isLocked ? 0.7 : 1.0
-    }
-    
-    // MARK: - Helper Methods
-    
-    private func hapticFeedback() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-    }
 }
 
 // MARK: - ScrollOffset Modifier
