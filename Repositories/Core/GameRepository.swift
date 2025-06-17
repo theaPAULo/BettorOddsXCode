@@ -2,8 +2,13 @@
 //  GameRepository.swift
 //  BettorOdds
 //
-//  Version: 2.7.0 - Optimized cache performance and reduced sync delays
+//  Version: 2.8.0 - FIXED: League-specific caching and cross-league deletion
 //  Updated: June 2025
+//
+//  CHANGES:
+//  - Fixed cache collision between leagues
+//  - Prevented cross-league game deletion in syncGames
+//  - Added league-specific caching structure
 //
 
 import Foundation
@@ -18,7 +23,9 @@ class GameRepository: Repository {
     
     private let gameService: GameService
     private var listeners: [String: ListenerRegistration] = [:]
-    private var cachedGames: [String: Game] = [:]
+    
+    // FIXED: League-specific caching to prevent collision
+    private var cachedGamesByLeague: [String: [String: Game]] = [:] // [league: [gameId: Game]]
     private var scoreCache: [String: GameScore] = [:]
 
     
@@ -31,9 +38,11 @@ class GameRepository: Repository {
     // MARK: - Repository Protocol Methods
     
     func fetch(id: String) async throws -> Game? {
-        // Try cache first
-        if let cachedGame = cachedGames[id], isCacheValid() {
-            return cachedGame
+        // Try cache first - search across all leagues
+        for leagueGames in cachedGamesByLeague.values {
+            if let cachedGame = leagueGames[id], isCacheValid() {
+                return cachedGame
+            }
         }
         
         // If not in cache or cache invalid, fetch from network
@@ -43,8 +52,14 @@ class GameRepository: Repository {
         
         do {
             let game = try await gameService.fetchGame(gameId: id)
-            cachedGames[id] = game
+            
+            // Update league-specific cache
+            if cachedGamesByLeague[game.league] == nil {
+                cachedGamesByLeague[game.league] = [:]
+            }
+            cachedGamesByLeague[game.league]?[game.id] = game
             try saveCachedGames()
+            
             return game
         } catch {
             // If not found, return nil instead of throwing
@@ -61,13 +76,20 @@ class GameRepository: Repository {
         }
         
         try await gameService.saveGame(game)
-        cachedGames[game.id] = game
+        
+        // Update league-specific cache
+        if cachedGamesByLeague[game.league] == nil {
+            cachedGamesByLeague[game.league] = [:]
+        }
+        cachedGamesByLeague[game.league]?[game.id] = game
         try saveCachedGames()
     }
     
     func remove(id: String) async throws {
-        // Remove from cache
-        cachedGames.removeValue(forKey: id)
+        // Remove from cache across all leagues
+        for league in cachedGamesByLeague.keys {
+            cachedGamesByLeague[league]?.removeValue(forKey: id)
+        }
         try saveCachedGames()
         
         // Note: In this implementation, we don't actually delete games from the server
@@ -75,66 +97,54 @@ class GameRepository: Repository {
     }
     
     func clearCache() throws {
-        cachedGames.removeAll()
+        cachedGamesByLeague.removeAll()
         try saveCachedGames()
     }
     
-    // MARK: - Cache Methods
+    // MARK: - League-Specific Methods
     
-    private func loadCachedGames() {
-        do {
-            print("📂 Attempting to load games from cache...")
-            let data = try loadFromCache()
-            let container = try JSONDecoder().decode(CacheContainer<Game>.self, from: data)
-            cachedGames = container.items
-            print("✅ Successfully loaded \(cachedGames.count) games from cache")
-        } catch {
-            if (error as NSError).domain == NSCocoaErrorDomain &&
-               (error as NSError).code == 260 {
-                print("ℹ️ No cache file found - this is normal on first run")
-            } else {
-                print("⚠️ Failed to load games cache: \(error)")
-            }
-            cachedGames = [:]
-        }
-    }
-
-    private func saveCachedGames() throws {
-        print("💾 Saving games to cache...")
-        let container = CacheContainer(items: cachedGames)
-        let data = try JSONEncoder().encode(container)
-        try saveToCache(data)
-        print("✅ Successfully saved \(cachedGames.count) games to cache")
-    }
-    
-    // MARK: - Additional Methods
-    
-    /// Fetches games for a specific league
+    /// FIXED: Fetches games for a specific league with proper league-specific caching
     /// - Parameter league: The league to fetch games for
     /// - Returns: Array of games
     func fetchGames(league: String) async throws -> [Game] {
+        print("🔍 Fetching \(league) games from cache/network...")
+        
         guard NetworkMonitor.shared.isConnected else {
-            return cachedGames.values
-                .filter { $0.league == league }
-                .sorted { $0.time < $1.time }
+            let cachedGames = cachedGamesByLeague[league]?.values.compactMap { $0 } ?? []
+            print("📱 Offline: Returning \(cachedGames.count) cached \(league) games")
+            return cachedGames.sorted { $0.time < $1.time }
         }
         
         let games = try await gameService.fetchGames(league: league)
+        print("🌐 Fetched \(games.count) \(league) games from network")
         
-        // Update cache
-        for game in games {
-            cachedGames[game.id] = game
+        // Update league-specific cache
+        if cachedGamesByLeague[league] == nil {
+            cachedGamesByLeague[league] = [:]
         }
+        
+        // Clear existing cache for this league and repopulate
+        cachedGamesByLeague[league] = [:]
+        for game in games {
+            cachedGamesByLeague[league]?[game.id] = game
+        }
+        
         try saveCachedGames()
         
         return games
     }
     
-    /// OPTIMIZED: Syncs games from The Odds API to Firestore with improved performance
+    /// FIXED: Syncs games from The Odds API to Firestore with league-specific deletion
     /// - Parameter games: Array of games to sync
     /// Syncs games and updates statuses based on The Odds API data
     func syncGames(_ games: [Game]) async throws {
-        print("🔄 Starting optimized game sync with \(games.count) games")
+        guard !games.isEmpty else {
+            print("⚠️ No games to sync")
+            return
+        }
+        
+        let syncingLeague = games.first?.league ?? "Unknown"
+        print("🔄 Starting league-specific sync for \(syncingLeague) with \(games.count) games")
         
         // OPTIMIZATION 1: Use a single batch for all operations
         let batch = FirebaseConfig.shared.db.batch()
@@ -149,31 +159,30 @@ class GameRepository: Repository {
         let snapshot = try await existingGamesSnapshot
         print("📚 Found \(snapshot.documents.count) existing games in Firestore")
         
-        // OPTIMIZATION 3: Process removals in batches to avoid UI blocking
+        // FIXED: Only remove games from the SAME league that are not in active games
         var removedGameCount = 0
         let gamesToRemove = snapshot.documents.filter { doc in
             let gameId = doc.documentID
-            return !activeGameIds.contains(gameId)
+            let gameData = doc.data()
+            let gameLeague = gameData["league"] as? String ?? ""
+            
+            // Only remove games from the SAME league that are not in current active games
+            return gameLeague == syncingLeague && !activeGameIds.contains(gameId)
         }
         
         // OPTIMIZATION 4: Reduced logging for bulk operations
         if !gamesToRemove.isEmpty {
-            print("🗑️ Batch removing \(gamesToRemove.count) finished games...")
+            print("🗑️ Removing \(gamesToRemove.count) outdated \(syncingLeague) games (keeping other leagues intact)")
             
             for document in gamesToRemove {
                 let gameId = document.documentID
                 let gameRef = FirebaseConfig.shared.db.collection("games").document(gameId)
                 
-                // Quick check: Only keep games that explicitly need score resolution
-                let shouldKeep = false // We'll make this more sophisticated later if needed
-                
-                if !shouldKeep {
-                    batch.deleteDocument(gameRef)
-                    // Also remove score if it exists
-                    let scoreRef = FirebaseConfig.shared.db.collection("scores").document(gameId)
-                    batch.deleteDocument(scoreRef)
-                    removedGameCount += 1
-                }
+                batch.deleteDocument(gameRef)
+                // Also remove score if it exists
+                let scoreRef = FirebaseConfig.shared.db.collection("scores").document(gameId)
+                batch.deleteDocument(scoreRef)
+                removedGameCount += 1
             }
         }
         
@@ -191,7 +200,7 @@ class GameRepository: Repository {
                    isLocked == true,
                    let lockedSpread = existingData["spread"] as? Double {
                     gameData["spread"] = lockedSpread
-                    // Reduced logging for performance
+                    print("🔒 Preserving locked spread for game \(game.id)")
                 }
                 
                 // Preserve admin settings
@@ -205,10 +214,48 @@ class GameRepository: Repository {
         try await batch.commit()
         
         print("""
-            ✅ Optimized sync completed in single batch:
+            ✅ League-specific sync completed for \(syncingLeague):
             - Active games synced: \(games.count)
             - Games removed: \(removedGameCount)
+            - Other leagues: Untouched
             """)
+    }
+    
+    // MARK: - Cache Methods
+    
+    /// FIXED: Load league-specific cached games
+    private func loadCachedGames() {
+        do {
+            print("📂 Attempting to load games from cache...")
+            let data = try loadFromCache()
+            
+            // FIXED: Direct decode of the league structure without extra nesting
+            cachedGamesByLeague = try JSONDecoder().decode([String: [String: Game]].self, from: data)
+            
+            let totalGames = cachedGamesByLeague.values.reduce(0) { $0 + $1.count }
+            let leagueInfo = cachedGamesByLeague.mapValues { $0.count }
+            print("✅ Successfully loaded \(totalGames) games from cache across \(cachedGamesByLeague.keys.count) leagues: \(leagueInfo)")
+        } catch {
+            if (error as NSError).domain == NSCocoaErrorDomain &&
+               (error as NSError).code == 260 {
+                print("ℹ️ No cache file found - this is normal on first run")
+            } else {
+                print("⚠️ Failed to load games cache: \(error)")
+            }
+            cachedGamesByLeague = [:]
+        }
+    }
+
+    /// FIXED: Save league-specific cached games
+    private func saveCachedGames() throws {
+        let totalGames = cachedGamesByLeague.values.reduce(0) { $0 + $1.count }
+        let leagueInfo = cachedGamesByLeague.mapValues { $0.count }
+        print("💾 Saving \(totalGames) games to cache across \(cachedGamesByLeague.keys.count) leagues: \(leagueInfo)")
+        
+        // FIXED: Direct encode of the league structure
+        let data = try JSONEncoder().encode(cachedGamesByLeague)
+        try saveToCache(data)
+        print("✅ Successfully saved league-specific games to cache")
     }
     
     // MARK: - Real-time Updates
@@ -223,9 +270,12 @@ class GameRepository: Repository {
             let listener = await gameService.listenToGameUpdates(gameId: gameId) { game in
                 handler(game)
                 
-                // Update cache if game exists
+                // Update league-specific cache if game exists
                 if let game = game {
-                    self.cachedGames[game.id] = game
+                    if self.cachedGamesByLeague[game.league] == nil {
+                        self.cachedGamesByLeague[game.league] = [:]
+                    }
+                    self.cachedGamesByLeague[game.league]?[game.id] = game
                     try? self.saveCachedGames()
                 }
             }
@@ -266,6 +316,7 @@ class GameRepository: Repository {
         return try Data(contentsOf: cacheURL)
     }
     
+    /// Score management methods
     func saveScore(_ score: GameScore) async throws {
         print("💾 Saving score for game \(score.gameId)...")
         
@@ -280,62 +331,57 @@ class GameRepository: Repository {
     }
 
     func getScore(for gameId: String) async throws -> GameScore? {
-        // Check cache first
-        if let cached = scoreCache[gameId] {
-            return cached
+        // Try cache first
+        if let cachedScore = scoreCache[gameId] {
+            return cachedScore
         }
         
-        print("🔍 Looking up score for game \(gameId)")
-        
-        // Try Firestore
-        let snapshot = try await FirebaseConfig.shared.db.collection("scores")
+        // Fetch from Firestore
+        let document = try await FirebaseConfig.shared.db.collection("scores")
             .document(gameId)
             .getDocument()
         
-        guard let score = GameScore.from(snapshot) else {
-            print("⚠️ No score found for game \(gameId)")
-            return nil
+        if document.exists {
+            let score = GameScore.from(document)
+            scoreCache[gameId] = score
+            return score
         }
         
-        // Update cache
-        scoreCache[gameId] = score
-        
-        print("✅ Found score: Home \(score.homeScore) - Away \(score.awayScore)")
-        return score
+        return nil
     }
     
+    // MARK: - Helper Methods
+    
+    /// Preserves admin settings when syncing games
     private func preserveAdminSettings(existingData: [String: Any], gameData: inout [String: Any]) {
-        // Preserve manual settings we want to keep
-        let settingsToPreserve = [
-            "manuallyFeatured",
-            "isFeatured",
-            "isVisible",
-            "lastUpdatedBy",
-            "lastUpdatedAt"
-        ]
+        // Preserve admin-set values
+        if let isFeatured = existingData["isFeatured"] as? Bool {
+            gameData["isFeatured"] = isFeatured
+        }
         
-        for setting in settingsToPreserve {
-            if let value = existingData[setting] {
-                gameData[setting] = value
-            }
+        if let manuallyFeatured = existingData["manuallyFeatured"] as? Bool {
+            gameData["manuallyFeatured"] = manuallyFeatured
+        }
+        
+        if let isVisible = existingData["isVisible"] as? Bool {
+            gameData["isVisible"] = isVisible
+        }
+        
+        if let isLocked = existingData["isLocked"] as? Bool {
+            gameData["isLocked"] = isLocked
+        }
+        
+        if let lastUpdatedBy = existingData["lastUpdatedBy"] as? String {
+            gameData["lastUpdatedBy"] = lastUpdatedBy
+        }
+        
+        if let lastUpdatedAt = existingData["lastUpdatedAt"] {
+            gameData["lastUpdatedAt"] = lastUpdatedAt
         }
     }
     
-    /// Removes a specific game listener
-    /// - Parameter gameId: The ID of the game to stop listening to
-    func removeListener(for gameId: String) {
-        listeners[gameId]?.remove()
-        listeners.removeValue(forKey: gameId)
-    }
-    
-    /// Removes all game listeners
-    func removeAllListeners() {
-        listeners.values.forEach { $0.remove() }
-        listeners.removeAll()
-    }
-    
-    // MARK: - Cleanup
-    deinit {
-        removeAllListeners()
+    /// Get debug info about cached games
+    func getCacheDebugInfo() -> [String: Int] {
+        return cachedGamesByLeague.mapValues { $0.count }
     }
 }

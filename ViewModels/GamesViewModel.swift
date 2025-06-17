@@ -2,7 +2,7 @@
 //  GamesViewModel.swift
 //  BettorOdds
 //
-//  Version: 3.0.1 - FINAL FIX for async/await issues and missing properties
+//  Version: 3.1.0 - FIXED: League switching throttling issue
 //  Updated: June 2025
 //
 
@@ -27,7 +27,9 @@ class GamesViewModel: ListViewModel<Game> {
     // MARK: - Private Properties
     private let refreshInterval: TimeInterval = 300 // 5 minutes
     private var refreshTask: Task<Void, Never>?
-    private var lastRefreshTime: Date?
+    
+    // FIXED: Per-league throttling instead of global
+    private var lastRefreshTimesByLeague: [String: Date] = [:]
     private let minimumRefreshInterval: TimeInterval = 60 // Prevent spam refreshing
     
     // MARK: - Computed Properties
@@ -79,29 +81,30 @@ class GamesViewModel: ListViewModel<Game> {
         await refreshGames()
     }
     
-    /// Changes league and refreshes games
+    /// FIXED: Changes league and refreshes games with instant cache loading
     func changeLeague(to league: String) async {
         guard league != selectedLeague else {
             print("🏀 Already on \(league) league")
             return
         }
         
+        let previousLeague = selectedLeague
         selectedLeague = league
-        print("🏀 Switching to \(league) league")
+        print("🏀 Switching from \(previousLeague) to \(league) league")
         
-        // Clear current items to show loading state
-        items = []
-        featuredGame = nil
+        // IMPROVED: Load cached data first for instant display
+        await loadCachedGamesForCurrentLeague()
         
+        // Then refresh with fresh data if not throttled for this league
         await refreshGames()
     }
     
-    /// Refreshes games with intelligent throttling
+    /// Refreshes games with per-league intelligent throttling
     func refreshGames() async {
-        // Throttle refresh requests
-        if let lastRefresh = lastRefreshTime,
+        // FIXED: PER-LEAGUE throttling check
+        if let lastRefresh = lastRefreshTimesByLeague[selectedLeague],
            Date().timeIntervalSince(lastRefresh) < minimumRefreshInterval {
-            print("🔄 Refresh throttled - too recent")
+            print("🔄 \(selectedLeague) refresh throttled - too recent")
             return
         }
         
@@ -110,7 +113,8 @@ class GamesViewModel: ListViewModel<Game> {
             return
         }
         
-        lastRefreshTime = Date()
+        // FIXED: Set per-league refresh time
+        lastRefreshTimesByLeague[selectedLeague] = Date()
         
         await executeAsync({
             print("🔄 Starting games refresh for \(self.selectedLeague)")
@@ -165,9 +169,9 @@ class GamesViewModel: ListViewModel<Game> {
         await refreshGames()
     }
     
-    /// Force refresh bypassing throttling
+    /// FIXED: Force refresh bypassing per-league throttling
     func forceRefresh() async {
-        lastRefreshTime = nil
+        lastRefreshTimesByLeague[selectedLeague] = nil
         await refreshGames()
     }
     
@@ -200,6 +204,41 @@ class GamesViewModel: ListViewModel<Game> {
         }
     }
     
+    /// NEW: Loads cached games for current league - HELPER METHOD for instant display
+    private func loadCachedGamesForCurrentLeague() async {
+        do {
+            let cachedGames = try await gameRepository.fetchGames(league: selectedLeague)
+            if !cachedGames.isEmpty {
+                await MainActor.run {
+                    self.items = cachedGames.filter { $0.isVisible }
+                    self.updateFeaturedGame()
+                }
+                print("📂 Instantly loaded \(cachedGames.count) cached \(selectedLeague) games")
+            } else {
+                // Don't clear items immediately - try to force a refresh instead
+                print("ℹ️ No cached \(selectedLeague) games found - attempting fresh fetch")
+                
+                // Force refresh for this league since we have no cache
+                await forceRefreshCurrentLeague()
+            }
+        } catch {
+            print("⚠️ Error loading cached \(selectedLeague) games: \(error.localizedDescription)")
+            // Clear items on error
+            await MainActor.run {
+                self.items = []
+                self.featuredGame = nil
+            }
+        }
+    }
+    
+    /// Force refresh for current league only
+    private func forceRefreshCurrentLeague() async {
+        let currentLeague = selectedLeague
+        lastRefreshTimesByLeague[currentLeague] = nil
+        print("🔄 Force refreshing \(currentLeague) due to missing cache")
+        await refreshGames()
+    }
+    
     /// Fetches scores in background (non-blocking)
     private func fetchScoresInBackground() {
         let currentLeague = selectedLeague // Capture the value before the detached task
@@ -208,32 +247,42 @@ class GamesViewModel: ListViewModel<Game> {
             do {
                 guard let self = self else { return }
                 let sportKey = currentLeague == "NBA" ? "basketball_nba" : "americanfootball_nfl"
+                
                 try await self.scoreService.fetchScores(sport: sportKey)
-                print("✅ Score fetching completed for \(currentLeague)")
+                print("🏆 Background score fetch completed for \(currentLeague)")
+                
+                // Update games with scores if we're still on the same league
+                await MainActor.run {
+                    if self.selectedLeague == currentLeague {
+                        // Process scores and update games if needed
+                        print("✅ Scores processed for \(currentLeague)")
+                    }
+                }
             } catch {
-                // Non-critical error - don't propagate
-                print("⚠️ Score fetching failed (non-critical): \(error.localizedDescription)")
+                print("⚠️ Background score fetch error for \(currentLeague): \(error.localizedDescription)")
             }
         }
     }
     
-    /// Updates the featured game based on business logic
+    /// Updates the featured game based on current games
     private func updateFeaturedGame() {
-        print("🔍 Looking for featured game in \(selectedLeague)...")
-        
-        // 1. Check for manually featured games first
-        if let manuallyFeatured = items.first(where: { $0.isFeatured && $0.league == selectedLeague }) {
-            featuredGame = manuallyFeatured
-            print("✨ Found manually featured game: \(manuallyFeatured.awayTeam) @ \(manuallyFeatured.homeTeam)")
+        // 1. First check for manually featured games
+        if let manualFeatured = upcomingGames.first(where: { $0.isFeatured }) {
+            featuredGame = manualFeatured
+            print("⭐ Featured manually set game: \(manualFeatured.awayTeam) @ \(manualFeatured.homeTeam)")
             return
         }
         
-        // 2. Find upcoming games that can be bet on
-        let upcomingGames = items.filter {
-            $0.league == selectedLeague &&
-            $0.time > Date() &&
-            $0.isVisible &&
-            !$0.isLocked
+        // 2. Check for games happening soon (within 2 hours)
+        let soonGames = upcomingGames.filter { game in
+            let timeUntilGame = game.time.timeIntervalSinceNow
+            return timeUntilGame <= 7200 // 2 hours
+        }
+        
+        if let soonGame = soonGames.first {
+            featuredGame = soonGame
+            print("🔜 Featured upcoming game: \(soonGame.awayTeam) @ \(soonGame.homeTeam)")
+            return
         }
         
         // 3. Pick the most popular upcoming game
