@@ -229,21 +229,61 @@ struct Game: Identifiable, Codable {
 
 // MARK: - Game Status Enum
 enum GameStatus: String, Codable, CaseIterable {
-    case upcoming = "Upcoming"
-    case inProgress = "In Progress"
-    case locked = "Locked"
-    case completed = "Completed"
+    case upcoming = "upcoming"
+    case inProgress = "in_progress"
+    case completed = "completed"
+    case locked = "locked"
+    case cancelled = "cancelled"
     
-    var color: Color {
+    var displayName: String {
         switch self {
         case .upcoming:
-            return .blue
+            return "Upcoming"
         case .inProgress:
-            return .orange
-        case .locked:
-            return .red
+            return "Live"
         case .completed:
-            return .green
+            return "Final"
+        case .locked:
+            return "Locked"
+        case .cancelled:
+            return "Cancelled"
+        }
+    }
+    
+    var canBetOn: Bool {
+        switch self {
+        case .upcoming:
+            return true
+        case .inProgress, .completed, .locked, .cancelled:
+            return false
+        }
+    }
+    
+    var isActive: Bool {
+        switch self {
+        case .upcoming, .inProgress:
+            return true
+        case .completed, .locked, .cancelled:
+            return false
+        }
+    }
+}
+
+// MARK: - Extensions for Game Status
+extension GameStatus {
+    /// Returns appropriate system image for the status
+    var systemImage: String {
+        switch self {
+        case .upcoming:
+            return "clock"
+        case .inProgress:
+            return "play.circle.fill"
+        case .completed:
+            return "checkmark.circle.fill"
+        case .locked:
+            return "lock.fill"
+        case .cancelled:
+            return "xmark.circle.fill"
         }
     }
 }

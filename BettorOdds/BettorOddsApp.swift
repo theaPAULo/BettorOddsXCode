@@ -2,20 +2,23 @@
 //  BettorOddsApp.swift
 //  BettorOdds
 //
-//  Version: 2.7.0 - Fixed environment object injection
+//  Version: 3.0.0 - Enhanced with Dependency Injection and optimized initialization
 //  Updated: June 2025
+//
 
 import SwiftUI
 import FirebaseCore
 import FirebaseAuth
 import UserNotifications
 
+// MARK: - App Delegate
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication,
                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
         // Initialize Firebase configuration
         _ = FirebaseConfig.shared
+        print("🔥 Firebase initialized")
         
         // Set notification delegate
         UNUserNotificationCenter.current().delegate = self
@@ -91,33 +94,82 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 }
 
+// MARK: - Main App
 @main
 struct BettorOddsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var authViewModel = AuthenticationViewModel()
-    @StateObject private var darkModeManager = DarkModeManager() // Add this
+    @StateObject private var darkModeManager = DarkModeManager() // Use existing DarkModeManager
     @State private var showLaunch = true
+    
+    // Initialize DI Container early - CRITICAL for dependency injection
+    private let dependencyContainer = DependencyContainer.shared
     
     var body: some Scene {
         WindowGroup {
             ZStack {
                 ContentView()
                     .environmentObject(authViewModel)
-                    .environmentObject(darkModeManager) // Add this
+                    .environmentObject(darkModeManager)
                 
                 if showLaunch {
-                    LaunchScreen()
+                    LaunchScreen() // Use existing LaunchScreen
                         .transition(.opacity)
                         .zIndex(1)
                 }
             }
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    withAnimation {
-                        showLaunch = false
-                    }
-                }
+                setupApp()
             }
         }
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Sets up the app on first launch
+    private func setupApp() {
+        print("🚀 BettorOdds starting up...")
+        
+        // Setup launch screen timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(.easeOut(duration: 0.5)) {
+                showLaunch = false
+            }
+            print("🎬 Launch screen dismissed")
+        }
+        
+        // Log DI container status
+        print("🔧 Dependency injection ready")
+        
+        // Setup app-wide configurations
+        setupAppearance()
+        
+        #if DEBUG
+        print("🐛 Running in DEBUG mode")
+        #endif
+    }
+    
+    /// Configures app-wide appearance
+    private func setupAppearance() {
+        // Configure tab bar appearance
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithOpaqueBackground()
+        tabBarAppearance.backgroundColor = UIColor.black.withAlphaComponent(0.9)
+        
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+        
+        // Configure navigation bar appearance
+        let navBarAppearance = UINavigationBarAppearance()
+        navBarAppearance.configureWithOpaqueBackground()
+        navBarAppearance.backgroundColor = UIColor.clear
+        navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
+        navBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
+        
+        UINavigationBar.appearance().standardAppearance = navBarAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
+        UINavigationBar.appearance().compactAppearance = navBarAppearance
+        
+        print("🎨 App appearance configured")
     }
 }

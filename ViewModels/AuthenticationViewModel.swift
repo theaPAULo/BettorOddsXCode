@@ -2,12 +2,13 @@
 //  AuthenticationViewModel.swift
 //  BettorOdds
 //
-//  Version: 2.7.1 - Fixed GIDConfiguration optional binding issue
+//  Version: 3.0.0 - Optimized with Dependency Injection and better error handling
 //  Updated: June 2025
 //
 
 import Foundation
 import SwiftUI
+import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
 import GoogleSignIn
@@ -19,6 +20,12 @@ enum AuthState: Equatable {
     case loading
     case signedIn
     case signedOut
+    case error(String)
+    
+    var isSignedIn: Bool {
+        if case .signedIn = self { return true }
+        return false
+    }
 }
 
 @MainActor
@@ -28,336 +35,353 @@ class AuthenticationViewModel: ObservableObject {
     @Published var authState: AuthState = .loading
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var showError = false
+    
+    // MARK: - Dependencies (Using Dependency Injection)
+    @Inject private var userRepository: UserRepository
     
     // MARK: - Private Properties
-    private let db = Firestore.firestore()
-    
-    // Keep reference to Apple Sign-In coordinator
+    private let auth = Auth.auth()
+    private var authStateListener: AuthStateDidChangeListenerHandle?
     private var appleSignInCoordinator: AppleSignInCoordinator?
     
     // MARK: - Initialization
     init() {
+        print("🔐 AuthenticationViewModel initialized with DI")
+        setupAuthStateListener()
         checkAuthState()
     }
     
-    // MARK: - Google Sign-In
-    
-    /// Signs in with Google
-    func signInWithGoogle() {
-        isLoading = true
-        errorMessage = nil
-        
-        // Get the root view controller
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
-            errorMessage = "Unable to find root view controller"
-            isLoading = false
-            return
+    deinit {
+        if let listener = authStateListener {
+            auth.removeStateDidChangeListener(listener)
         }
-        
-        // Get Google Client ID
-        guard let clientID = getGoogleClientID() else {
-            errorMessage = "Google configuration not found"
-            isLoading = false
-            return
-        }
-        
-        // FIXED: GIDConfiguration initializer doesn't return optional
-        let config = GIDConfiguration(clientID: clientID)
-        GIDSignIn.sharedInstance.configuration = config
-        
-        // Sign in
-        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { [weak self] result, error in
-            Task { @MainActor in
-                if let error = error {
-                    self?.errorMessage = "Google Sign-In failed: \(error.localizedDescription)"
-                    self?.isLoading = false
-                    return
-                }
-                
-                guard let result = result,
-                      let idToken = result.user.idToken?.tokenString else {
-                    self?.errorMessage = "Failed to get ID token from Google"
-                    self?.isLoading = false
-                    return
-                }
-                
-                let accessToken = result.user.accessToken.tokenString
-                let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
-                
-                // Sign in to Firebase
-                await self?.signInToFirebase(with: credential, authProvider: "google.com")
-            }
-        }
+        print("🗑️ AuthenticationViewModel deinitialized")
     }
     
-    // MARK: - Apple Sign-In
-    
-    /// Signs in with Apple
-    func signInWithApple() {
-        isLoading = true
-        errorMessage = nil
-        
-        appleSignInCoordinator = AppleSignInCoordinator { [weak self] result in
-            Task { @MainActor in
-                switch result {
-                case .success(let credential):
-                    await self?.signInWithAppleCredential(credential)
-                case .failure(let error):
-                    self?.errorMessage = "Apple Sign-In failed: \(error.localizedDescription)"
-                    self?.isLoading = false
-                }
-            }
-        }
-        
-        appleSignInCoordinator?.signIn()
-    }
-    
-    // MARK: - Apple Sign-In Helper Methods
-    
-    private func signInWithAppleCredential(_ credential: ASAuthorizationAppleIDCredential) async {
-        guard let idToken = credential.identityToken,
-              let idTokenString = String(data: idToken, encoding: .utf8) else {
-            await MainActor.run {
-                self.errorMessage = "Failed to get ID token from Apple"
-                self.isLoading = false
-            }
-            return
-        }
-        
-        // Generate nonce for security
-        let rawNonce = generateNonce()
-        
-        // FIXED: Use the new credential method instead of deprecated one
-        let oauthCredential = OAuthProvider.credential(
-            providerID: AuthProviderID.apple,
-            idToken: idTokenString,
-            rawNonce: rawNonce,
-            accessToken: nil
-        )
-        
-        await signInToFirebase(with: oauthCredential, authProvider: "apple.com")
-    }
-    
-    // MARK: - Firebase Authentication
-    
-    /// Signs in to Firebase with the provided credential
-    private func signInToFirebase(with credential: AuthCredential, authProvider: String) async {
-        do {
-            let result = try await Auth.auth().signIn(with: credential)
-            
-            // Check if user exists in Firestore
-            let userDoc = try await db.collection("users").document(result.user.uid).getDocument()
-            
-            if userDoc.exists {
-                // Existing user - fetch their data
-                print("👤 Existing user found")
-                try await fetchUser(userId: result.user.uid)
-            } else {
-                // New user - create their profile
-                print("👤 New user - creating profile")
-                try await createNewUser(firebaseUser: result.user, authProvider: authProvider)
-            }
-            
-            authState = .signedIn
-            isLoading = false
-            print("✅ Authentication flow completed successfully")
-        } catch {
-            errorMessage = "Authentication failed: \(error.localizedDescription)"
-            isLoading = false
-            print("❌ Authentication error: \(error)")
-        }
-    }
-    
-    /// Creates a new user profile in Firestore
-    private func createNewUser(firebaseUser: FirebaseAuth.User, authProvider: String) async throws {
-        let newUser = User(
-            id: firebaseUser.uid,
-            displayName: firebaseUser.displayName,
-            profileImageURL: firebaseUser.photoURL?.absoluteString,
-            authProvider: authProvider
-        )
-        
-        // Save to Firestore
-        try await db.collection("users").document(firebaseUser.uid).setData(newUser.toDictionary())
-        
-        // Set local user
-        self.user = newUser
-        
-        print("✅ New user profile created successfully")
-    }
-    
-    // MARK: - User Management
-    
-    /// Fetches user data from Firestore
-    private func fetchUser(userId: String) async throws {
-        print("🔍 Fetching user data for ID: \(userId)")
-        let document = try await db.collection("users").document(userId).getDocument()
-        
-        if let user = User(document: document) {
-            self.user = user
-            print("👤 User data fetched successfully")
-        } else {
-            print("❌ Failed to parse user data")
-            throw NSError(domain: "", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to parse user data"
-            ])
-        }
-    }
-    
-    /// Updates user data in Firestore
-    func updateUser(_ updatedUser: User) async throws {
-        isLoading = true
-        defer { isLoading = false }
-        
-        do {
-            let data = updatedUser.toDictionary()
-            try await db.collection("users").document(updatedUser.id).updateData(data)
-            self.user = updatedUser
-            print("✅ User data updated successfully")
-        } catch {
-            errorMessage = "Failed to update user: \(error.localizedDescription)"
-            throw error
-        }
-    }
-    
-    // MARK: - Sign Out
-    
-    /// Signs out the current user
-    func signOut() {
-        do {
-            // Sign out from Firebase
-            try Auth.auth().signOut()
-            
-            // Sign out from Google if needed
-            GIDSignIn.sharedInstance.signOut()
-            
-            // Clear local user data
-            user = nil
-            authState = .signedOut
-            errorMessage = nil
-            
-            print("✅ User signed out successfully")
-            
-        } catch {
-            errorMessage = error.localizedDescription
-            print("❌ Sign out error: \(error.localizedDescription)")
-        }
-    }
-    
-    // MARK: - Authentication State Management
+    // MARK: - Public Methods
     
     /// Checks current authentication state
     func checkAuthState() {
-        print("🔍 Checking authentication state...")
+        guard let firebaseUser = auth.currentUser else {
+            print("🔐 No authenticated user found")
+            authState = .signedOut
+            user = nil
+            return
+        }
+        
+        print("🔐 Found authenticated user: \(firebaseUser.uid)")
         authState = .loading
         
-        // Brief delay to ensure Firebase is initialized
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            if let currentUser = Auth.auth().currentUser {
-                print("👤 Found existing user: \(currentUser.uid)")
-                Task {
-                    do {
-                        try await self.fetchUser(userId: currentUser.uid)
-                        await MainActor.run {
-                            self.authState = .signedIn
+        Task {
+            await loadUserData(firebaseUser: firebaseUser)
+        }
+    }
+    
+    /// Signs in with Google
+    func signInWithGoogle() {
+        setLoading(true, message: "Signing in with Google...")
+        
+        Task {
+            do {
+                let result = try await performGoogleSignIn()
+                await handleSuccessfulAuth(result.user, isNewUser: result.additionalUserInfo?.isNewUser ?? false)
+            } catch {
+                await handleAuthError(error, context: "Google Sign-In")
+            }
+        }
+    }
+    
+    /// Signs in with Apple
+    func signInWithApple() {
+        setLoading(true, message: "Signing in with Apple...")
+        
+        appleSignInCoordinator = AppleSignInCoordinator { [weak self] result in
+            Task { [weak self] in
+                switch result {
+                case .success(let authResult):
+                    await self?.handleSuccessfulAuth(authResult.user, isNewUser: authResult.additionalUserInfo?.isNewUser ?? false)
+                case .failure(let error):
+                    await self?.handleAuthError(error, context: "Apple Sign-In")
+                }
+            }
+        }
+        
+        appleSignInCoordinator?.startSignInWithAppleFlow()
+    }
+    
+    /// Signs out the current user
+    func signOut() {
+        setLoading(true, message: "Signing out...")
+        
+        Task {
+            do {
+                try auth.signOut()
+                
+                // Clear user data
+                user = nil
+                authState = .signedOut
+                
+                // Clear any cached data
+                clearUserSession()
+                
+                print("✅ User signed out successfully")
+                setLoading(false)
+                
+            } catch {
+                await handleAuthError(error, context: "Sign Out")
+            }
+        }
+    }
+    
+    /// Updates user data in repository
+    func updateUser(_ updatedUser: User) async {
+        guard user?.id == updatedUser.id else {
+            print("❌ Cannot update user - ID mismatch")
+            return
+        }
+        
+        do {
+            try await userRepository.save(updatedUser)
+            user = updatedUser
+            print("✅ User updated successfully")
+        } catch {
+            await handleAuthError(error, context: "Update User")
+        }
+    }
+    
+    /// Deletes user account
+    func deleteAccount() async {
+        guard let currentUser = auth.currentUser,
+              let user = user else {
+            await handleAuthError(AppError.userNotFound, context: "Delete Account")
+            return
+        }
+        
+        setLoading(true, message: "Deleting account...")
+        
+        do {
+            // Delete user data from Firestore
+            try await userRepository.remove(id: user.id)
+            
+            // Delete Firebase Auth user
+            try await currentUser.delete()
+            
+            // Clear local state
+            self.user = nil
+            authState = .signedOut
+            clearUserSession()
+            
+            print("✅ Account deleted successfully")
+            setLoading(false)
+            
+        } catch {
+            await handleAuthError(error, context: "Delete Account")
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Sets up auth state listener
+    private func setupAuthStateListener() {
+        authStateListener = auth.addStateDidChangeListener { [weak self] _, firebaseUser in
+            Task { [weak self] in
+                await MainActor.run {
+                    if let firebaseUser = firebaseUser {
+                        print("🔐 Auth state changed: User signed in")
+                        self?.authState = .loading
+                        Task {
+                            await self?.loadUserData(firebaseUser: firebaseUser)
                         }
-                        print("✅ User authenticated successfully")
-                    } catch {
-                        print("❌ Error fetching user: \(error)")
-                        await MainActor.run {
-                            self.authState = .signedOut
-                        }
+                    } else {
+                        print("🔐 Auth state changed: User signed out")
+                        self?.authState = .signedOut
+                        self?.user = nil
                     }
                 }
+            }
+        }
+    }
+    
+    /// Loads user data from repository
+    private func loadUserData(firebaseUser: FirebaseAuth.User) async {
+        do {
+            if let existingUser = try await userRepository.fetch(id: firebaseUser.uid) {
+                // Update user with latest Firebase info
+                var updatedUser = existingUser
+                updatedUser.displayName = firebaseUser.displayName
+                updatedUser.profileImageURL = firebaseUser.photoURL?.absoluteString
+                
+                user = updatedUser
+                authState = .signedIn
+                print("✅ Existing user loaded: \(existingUser.displayName ?? "Unknown")")
+                
+                // Update in repository if needed
+                if updatedUser.displayName != existingUser.displayName ||
+                   updatedUser.profileImageURL != existingUser.profileImageURL {
+                    try await userRepository.save(updatedUser)
+                }
+                
             } else {
-                print("👤 No existing user found")
-                self.authState = .signedOut
+                // Create new user
+                let newUser = User(
+                    id: firebaseUser.uid,
+                    displayName: firebaseUser.displayName,
+                    profileImageURL: firebaseUser.photoURL?.absoluteString,
+                    authProvider: getAuthProvider(firebaseUser)
+                )
+                
+                try await userRepository.save(newUser)
+                user = newUser
+                authState = .signedIn
+                print("✅ New user created: \(newUser.displayName ?? "Unknown")")
             }
+            
+            setLoading(false)
+            
+        } catch {
+            await handleAuthError(error, context: "Load User Data")
         }
     }
     
-    // MARK: - Helper Methods
-    
-    /// Gets Google Client ID from GoogleService-Info.plist
-    private func getGoogleClientID() -> String? {
-        guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
-              let plist = NSDictionary(contentsOfFile: path),
-              let clientId = plist["CLIENT_ID"] as? String else {
-            return nil
+    /// Performs Google Sign-In
+    private func performGoogleSignIn() async throws -> AuthDataResult {
+        // Get the root view controller
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            throw AppError.authProviderError("Cannot find root view controller")
         }
-        return clientId
+        
+        // Configure Google Sign-In
+        guard let clientID = FirebaseApp.app()?.options.clientID else {
+            throw AppError.authProviderError("Firebase client ID not found")
+        }
+        
+        let config = GIDConfiguration(clientID: clientID)
+        GIDSignIn.sharedInstance.configuration = config
+        
+        // Perform Google Sign-In
+        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+        
+        guard let idToken = result.user.idToken?.tokenString else {
+            throw AppError.authProviderError("Failed to get ID token")
+        }
+        
+        let accessToken = result.user.accessToken.tokenString
+        let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+        
+        // Sign in to Firebase
+        let authResult = try await auth.signIn(with: credential)
+        
+        return authResult
     }
     
-    // Helper method to generate secure nonce
-    private func generateNonce(length: Int = 32) -> String {
-        precondition(length > 0)
-        let charset: [Character] =
-            Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
-        var result = ""
-        var remainingLength = length
-
-        while remainingLength > 0 {
-            let randoms: [UInt8] = (0 ..< 16).map { _ in
-                var random: UInt8 = 0
-                let errorCode = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
-                if errorCode != errSecSuccess {
-                    fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
-                }
-                return random
-            }
-
-            randoms.forEach { random in
-                if remainingLength == 0 {
-                    return
-                }
-
-                if random < charset.count {
-                    result.append(charset[Int(random)])
-                    remainingLength -= 1
-                }
-            }
+    /// Handles successful authentication
+    private func handleSuccessfulAuth(_ firebaseUser: FirebaseAuth.User, isNewUser: Bool) async {
+        print("✅ Authentication successful for: \(firebaseUser.displayName ?? "Unknown")")
+        
+        if isNewUser {
+            print("🎉 New user detected - will create user profile")
         }
-
-        return result
+        
+        await loadUserData(firebaseUser: firebaseUser)
     }
     
-    // Helper method for SHA256 hashing
-    private func sha256(_ input: String) -> String {
-        let inputData = Data(input.utf8)
-        let hashedData = SHA256.hash(data: inputData)
-        let hashString = hashedData.compactMap {
-            String(format: "%02x", $0)
-        }.joined()
-
-        return hashString
+    /// Handles authentication errors
+    private func handleAuthError(_ error: Error, context: String) async {
+        print("❌ \(context) error: \(error.localizedDescription)")
+        
+        await MainActor.run {
+            self.errorMessage = error.localizedDescription
+            self.showError = true
+            self.authState = .error(error.localizedDescription)
+            self.setLoading(false)
+        }
     }
     
-    // Helper method to extract name from Apple credential
-    private func extractNameFromAppleCredential(_ credential: ASAuthorizationAppleIDCredential) -> String {
-        if let fullName = credential.fullName {
-            let firstName = fullName.givenName ?? ""
-            let lastName = fullName.familyName ?? ""
-            return "\(firstName) \(lastName)".trimmingCharacters(in: .whitespacesAndNewlines)
+    /// Gets auth provider from Firebase user
+    private func getAuthProvider(_ firebaseUser: FirebaseAuth.User) -> String {
+        if let providerData = firebaseUser.providerData.first {
+            return providerData.providerID
         }
-        return "Apple User"
+        return "unknown"
+    }
+    
+    /// Sets loading state with optional message
+    private func setLoading(_ loading: Bool, message: String? = nil) {
+        isLoading = loading
+        if let message = message {
+            print("🔄 \(message)")
+        }
+    }
+    
+    /// Clears user session data
+    private func clearUserSession() {
+        // Clear any cached data, preferences, etc.
+        UserDefaults.standard.removeObject(forKey: "lastAdminAuth")
+        
+        // You can add more session cleanup here
+        print("🧹 User session cleared")
+    }
+    
+    // MARK: - Admin Helper Methods
+    
+    /// Checks if current user is admin
+    var isAdmin: Bool {
+        return user?.adminRole == .admin
+    }
+    
+    /// Checks if current user can access admin features
+    var canAccessAdmin: Bool {
+        return isAdmin && authState.isSignedIn
+    }
+    
+    /// Gets user's admin capabilities
+    var adminCapabilities: AdminCapabilities? {
+        guard let user = user, user.adminRole == .admin else { return nil }
+        
+        return AdminCapabilities(
+            canManageUsers: user.adminRole.canManageUsers,
+            canManageBets: user.adminRole.canManageBets,
+            canViewAnalytics: user.adminRole.canViewAnalytics,
+            canConfigureSystem: user.adminRole.canConfigureSystem
+        )
+    }
+}
+
+// MARK: - Admin Capabilities Model
+
+struct AdminCapabilities {
+    let canManageUsers: Bool
+    let canManageBets: Bool
+    let canViewAnalytics: Bool
+    let canConfigureSystem: Bool
+    
+    var hasAnyCapability: Bool {
+        return canManageUsers || canManageBets || canViewAnalytics || canConfigureSystem
     }
 }
 
 // MARK: - Apple Sign-In Coordinator
 
 class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
-    private var completion: (Result<ASAuthorizationAppleIDCredential, Error>) -> Void
     
-    init(completion: @escaping (Result<ASAuthorizationAppleIDCredential, Error>) -> Void) {
+    private let completion: (Result<AuthDataResult, Error>) -> Void
+    private var currentNonce: String?
+    
+    init(completion: @escaping (Result<AuthDataResult, Error>) -> Void) {
         self.completion = completion
         super.init()
     }
     
-    func signIn() {
+    func startSignInWithAppleFlow() {
+        let nonce = randomNonceString()
+        currentNonce = nonce
+        
         let appleIDProvider = ASAuthorizationAppleIDProvider()
         let request = appleIDProvider.createRequest()
         request.requestedScopes = [.fullName, .email]
+        request.nonce = sha256(nonce)
         
         let authorizationController = ASAuthorizationController(authorizationRequests: [request])
         authorizationController.delegate = self
@@ -369,9 +393,33 @@ class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAut
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
         if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
-            completion(.success(appleIDCredential))
-        } else {
-            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid credential type"])))
+            guard let nonce = currentNonce else {
+                completion(.failure(AppError.authProviderError("Invalid state: A login callback was received, but no login request was sent.")))
+                return
+            }
+            
+            guard let appleIDToken = appleIDCredential.identityToken else {
+                completion(.failure(AppError.authProviderError("Unable to fetch identity token")))
+                return
+            }
+            
+            guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+                completion(.failure(AppError.authProviderError("Unable to serialize token string from data")))
+                return
+            }
+            
+            let credential = OAuthProvider.credential(withProviderID: "apple.com",
+                                                    idToken: idTokenString,
+                                                    rawNonce: nonce)
+            
+            Task {
+                do {
+                    let result = try await Auth.auth().signIn(with: credential)
+                    self.completion(.success(result))
+                } catch {
+                    self.completion(.failure(error))
+                }
+            }
         }
     }
     
@@ -384,8 +432,51 @@ class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAut
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
-            fatalError("Unable to find presentation anchor")
+            return UIWindow()
         }
         return window
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        var remainingLength = length
+        
+        while remainingLength > 0 {
+            let randoms: [UInt8] = (0 ..< 16).map { _ in
+                var random: UInt8 = 0
+                let errorCode = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
+                if errorCode != errSecSuccess {
+                    fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
+                }
+                return random
+            }
+            
+            randoms.forEach { random in
+                if remainingLength == 0 {
+                    return
+                }
+                
+                if random < charset.count {
+                    result.append(charset[Int(random)])
+                    remainingLength -= 1
+                }
+            }
+        }
+        
+        return result
+    }
+    
+    private func sha256(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        let hashString = hashedData.compactMap {
+            String(format: "%02x", $0)
+        }.joined()
+        
+        return hashString
     }
 }

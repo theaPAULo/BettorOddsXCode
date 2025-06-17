@@ -31,8 +31,10 @@ extension GameStatus {
         case .locked: return "STARTING SOON"
         case .inProgress: return "LIVE"
         case .completed: return "FINAL"
+        case .cancelled: return "CANCELLED"
         }
     }
+    
     
     var backgroundColor: Color {
         switch self {
@@ -40,6 +42,7 @@ extension GameStatus {
         case .locked: return .gray
         case .inProgress: return .green
         case .completed: return .secondary
+        case .cancelled: return .red
         }
     }
     
@@ -49,6 +52,7 @@ extension GameStatus {
         case .locked: return .gray
         case .inProgress: return .green
         case .completed: return .secondary
+        case .cancelled: return .red
         }
     }
 }
