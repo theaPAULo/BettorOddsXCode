@@ -31,23 +31,23 @@
                 <string>app-1-756291793040-ios-5fef7265e820ecad6aa815</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>GoogleSignIn</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.googleusercontent.apps.756291793040-7r32ftjs4kqalvearrbg1o9phi5kopbg</string>
+            </array>
+        </dict>
     </array>
+    
+    <!-- Firebase Settings -->
     <key>FirebaseAppDelegateProxyEnabled</key>
     <false/>
     <key>FirebaseAutomaticScreenReportingEnabled</key>
     <false/>
 
-    <!-- Background Modes -->
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>remote-notification</string>
-    </array>
-
-    <!-- Privacy Permissions -->
-    <key>NSPhoneNumberUsageDescription</key>
-    <string>We need access to verify your phone number for authentication.</string>
-    <key>NSCameraUsageDescription</key>
-    <string>We need camera access for scanning documents.</string>
+    <!-- Privacy Permissions (Only keeping Face ID for biometric authentication) -->
     <key>NSFaceIDUsageDescription</key>
     <string>We use Face ID to securely authenticate transactions.</string>
 
@@ -80,19 +80,6 @@
         <string>armv7</string>
     </array>
 
-    <key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleURLName</key>
-            <string>GoogleSignIn</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>com.googleusercontent.apps.756291793040-7r32ftjs4kqalvearrbg1o9phi5kopbg</string>
-            </array>
-        </dict>
-    </array>
-
-
     <!-- Supported Interface Orientations -->
     <key>UISupportedInterfaceOrientations</key>
     <array>
@@ -109,9 +96,5 @@
     <!-- Status Bar Style -->
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <true/>
-
-    <!-- APNs Environment -->
-    <key>aps-environment</key>
-    <string>development</string>
 </dict>
 </plist>

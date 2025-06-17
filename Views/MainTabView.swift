@@ -41,7 +41,8 @@ struct MainTabView: View {
                 AdminDashboardView()
                     .onAppear {
                         Task {
-                            await adminNav.checkAdminAccess()
+                            // FIXED: Pass the user to the admin check
+                            await adminNav.checkAdminAccess(user: authViewModel.user)
                         }
                     }
                     .tabItem {

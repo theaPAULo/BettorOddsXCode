@@ -2,7 +2,7 @@
 //  AuthenticationViewModel.swift
 //  BettorOdds
 //
-//  Version: 3.0.0 - Optimized with Dependency Injection and better error handling
+//  Version: 3.0.1 - FIXED: Added safety checks for DI initialization
 //  Updated: June 2025
 //
 
@@ -44,12 +44,17 @@ class AuthenticationViewModel: ObservableObject {
     private let auth = Auth.auth()
     private var authStateListener: AuthStateDidChangeListenerHandle?
     private var appleSignInCoordinator: AppleSignInCoordinator?
+    private var isInitialized = false
     
     // MARK: - Initialization
     init() {
         print("🔐 AuthenticationViewModel initialized with DI")
-        setupAuthStateListener()
-        checkAuthState()
+        
+        // SAFETY: Delay actual setup to ensure DI container is ready
+        Task {
+            try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 seconds
+            await initializeAfterDI()
+        }
     }
     
     deinit {
@@ -59,10 +64,34 @@ class AuthenticationViewModel: ObservableObject {
         print("🗑️ AuthenticationViewModel deinitialized")
     }
     
+    // MARK: - Private Initialization
+    
+    /// Initialize after DI container is ready
+    private func initializeAfterDI() async {
+        guard !isInitialized else { return }
+        
+        await MainActor.run {
+            setupAuthStateListener()
+            checkAuthState()
+            isInitialized = true
+            print("✅ AuthenticationViewModel fully initialized")
+        }
+    }
+    
     // MARK: - Public Methods
     
     /// Checks current authentication state
     func checkAuthState() {
+        // SAFETY: Don't proceed if not properly initialized
+        guard isInitialized else {
+            print("⚠️ AuthenticationViewModel not yet initialized, delaying checkAuthState")
+            Task {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                checkAuthState()
+            }
+            return
+        }
+        
         guard let firebaseUser = auth.currentUser else {
             print("🔐 No authenticated user found")
             authState = .signedOut
@@ -80,6 +109,11 @@ class AuthenticationViewModel: ObservableObject {
     
     /// Signs in with Google
     func signInWithGoogle() {
+        guard isInitialized else {
+            print("⚠️ Cannot sign in - AuthenticationViewModel not ready")
+            return
+        }
+        
         setLoading(true, message: "Signing in with Google...")
         
         Task {
@@ -94,6 +128,11 @@ class AuthenticationViewModel: ObservableObject {
     
     /// Signs in with Apple
     func signInWithApple() {
+        guard isInitialized else {
+            print("⚠️ Cannot sign in - AuthenticationViewModel not ready")
+            return
+        }
+        
         setLoading(true, message: "Signing in with Apple...")
         
         appleSignInCoordinator = AppleSignInCoordinator { [weak self] result in
@@ -112,6 +151,11 @@ class AuthenticationViewModel: ObservableObject {
     
     /// Signs out the current user
     func signOut() {
+        guard isInitialized else {
+            print("⚠️ Cannot sign out - AuthenticationViewModel not ready")
+            return
+        }
+        
         setLoading(true, message: "Signing out...")
         
         Task {
@@ -136,6 +180,11 @@ class AuthenticationViewModel: ObservableObject {
     
     /// Updates user data in repository
     func updateUser(_ updatedUser: User) async {
+        guard isInitialized else {
+            print("⚠️ Cannot update user - AuthenticationViewModel not ready")
+            return
+        }
+        
         guard user?.id == updatedUser.id else {
             print("❌ Cannot update user - ID mismatch")
             return
@@ -152,6 +201,11 @@ class AuthenticationViewModel: ObservableObject {
     
     /// Deletes user account
     func deleteAccount() async {
+        guard isInitialized else {
+            print("⚠️ Cannot delete account - AuthenticationViewModel not ready")
+            return
+        }
+        
         guard let currentUser = auth.currentUser,
               let user = user else {
             await handleAuthError(AppError.userNotFound, context: "Delete Account")
@@ -377,7 +431,6 @@ class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAut
     func startSignInWithAppleFlow() {
         let nonce = randomNonceString()
         currentNonce = nonce
-        
         let appleIDProvider = ASAuthorizationAppleIDProvider()
         let request = appleIDProvider.createRequest()
         request.requestedScopes = [.fullName, .email]
@@ -408,16 +461,14 @@ class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAut
                 return
             }
             
-            let credential = OAuthProvider.credential(withProviderID: "apple.com",
-                                                    idToken: idTokenString,
-                                                    rawNonce: nonce)
+            let credential = OAuthProvider.credential(withProviderID: "apple.com", idToken: idTokenString, rawNonce: nonce)
             
             Task {
                 do {
                     let result = try await Auth.auth().signIn(with: credential)
-                    self.completion(.success(result))
+                    completion(.success(result))
                 } catch {
-                    self.completion(.failure(error))
+                    completion(.failure(error))
                 }
             }
         }
@@ -432,12 +483,12 @@ class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAut
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
-            return UIWindow()
+            return ASPresentationAnchor()
         }
         return window
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Helpers
     
     private func randomNonceString(length: Int = 32) -> String {
         precondition(length > 0)
