@@ -40,14 +40,19 @@ struct BalanceHeader: View {
                     
                     // Green Coins
                     HStack(spacing: 4) {
-                        Text("💚")
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(red: 0.0, green: 0.9, blue: 0.79)) // Teal color
+                        
                         Text("\(greenCoins)")
                             .font(.system(size: 16, weight: .bold))
                     }
                 }
                 
                 // Daily Green Coin Usage
-                Text("Daily Total: 💚\(dailyGreenCoinsUsed)/100")
+                Text("Daily Total: ") +
+                Text(Image(systemName: "heart.fill")).foregroundColor(Color(red: 0.0, green: 0.9, blue: 0.79)) +
+                Text("\(dailyGreenCoinsUsed)/100")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
             }

@@ -170,10 +170,11 @@ struct GamesView: View {
             
             Spacer()
             
+            // UPDATED: Use teal heart instead of green emoji
             HStack(spacing: 4) {
                 Image(systemName: "heart.fill")
                     .font(.system(size: 12))
-                    .foregroundColor(tealColor) // Using teal for heart as requested
+                    .foregroundColor(tealColor) // Using teal for heart
                 
                 Text("$\(authViewModel.user?.dailyGreenCoinsUsed ?? 0)/100")
                     .font(.system(size: 14, weight: .semibold))
@@ -365,13 +366,24 @@ struct EnhancedCoinBalanceCard: View {
     let type: CoinType
     let balance: Int
     
+    // TEAL COLOR DEFINITION - Consistent with your brand
+    private let tealColor = Color(red: 0.0, green: 0.9, blue: 0.79)
+    
     var body: some View {
         VStack(spacing: 8) {
             HStack {
-                // CHANGED: Using teal for green coin heart as requested
-                Text(type == .yellow ? "🟡" : "💚")
-                    .font(.system(size: 24))
-                    .foregroundColor(type == .green ? Color(red: 0.0, green: 0.9, blue: 0.79) : nil)
+                // UPDATED: Use custom teal heart icon for Real Coins
+                Group {
+                    if type == .yellow {
+                        Text("🟡")
+                            .font(.system(size: 24))
+                    } else {
+                        // CUSTOM TEAL HEART - More vibrant than emoji
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(tealColor)
+                    }
+                }
                 
                 Spacer()
                 
@@ -394,16 +406,14 @@ struct EnhancedCoinBalanceCard: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(
-                            type == .green ?
-                                Color(red: 0.0, green: 0.9, blue: 0.79).opacity(0.3) :
-                                Color.yellow.opacity(0.3),
+                            type == .green ? tealColor.opacity(0.6) : Color.yellow.opacity(0.6),
                             lineWidth: 1
                         )
                 )
         )
-        .shadow(color: Color.black.opacity(0.1), radius: 5)
     }
 }
+
 
 // MARK: - Supporting Structures
 

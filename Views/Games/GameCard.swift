@@ -2,11 +2,12 @@
 //  GameCard.swift
 //  BettorOdds
 //
-//  Version: 3.0.0 - Fixed spread capsules, diagonal gradients, and team preselection
+//  Version: 4.2.0 - Enhanced with vibrant team colors and improved visuals
 //  Updated: June 2025
 //
 
 import SwiftUI
+import UIKit
 
 struct GameCard: View {
     // MARK: - Properties
@@ -126,7 +127,7 @@ struct GameCard: View {
                     .minimumScaleFactor(0.8)
                     .shadow(color: .black.opacity(0.7), radius: 2, x: 0, y: 1)
                 
-                // FIXED: No capsule background - just clean text
+                // Clean spread display
                 Text(game.awaySpread)
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
@@ -157,7 +158,7 @@ struct GameCard: View {
                     .minimumScaleFactor(0.8)
                     .shadow(color: .black.opacity(0.7), radius: 2, x: 0, y: 1)
                 
-                // FIXED: No capsule background - just clean text
+                // Clean spread display
                 Text(game.homeSpread)
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
@@ -198,40 +199,53 @@ struct GameCard: View {
             .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 3)
     }
     
-    // MARK: - FIXED: Enhanced Team Gradient Background (DIAGONAL)
+    // MARK: - ENHANCED: More Vibrant Team Gradient Background
     
     var enhancedTeamGradientBackground: some View {
         LinearGradient(
             colors: [
-                // DIAGONAL gradient from top-left to bottom-right
-                game.awayTeamColors.primary.opacity(0.95),
-                game.awayTeamColors.primary.opacity(0.85),
-                game.awayTeamColors.secondary.opacity(0.3),
-                Color.black.opacity(0.1),
-                game.homeTeamColors.secondary.opacity(0.3),
-                game.homeTeamColors.primary.opacity(0.85),
-                game.homeTeamColors.primary.opacity(0.95)
+                // ENHANCED COLORS - More vibrant and exciting
+                enhanceColor(game.awayTeamColors.primary, saturation: 1.3, brightness: 0.1).opacity(0.95),
+                enhanceColor(game.awayTeamColors.primary, saturation: 1.2, brightness: 0.05).opacity(0.85),
+                enhanceColor(game.awayTeamColors.secondary, saturation: 1.1, brightness: 0.05).opacity(0.3),
+                Color.black.opacity(0.05),  // Lighter for better color visibility
+                enhanceColor(game.homeTeamColors.secondary, saturation: 1.1, brightness: 0.05).opacity(0.3),
+                enhanceColor(game.homeTeamColors.primary, saturation: 1.2, brightness: 0.05).opacity(0.85),
+                enhanceColor(game.homeTeamColors.primary, saturation: 1.3, brightness: 0.1).opacity(0.95)
             ],
-            startPoint: .topLeading,  // FIXED: Diagonal gradient
-            endPoint: .bottomTrailing // FIXED: Diagonal gradient
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay(
+            // ADD: Subtle vibrant glow overlay for extra excitement
+            LinearGradient(
+                colors: [
+                    enhanceColor(game.awayTeamColors.primary, saturation: 1.1).opacity(0.1),
+                    Color.clear,
+                    enhanceColor(game.homeTeamColors.primary, saturation: 1.1).opacity(0.1)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blendMode(.overlay)
         )
     }
     
-    // MARK: - Enhanced Border Overlay
+    // MARK: - ENHANCED: More Vibrant Border Overlay
     
     private var enhancedBorderOverlay: some View {
         RoundedRectangle(cornerRadius: 16)
             .stroke(
                 LinearGradient(
                     colors: [
-                        game.awayTeamColors.primary.opacity(0.6),
-                        Color.primary.opacity(isFeatured ? 0.7 : 0.4),
-                        game.homeTeamColors.primary.opacity(0.6)
+                        enhanceColor(game.awayTeamColors.primary, saturation: 1.4, brightness: 0.2).opacity(0.8),
+                        Color.primary.opacity(isFeatured ? 0.9 : 0.6),
+                        enhanceColor(game.homeTeamColors.primary, saturation: 1.4, brightness: 0.2).opacity(0.8)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
-                lineWidth: isFeatured ? 2 : 1
+                lineWidth: isFeatured ? 2.5 : 1.5  // Slightly thicker borders for more presence
             )
     }
     
@@ -262,6 +276,30 @@ struct GameCard: View {
     private func hapticFeedback() {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
+    }
+    
+    /// Enhances a color by adjusting saturation and brightness
+    /// Returns a proper Color object (not a View)
+    private func enhanceColor(_ color: Color, saturation: Double = 1.0, brightness: Double = 0.0) -> Color {
+        // Convert Color to RGB components
+        let uiColor = UIColor(color)
+        var hue: CGFloat = 0
+        var saturationValue: CGFloat = 0
+        var brightnessValue: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        uiColor.getHue(&hue, saturation: &saturationValue, brightness: &brightnessValue, alpha: &alpha)
+        
+        // Apply enhancements
+        let newSaturation = min(1.0, saturationValue * saturation)
+        let newBrightness = min(1.0, brightnessValue + brightness)
+        
+        return Color(
+            hue: Double(hue),
+            saturation: Double(newSaturation),
+            brightness: Double(newBrightness),
+            opacity: Double(alpha)
+        )
     }
 }
 

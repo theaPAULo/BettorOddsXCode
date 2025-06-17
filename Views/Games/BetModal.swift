@@ -283,7 +283,7 @@ struct BetModal: View {
     private var coinTypeSection: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                // Yellow Coins
+                // Yellow Coins Button
                 Button(action: {
                     viewModel.selectedCoinType = .yellow
                 }) {
@@ -309,11 +309,12 @@ struct BetModal: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                // Green Coins with teal heart
+                // UPDATED: Green Coins Button with Teal Heart
                 Button(action: {
                     viewModel.selectedCoinType = .green
                 }) {
                     HStack(spacing: 8) {
+                        // CUSTOM TEAL HEART instead of circle
                         Image(systemName: "heart.fill")
                             .font(.system(size: 16))
                             .foregroundColor(tealColor) // Using teal as requested
@@ -335,42 +336,9 @@ struct BetModal: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
-            
-            // Daily limit info for green coins
-            if viewModel.selectedCoinType == .green {
-                HStack {
-                    Text("Daily Limit Remaining:")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.7))
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(tealColor)
-                        
-                        Text("\(viewModel.remainingDailyLimit)")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(tealColor)
-                    }
-                }
-                .padding(.horizontal, 4)
-            }
         }
     }
-    
-    private func coinTypeButtonBackground(isSelected: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(Color.white.opacity(isSelected ? 0.15 : 0.05))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isSelected ? tealColor : Color.white.opacity(0.2),
-                        lineWidth: isSelected ? 2 : 1
-                    )
-            )
-    }
+
     
     // MARK: - Bet Amount Section
     
@@ -523,6 +491,37 @@ struct BetModal: View {
                 radius: 8,
                 x: 0,
                 y: 4
+            )
+    }
+    
+    
+    private func coinTypeButtonBackground(isSelected: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(
+                isSelected ?
+                    LinearGradient(
+                        colors: [
+                            tealColor.opacity(0.3),
+                            tealColor.opacity(0.1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ) :
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.1),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected ? tealColor.opacity(0.6) : Color.white.opacity(0.2),
+                        lineWidth: isSelected ? 2 : 1
+                    )
             )
     }
     

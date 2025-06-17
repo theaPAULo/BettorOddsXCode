@@ -193,11 +193,12 @@ struct ProfileView: View {
     private func enhancedCoinBalanceCard(type: CoinType, balance: Int, subtitle: String) -> some View {
         VStack(spacing: 12) {
             HStack {
-                // CHANGED: Using teal for green coin heart as requested
+                // UPDATED: Using teal heart for green coins
                 if type == .yellow {
                     Text("🟡")
                         .font(.system(size: 28))
                 } else {
+                    // CUSTOM TEAL HEART - More vibrant and consistent
                     Image(systemName: "heart.fill")
                         .font(.system(size: 24))
                         .foregroundColor(tealColor)
@@ -231,12 +232,11 @@ struct ProfileView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(
-                            type == .green ? tealColor.opacity(0.3) : Color.yellow.opacity(0.3),
+                            type == .green ? tealColor.opacity(0.4) : Color.yellow.opacity(0.4),
                             lineWidth: 1
                         )
                 )
         )
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
     
     // MARK: - Enhanced Quick Actions Section (with Stats)
