@@ -47,7 +47,7 @@ struct Outcome: Codable {
 class OddsService: ObservableObject {
     static let shared = OddsService()
     
-    private let apiKey = "a2358fa8aa8f101a940462e5d0f13581"
+    private let apiKey = "374de52129513bafafac0bc367ee5ec8"
     private let baseURL = "https://api.the-odds-api.com/v4/sports"
     
     private init() {
