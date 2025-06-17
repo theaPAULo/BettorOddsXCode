@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  BettorOdds
 //
-//  Version: 2.6.0 - Fixed MyBetsView reference and other issues
+//  Version: 4.2.1 - Enhanced with simplified My Bets (removed clutter, better bet cards)
 //  Updated: June 2025
 //
 
@@ -22,8 +22,8 @@ struct MainTabView: View {
                 }
                 .tag(0)
             
-            // My Bets Tab - Create a simple wrapper to avoid import issues
-            MyBetsTabView()
+            // My Bets Tab - Enhanced version
+            SimplifiedMyBetsTabView()
                 .tabItem {
                     Label("My Bets", systemImage: "list.bullet.clipboard")
                 }
@@ -41,7 +41,7 @@ struct MainTabView: View {
                 AdminDashboardView()
                     .onAppear {
                         Task {
-                            // FIXED: Pass the user to the admin check
+                            // Pass the user to the admin check
                             await adminNav.checkAdminAccess(user: authViewModel.user)
                         }
                     }
@@ -51,7 +51,7 @@ struct MainTabView: View {
                     .tag(3)
             }
         }
-        .accentColor(.primary)  // FIXED: Use .primary instead of Color.primary
+        .accentColor(.primary)
         .sheet(isPresented: $adminNav.requiresAuth) {
             AdminAuthView()
         }
@@ -67,24 +67,22 @@ struct MainTabView: View {
             
             HapticManager.impact(.light)
         }
-        .onChange(of: selectedTab) { _, _ in  // FIXED: Added parameter names for iOS 17 compatibility
+        .onChange(of: selectedTab) { _, _ in
             HapticManager.impact(.light)
         }
     }
 }
 
-// MARK: - My Bets Tab Wrapper (FIXED: Create wrapper to avoid import issues)
+// MARK: - SIMPLIFIED My Bets Tab View - Removed Clutter, Better Bet Cards
 
-// MARK: - Enhanced My Bets Tab Wrapper
-// Replace the existing MyBetsTabView in MainTabView.swift with this enhanced version
-
-struct MyBetsTabView: View {
+struct SimplifiedMyBetsTabView: View {
     @StateObject private var viewModel = MyBetsViewModel()
     @State private var selectedFilter: BetFilter = .active
     @State private var showCancelConfirmation = false
     @State private var betToCancel: Bet?
     @State private var scrollOffset: CGFloat = 0
     @State private var isRefreshing = false
+    @State private var statsAnimation = false
     
     // Teal color for consistency
     private let tealColor = Color(red: 0.0, green: 0.9, blue: 0.79)
@@ -92,7 +90,7 @@ struct MyBetsTabView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // MATCHING BACKGROUND - Same as Games and Profile views
+                // MATCHING BACKGROUND - Same as other views
                 LinearGradient(
                     gradient: Gradient(colors: [
                         Color(red: 0.06, green: 0.13, blue: 0.15),
@@ -107,13 +105,13 @@ struct MyBetsTabView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Enhanced header with teal accents
-                    enhancedHeaderSection
+                    // SIMPLIFIED: Clean header without clutter
+                    simplifiedHeaderWithStats
                     
-                    // IMPROVED: Filter tabs with better spacing
-                    improvedFilterTabsSection
+                    // ENHANCED: Better filter tabs with counts
+                    enhancedFilterTabsWithCounts
                     
-                    // Enhanced bets list
+                    // ENHANCED: Better bets list with improved cards
                     enhancedBetsListSection
                 }
             }
@@ -121,9 +119,12 @@ struct MyBetsTabView: View {
             .onAppear {
                 Task {
                     await viewModel.loadBets()
+                    startStatsAnimation()
                 }
             }
-            // FIXED: Single cancel confirmation (removed duplicate)
+            .refreshable {
+                await performRefresh()
+            }
             .alert("Cancel Bet", isPresented: $showCancelConfirmation) {
                 Button("Keep Bet", role: .cancel) {
                     betToCancel = nil
@@ -139,70 +140,80 @@ struct MyBetsTabView: View {
             } message: {
                 Text("Are you sure you want to cancel this bet? This action cannot be undone.")
             }
-            .refreshable {
-                await performRefresh()
-            }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
     
-    // MARK: - Enhanced Header Section
+    // MARK: - SIMPLIFIED: Clean Header (Removed Win Rate & Total Wagered Clutter)
     
-    private var enhancedHeaderSection: some View {
+    private var simplifiedHeaderWithStats: some View {
         VStack(spacing: 20) {
-            // Title with teal accent
-            HStack(spacing: 8) {
+            // App title with icon
+            HStack(spacing: 12) {
+                Image(systemName: "list.bullet.clipboard.fill")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(tealColor)
+                    .scaleEffect(statsAnimation ? 1.1 : 1.0)
+                    .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: statsAnimation)
+                
                 Text("My Bets")
-                    .font(.system(size: 32, weight: .bold))
+                    .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
                 
-                Circle()
-                    .fill(tealColor)
-                    .frame(width: 12, height: 12)
-                    .shadow(color: tealColor.opacity(0.6), radius: 4, x: 0, y: 0)
+                Spacer()
             }
             
-            // Stats summary
-            VStack(spacing: 12) {
-                Text("\(viewModel.totalBets) total • \(viewModel.winRate)% win rate")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
-                
-                // Enhanced stats cards
-                HStack(spacing: 16) {
-                    enhancedStatCard(
-                        title: "Won",
-                        count: viewModel.wonBets,
-                        color: .green,
-                        icon: "checkmark.circle.fill"
-                    )
-                    enhancedStatCard(
-                        title: "Lost",
-                        count: viewModel.lostBets,
-                        color: .red,
-                        icon: "xmark.circle.fill"
-                    )
-                    enhancedStatCard(
-                        title: "Pending",
-                        count: viewModel.pendingBets,
-                        color: tealColor,
-                        icon: "clock.fill"
-                    )
-                }
-            }
+            // SIMPLIFIED: Just the visual stats cards (no clutter)
+            enhancedStatsCards
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 24)
-        .modifier(ScrollOffsetModifier(coordinateSpace: "scroll", offset: $scrollOffset))
+        .padding(.top, 20)
+        .padding(.bottom, 16)
     }
     
-    private func enhancedStatCard(title: String, count: Int, color: Color, icon: String) -> some View {
+    // MARK: - Enhanced Stats Cards (Kept - These Are Visual and Helpful)
+    
+    private var enhancedStatsCards: some View {
+        HStack(spacing: 12) {
+            // Won bets card
+            enhancedStatCard(
+                title: "Won",
+                count: wonBetsCount,
+                icon: "checkmark.circle.fill",
+                color: .green,
+                delay: 0.1
+            )
+            
+            // Lost bets card
+            enhancedStatCard(
+                title: "Lost",
+                count: lostBetsCount,
+                icon: "xmark.circle.fill",
+                color: .red,
+                delay: 0.2
+            )
+            
+            // Pending bets card
+            enhancedStatCard(
+                title: "Pending",
+                count: pendingBetsCount,
+                icon: "clock.circle.fill",
+                color: tealColor,
+                delay: 0.3
+            )
+        }
+    }
+    
+    private func enhancedStatCard(title: String, count: Int, icon: String, color: Color, delay: Double) -> some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 20))
                 .foregroundColor(color)
+                .scaleEffect(statsAnimation ? 1.1 : 1.0)
+                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true).delay(delay), value: statsAnimation)
             
             Text("\(count)")
-                .font(.system(size: 24, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
             
             Text(title)
@@ -210,76 +221,105 @@ struct MyBetsTabView: View {
                 .foregroundColor(.white.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(Color.white.opacity(0.05))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 12)
                         .stroke(color.opacity(0.3), lineWidth: 1)
                 )
         )
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
     
-    // MARK: - IMPROVED Filter Tabs Section (Better Spacing)
+    // MARK: - Enhanced Filter Tabs with Counts
     
-    private var improvedFilterTabsSection: some View {
-        HStack(spacing: 8) { // Reduced spacing for better fit
-            filterTab(.active, title: "Active")
-            filterTab(.completed, title: "Completed")
-            filterTab(.all, title: "All")
+    private var enhancedFilterTabsWithCounts: some View {
+        HStack(spacing: 12) {
+            ForEach([BetFilter.active, BetFilter.completed, BetFilter.all], id: \.self) { filter in
+                enhancedFilterTab(filter)
+            }
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 20)
+        .padding(.bottom, 16)
     }
     
-    private func filterTab(_ filter: BetFilter, title: String) -> some View {
+    private func enhancedFilterTab(_ filter: BetFilter) -> some View {
         Button(action: {
-            selectedFilter = filter
-            HapticManager.selection()
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedFilter = filter
+            }
+            HapticManager.impact(.light)
         }) {
-            Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(selectedFilter == filter ? .black : .white.opacity(0.7))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(selectedFilter == filter ?
-                              tealColor :
-                              Color.white.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(
-                                    selectedFilter == filter ?
-                                        tealColor :
-                                        Color.white.opacity(0.2),
-                                    lineWidth: 1
-                                )
+            VStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    Text(filter.displayName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(selectedFilter == filter ? .black : .white)
+                    
+                    // Count badge
+                    Text("\(getFilteredCount(for: filter))")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(selectedFilter == filter ? .black.opacity(0.7) : tealColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(selectedFilter == filter ? Color.black.opacity(0.1) : tealColor.opacity(0.2))
                         )
-                )
+                }
+                
+                // Active indicator line
+                Rectangle()
+                    .fill(selectedFilter == filter ? .black : Color.clear)
+                    .frame(height: 2)
+                    .animation(.easeInOut(duration: 0.2), value: selectedFilter == filter)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(
+                        selectedFilter == filter ?
+                            LinearGradient(
+                                colors: [tealColor, tealColor.opacity(0.8)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ) :
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.08), Color.white.opacity(0.03)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22)
+                            .stroke(
+                                selectedFilter == filter ? tealColor : Color.white.opacity(0.2),
+                                lineWidth: selectedFilter == filter ? 2 : 1
+                            )
+                    )
+            )
         }
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(selectedFilter == filter ? 1.02 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedFilter == filter)
     }
     
-    // MARK: - Enhanced Bets List Section
+    // MARK: - Enhanced Bets List
     
     private var enhancedBetsListSection: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 if viewModel.isLoading {
-                    loadingView
+                    enhancedLoadingView
                 } else if filteredBets.isEmpty {
-                    emptyStateView
+                    enhancedEmptyStateView
                 } else {
                     ForEach(Array(filteredBets.enumerated()), id: \.element.id) { index, bet in
-                        EnhancedBetCard(
+                        ImprovedBetCard(
                             bet: bet,
                             onCancelTapped: {
-                                // FIXED: Single confirmation trigger
                                 betToCancel = bet
                                 showCancelConfirmation = true
                             }
@@ -299,6 +339,81 @@ struct MyBetsTabView: View {
         .coordinateSpace(name: "scroll")
     }
     
+    // MARK: - Enhanced Loading View
+    
+    private var enhancedLoadingView: some View {
+        VStack(spacing: 20) {
+            // Animated loading icon
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 32))
+                .foregroundColor(tealColor)
+                .rotationEffect(.degrees(statsAnimation ? 360 : 0))
+                .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: statsAnimation)
+            
+            Text("Loading your bets...")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    }
+    
+    // MARK: - Enhanced Empty State View
+    
+    private var enhancedEmptyStateView: some View {
+        VStack(spacing: 24) {
+            // Dynamic icon based on filter
+            Image(systemName: emptyStateIcon)
+                .font(.system(size: 48))
+                .foregroundColor(tealColor.opacity(0.6))
+                .scaleEffect(statsAnimation ? 1.05 : 1.0)
+                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: statsAnimation)
+            
+            VStack(spacing: 12) {
+                Text(emptyStateTitle)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                
+                Text(emptyStateMessage)
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+            }
+            
+            // Encouraging action button for empty states
+            if selectedFilter == .active || selectedFilter == .all {
+                Button(action: {
+                    // Note: You can implement tab switching here if needed
+                    HapticManager.impact(.medium)
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sportscourt.fill")
+                            .font(.system(size: 14, weight: .bold))
+                        
+                        Text("Explore Games")
+                            .font(.system(size: 14, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(tealColor)
+                            .shadow(color: tealColor.opacity(0.3), radius: 8, x: 0, y: 4)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .scaleEffect(statsAnimation ? 1.02 : 1.0)
+                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: statsAnimation)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+        .padding(.horizontal, 40)
+    }
+    
     // MARK: - Computed Properties
     
     private var filteredBets: [Bet] {
@@ -316,56 +431,71 @@ struct MyBetsTabView: View {
         }
     }
     
-    // MARK: - Supporting Views
-    
-    private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.5)
-                .progressViewStyle(CircularProgressViewStyle(tint: tealColor))
-            
-            Text("Loading your bets...")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+    private var wonBetsCount: Int {
+        viewModel.bets.filter { $0.status == .won }.count
     }
     
-    private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "list.bullet.clipboard")
-                .font(.system(size: 48))
-                .foregroundColor(tealColor.opacity(0.6))
-            
-            VStack(spacing: 8) {
-                Text("No Bets Found")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
-                
-                Text(emptyStateMessage)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-            }
+    private var lostBetsCount: Int {
+        viewModel.bets.filter { $0.status == .lost }.count
+    }
+    
+    private var pendingBetsCount: Int {
+        viewModel.bets.filter {
+            $0.status == .pending || $0.status == .active || $0.status == .partiallyMatched || $0.status == .fullyMatched
+        }.count
+    }
+    
+    private var emptyStateIcon: String {
+        switch selectedFilter {
+        case .active:
+            return "clock.badge.exclamationmark"
+        case .completed:
+            return "checkmark.circle"
+        case .all:
+            return "sportscourt"
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
-        .padding(.horizontal, 40)
+    }
+    
+    private var emptyStateTitle: String {
+        switch selectedFilter {
+        case .active:
+            return "No Active Bets"
+        case .completed:
+            return "No Completed Bets"
+        case .all:
+            return "Ready to Start Betting?"
+        }
     }
     
     private var emptyStateMessage: String {
         switch selectedFilter {
         case .active:
-            return "You don't have any active bets. Go to Games to place your first bet!"
+            return "You don't have any active bets right now. Head to Games to place your next winning bet!"
         case .completed:
-            return "You haven't completed any bets yet. Your betting history will appear here."
+            return "You haven't completed any bets yet. Your betting history will appear here once games are finished."
         case .all:
-            return "You haven't placed any bets yet. Head to the Games tab to get started!"
+            return "This is where all your betting action will live! Start with some practice bets using Play Coins, then move to Real Coins when you're ready."
         }
     }
     
     // MARK: - Helper Functions
+    
+    private func getFilteredCount(for filter: BetFilter) -> Int {
+        switch filter {
+        case .active:
+            return pendingBetsCount
+        case .completed:
+            return wonBetsCount + lostBetsCount + viewModel.bets.filter { $0.status == .cancelled }.count
+        case .all:
+            return viewModel.bets.count
+        }
+    }
+    
+    private func startStatsAnimation() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            statsAnimation = true
+        }
+    }
     
     private func performRefresh() async {
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -375,7 +505,6 @@ struct MyBetsTabView: View {
         await viewModel.loadBets()
         HapticManager.impact(.light)
         
-        // Small delay for better UX
         try? await Task.sleep(nanoseconds: 500_000_000)
         
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -384,9 +513,9 @@ struct MyBetsTabView: View {
     }
 }
 
-// MARK: - Enhanced Bet Card
+// MARK: - IMPROVED: Better Bet Card with Full Matchup & Fixed Spread Formatting
 
-struct EnhancedBetCard: View {
+struct ImprovedBetCard: View {
     let bet: Bet
     let onCancelTapped: () -> Void
     
@@ -394,108 +523,136 @@ struct EnhancedBetCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Header with status
+            // Header with status and timestamp
             HStack {
                 statusBadge
                 Spacer()
-                Text(bet.createdAt.formatted(.dateTime.month().day().hour().minute()))
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.6))
+                timeStamp
             }
             
-            // Game info - FIXED: Using correct 'team' property
-            VStack(alignment: .leading, spacing: 8) {
-                Text(bet.team)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-                
-                if bet.initialSpread != 0 {
-                    Text("Spread: \(bet.initialSpread > 0 ? "+" : "")\(bet.initialSpread, specifier: "%.1f")")
-                        .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.8))
-                }
-            }
-            
-            // Bet details
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Bet Amount")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.6))
-                    
-                    HStack(spacing: 4) {
-                        Text(bet.coinType == .yellow ? "🟡" : "💚")
-                            .font(.system(size: 16))
+            // ENHANCED: Full game matchup info
+            VStack(alignment: .leading, spacing: 12) {
+                // Show the full matchup context
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        // IMPROVED: Show full game context
+                        HStack(spacing: 4) {
+                            Text("vs")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.5))
+                            
+                            Text(bet.team)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(tealColor) // Highlight the team they bet on
+                        }
                         
-                        Text("\(bet.amount)")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
+                        // FIXED: Spread formatting to 1 decimal place only
+                        if bet.initialSpread != 0 {
+                            HStack(spacing: 4) {
+                                Text("Spread:")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white.opacity(0.6))
+                                
+                                Text(String(format: "%.1f", bet.initialSpread))
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(tealColor)
+                            }
+                        }
                     }
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Potential Win")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.6))
                     
-                    Text("\(bet.potentialWinnings)")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(tealColor)
-                }
-            }
-            
-            // Cancel button (only for pending bets)
-            if bet.canBeCancelled {
-                Button(action: onCancelTapped) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14))
-                        Text("Cancel Bet")
-                            .font(.system(size: 14, weight: .medium))
+                    Spacer()
+                    
+                    // Bet amount with coin type
+                    VStack(alignment: .trailing, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Group {
+                                if bet.coinType == .yellow {
+                                    Text("🟡")
+                                        .font(.system(size: 14))
+                                } else {
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(tealColor)
+                                }
+                            }
+                            
+                            Text("\(bet.amount)")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        
+                        Text(bet.coinType.displayName)
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.6))
                     }
-                    .foregroundColor(.red)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.red.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                            )
-                    )
                 }
-                .buttonStyle(PlainButtonStyle())
+                
+                // Potential winnings and actions
+                if bet.status == .pending || bet.status == .active {
+                    HStack {
+                        Text("Potential win:")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        Text("\(bet.potentialWinnings) coins")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.green)
+                        
+                        Spacer()
+                        
+                        // Cancel button for pending bets
+                        if bet.status == .pending {
+                            Button("Cancel") {
+                                onCancelTapped()
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.red.opacity(0.1))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                        }
+                    }
+                }
             }
         }
-        .padding(20)
+        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.white.opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(statusColor.opacity(0.3), lineWidth: 1)
+                        .stroke(statusBorderColor, lineWidth: 1)
                 )
         )
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
     
     private var statusBadge: some View {
-        Text(bet.status.rawValue.capitalized)
+        Text(bet.status.rawValue)
             .font(.system(size: 11, weight: .bold))
-            .foregroundColor(.white)
+            .foregroundColor(statusTextColor)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
                 Capsule()
-                    .fill(statusColor.opacity(0.3))
+                    .fill(statusColor.opacity(0.2))
                     .overlay(
                         Capsule()
                             .stroke(statusColor, lineWidth: 1)
                     )
             )
+    }
+    
+    private var timeStamp: some View {
+        Text(bet.createdAt.formatted(.dateTime.month().day().hour().minute()))
+            .font(.system(size: 11))
+            .foregroundColor(.white.opacity(0.6))
     }
     
     private var statusColor: Color {
@@ -504,50 +661,44 @@ struct EnhancedBetCard: View {
             return .green
         case .lost:
             return .red
-        case .pending, .active:
+        case .pending, .active, .partiallyMatched, .fullyMatched:
             return tealColor
         case .cancelled:
             return .gray
-        case .partiallyMatched, .fullyMatched:  // FIXED: Added missing cases
-            return .blue
         }
     }
-}
-
-// MARK: - Supporting Views and Modifiers (Reused)
-
-private struct ScrollOffsetModifier: ViewModifier {
-    let coordinateSpace: String
-    @Binding var offset: CGFloat
     
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                GeometryReader { proxy in
-                    Color.clear
-                        .preference(
-                            key: ScrollOffsetPreferenceKey.self,
-                            value: proxy.frame(in: .named(coordinateSpace)).minY
-                        )
-                }
-            )
-            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                offset = value
-            }
+    private var statusTextColor: Color {
+        switch bet.status {
+        case .won, .lost:
+            return .white
+        default:
+            return statusColor
+        }
+    }
+    
+    private var statusBorderColor: Color {
+        statusColor.opacity(0.3)
     }
 }
 
-private struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-// MARK: - Bet Filter Enum
+// MARK: - BetFilter Definition
 
-enum BetFilter {
-    case active, completed, all
+enum BetFilter: CaseIterable {
+    case active
+    case completed
+    case all
+    
+    var displayName: String {
+        switch self {
+        case .active:
+            return "Active"
+        case .completed:
+            return "Completed"
+        case .all:
+            return "All"
+        }
+    }
 }
 
 // MARK: - Admin Auth View
@@ -588,6 +739,8 @@ struct AdminAuthView: View {
         }
     }
 }
+
+// MARK: - Preview
 
 #Preview {
     MainTabView()

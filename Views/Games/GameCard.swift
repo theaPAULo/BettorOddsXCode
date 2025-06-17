@@ -2,7 +2,7 @@
 //  GameCard.swift
 //  BettorOdds
 //
-//  Version: 4.2.0 - Enhanced with vibrant team colors and improved visuals
+//  Version: 4.2.1 - Enhanced with vibrant team colors, lock icons, and improved status indicators
 //  Updated: June 2025
 //
 
@@ -86,17 +86,31 @@ struct GameCard: View {
             )
     }
     
+    // MARK: - ENHANCED: Status and Time with Lock Indicator
+    
     private var statusAndTime: some View {
         HStack(spacing: 6) {
-            if game.status == .upcoming {
+            if game.isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(.red)
+                
+                Text("Locked")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.red)
+            } else if game.status == .upcoming {
                 Image(systemName: "clock.fill")
                     .font(.system(size: 10))
                     .foregroundColor(.white.opacity(0.8))
+                
+                Text(formattedDateTime)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+            } else {
+                Text(formattedDateTime)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
             }
-            
-            Text(formattedDateTime)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
         }
     }
     
@@ -112,11 +126,17 @@ struct GameCard: View {
     
     private var enhancedAwayTeamSide: some View {
         Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                globalSelectedTeam = (game.id, TeamSelection.away)
+            // Only allow selection if game is not locked
+            if !game.isLocked {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    globalSelectedTeam = (game.id, TeamSelection.away)
+                }
+                hapticFeedback()
+                onSelect(game.awayTeam) // Pass selected team name
+            } else {
+                // Provide feedback that game is locked
+                HapticManager.impact(.heavy)
             }
-            hapticFeedback()
-            onSelect(game.awayTeam) // Pass selected team name
         }) {
             VStack(spacing: 12) {
                 Text(game.awayTeam)
@@ -139,15 +159,22 @@ struct GameCard: View {
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(selectedTeam == TeamSelection.away ? 1.05 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTeam == TeamSelection.away)
+        .disabled(game.isLocked) // Disable interaction for locked games
     }
     
     private var enhancedHomeTeamSide: some View {
         Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                globalSelectedTeam = (game.id, TeamSelection.home)
+            // Only allow selection if game is not locked
+            if !game.isLocked {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    globalSelectedTeam = (game.id, TeamSelection.home)
+                }
+                hapticFeedback()
+                onSelect(game.homeTeam) // Pass selected team name
+            } else {
+                // Provide feedback that game is locked
+                HapticManager.impact(.heavy)
             }
-            hapticFeedback()
-            onSelect(game.homeTeam) // Pass selected team name
         }) {
             VStack(spacing: 12) {
                 Text(game.homeTeam)
@@ -170,14 +197,50 @@ struct GameCard: View {
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(selectedTeam == TeamSelection.home ? 1.05 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTeam == TeamSelection.home)
+        .disabled(game.isLocked) // Disable interaction for locked games
     }
     
+    // MARK: - ENHANCED: VS Indicator with Lock Icon Support
+    
     private var vsIndicator: some View {
-        Text("@")
-            .font(.system(size: 18, weight: .black))
-            .foregroundColor(.white)
-            .frame(width: 36, height: 36)
-            .background(vsIndicatorBackground)
+        Group {
+            if game.isLocked {
+                // Show lock icon for locked games
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 16, weight: .black))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .background(lockedIndicatorBackground)
+            } else {
+                // Show @ for active games
+                Text("@")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .background(vsIndicatorBackground)
+            }
+        }
+    }
+    
+    // MARK: - NEW: Locked Indicator Background
+    
+    private var lockedIndicatorBackground: some View {
+        Circle()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.red.opacity(0.8),
+                        Color.red.opacity(0.6)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.4), lineWidth: 2)
+            )
+            .shadow(color: Color.red.opacity(0.4), radius: 6, x: 0, y: 3)
     }
     
     private var vsIndicatorBackground: some View {
