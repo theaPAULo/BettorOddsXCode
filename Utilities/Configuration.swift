@@ -35,7 +35,7 @@ enum Configuration {
     // MARK: - API Configuration - FIXED API KEY
     enum API {
         // CORRECTED: Use the actual working API key
-        static let oddsAPIKey = "a2358fa8aa8f101a940462e5d0f13581"
+        static let oddsAPIKey = "374de52129513bafafac0bc367ee5ec8"
         static let oddsAPIBaseURL = "https://api.the-odds-api.com/v4"
         
         // Enhanced API settings
