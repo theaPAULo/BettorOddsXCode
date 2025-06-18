@@ -429,7 +429,9 @@ struct GamesView: View {
     }
 }
 
-// MARK: - FIXED: Game Card with Proper Lock Display
+// MARK: - ENHANCED: FixedGameCard with Vibrant Team Colors (No Black Middle) - FIXED VERSION
+// Replace the existing FixedGameCard in Views/Games/GamesView.swift
+
 struct FixedGameCard: View {
     let game: Game
     let isFeatured: Bool
@@ -450,93 +452,122 @@ struct FixedGameCard: View {
                 .padding(.bottom, 20)
                 .padding(.top, 12)
         }
-        .background(cardBackground)
+        .background(enhancedCardBackground) // ✅ FIXED: Using enhanced background
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(borderOverlay)
         .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowOffset)
         .scaleEffect(isFeatured ? 1.02 : 1.0)
         .opacity(gameOpacity)
-        .disabled(game.isLocked || game.shouldBeLocked)
-        .onTapGesture {
-            if !game.isLocked && !game.shouldBeLocked {
-                onSelect(nil)
-            } else {
-                HapticManager.impact(.heavy)
-            }
-        }
     }
     
-    // MARK: - FIXED: Header with Lock Status
-    private var headerWithLockStatus: some View {
-        HStack {
-            // League badge
-            Text(game.league)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(leagueBadgeBackground)
-            
-            Spacer()
-            
-            // FIXED: Lock status and time
-            HStack(spacing: 8) {
-                // Lock icon if game is locked
-                if game.isLocked || game.shouldBeLocked {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.red)
-                        .padding(6)
-                        .background(
-                            Circle()
-                                .fill(Color.red.opacity(0.2))
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.red.opacity(0.5), lineWidth: 1)
-                                )
-                        )
-                }
+    // MARK: - ENHANCED: Vibrant Card Background (NO BLACK MIDDLE!)
+    private var enhancedCardBackground: some View {
+        // ✅ ENHANCEMENT 1: Use getEnhancedTeamColors for better colors
+        let awayColors = TeamColors.getEnhancedTeamColors(game.awayTeam)
+        let homeColors = TeamColors.getEnhancedTeamColors(game.homeTeam)
+        
+        return LinearGradient(
+            colors: [
+                // ✅ ENHANCEMENT 2: Start with more vibrant away team colors
+                enhanceColor(awayColors.primary, saturation: 1.4, brightness: 0.15).opacity(0.95),
+                enhanceColor(awayColors.primary, saturation: 1.2, brightness: 0.1).opacity(0.8),
+                enhanceColor(awayColors.secondary, saturation: 1.1, brightness: 0.08).opacity(0.6),
                 
-                // Game time
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(formattedGameTime)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
-                    
-                    if game.isLocked {
-                        Text("LOCKED")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.red)
-                    }
-                }
-            }
-        }
+                // ✅ ENHANCEMENT 3: Replace black with blended team colors!
+                Color.clear.opacity(0.1), // Subtle transparency instead of black
+                blendedTeamColors(awayColors, homeColors).opacity(0.4), // Blended middle section
+                
+                // ✅ ENHANCEMENT 4: Transition to vibrant home team colors
+                enhanceColor(homeColors.secondary, saturation: 1.1, brightness: 0.08).opacity(0.6),
+                enhanceColor(homeColors.primary, saturation: 1.2, brightness: 0.1).opacity(0.8),
+                enhanceColor(homeColors.primary, saturation: 1.4, brightness: 0.15).opacity(0.95)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        // ✅ ENHANCEMENT 5: Add subtle glow overlay for extra vibrancy
+        .overlay(
+            LinearGradient(
+                colors: [
+                    enhanceColor(awayColors.primary, saturation: 1.3).opacity(0.08),
+                    Color.clear,
+                    enhanceColor(homeColors.primary, saturation: 1.3).opacity(0.08)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blendMode(.overlay)
+        )
     }
     
-    // MARK: - Teams Section
+    // ✅ FIXED: Blended team colors for middle section (safe unwrapping)
+    private func blendedTeamColors(_ away: TeamColors, _ home: TeamColors) -> Color {
+        // Create a sophisticated blend of both team's colors using safe color mixing
+        let awayUIColor = UIColor(away.primary)
+        let homeUIColor = UIColor(home.primary)
+        
+        var awayR: CGFloat = 0, awayG: CGFloat = 0, awayB: CGFloat = 0, awayA: CGFloat = 0
+        var homeR: CGFloat = 0, homeG: CGFloat = 0, homeB: CGFloat = 0, homeA: CGFloat = 0
+        
+        awayUIColor.getRed(&awayR, green: &awayG, blue: &awayB, alpha: &awayA)
+        homeUIColor.getRed(&homeR, green: &homeG, blue: &homeB, alpha: &homeA)
+        
+        // Blend the RGB values
+        let blendedR = (awayR + homeR) / 2
+        let blendedG = (awayG + homeG) / 2
+        let blendedB = (awayB + homeB) / 2
+        
+        return Color(red: Double(blendedR), green: Double(blendedG), blue: Double(blendedB))
+    }
+    
+    // MARK: - Enhanced Color Helper (More Vibrant)
+    private func enhanceColor(_ color: Color, saturation: Double = 1.0, brightness: Double = 0.0) -> Color {
+        let uiColor = UIColor(color)
+        var hue: CGFloat = 0
+        var saturationValue: CGFloat = 0
+        var brightnessValue: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        uiColor.getHue(&hue, saturation: &saturationValue, brightness: &brightnessValue, alpha: &alpha)
+        
+        // ✅ ENHANCEMENT 6: More aggressive saturation and brightness enhancement
+        let newSaturation = min(1.0, saturationValue * saturation)
+        let newBrightness = min(1.0, max(0.15, brightnessValue + brightness)) // Ensure minimum brightness
+        
+        return Color(
+            hue: Double(hue),
+            saturation: Double(newSaturation),
+            brightness: Double(newBrightness),
+            opacity: Double(alpha)
+        )
+    }
+    
+    // MARK: - ✅ FIXED: Teams Section Using Existing Structure
+    
     private var enhancedTeamsSection: some View {
         HStack(spacing: 0) {
             // Away team
             teamSide(
                 teamName: game.awayTeam,
                 spread: game.awaySpread,
-                colors: game.awayTeamColors,
+                colors: TeamColors.getEnhancedTeamColors(game.awayTeam), // ✅ Use enhanced colors
                 isHome: false
             )
             
-            // FIXED: VS indicator with lock awareness
+            // VS indicator with lock awareness
             vsIndicatorWithLock
             
             // Home team
             teamSide(
                 teamName: game.homeTeam,
                 spread: game.homeSpread,
-                colors: game.homeTeamColors,
+                colors: TeamColors.getEnhancedTeamColors(game.homeTeam), // ✅ Use enhanced colors
                 isHome: true
             )
         }
     }
     
+    // ✅ FIXED: Using existing teamSide function signature - spread is String, not Double
     private func teamSide(teamName: String, spread: String, colors: TeamColors, isHome: Bool) -> some View {
         Button(action: {
             if !game.isLocked && !game.shouldBeLocked {
@@ -554,6 +585,7 @@ struct FixedGameCard: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
                 
+                // ✅ FIXED: Use spread directly since it's already formatted as String
                 Text(spread)
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
@@ -565,64 +597,62 @@ struct FixedGameCard: View {
         .disabled(game.isLocked || game.shouldBeLocked)
     }
     
-    // MARK: - FIXED: VS Indicator with Lock Support
+    // ✅ FIXED: VS Indicator with Lock Support
     private var vsIndicatorWithLock: some View {
-        Group {
+        VStack(spacing: 6) {
             if game.isLocked || game.shouldBeLocked {
+                // Show lock icon for locked games
                 Image(systemName: "lock.fill")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(lockedIndicatorBackground)
+                    .foregroundColor(.red.opacity(0.9))
             } else {
+                // Show @ symbol for unlocked games
                 Text("@")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(activeIndicatorBackground)
+                    .foregroundColor(.white.opacity(0.6))
+            }
+        }
+        .frame(width: 30)
+    }
+    
+    // MARK: - Header Implementation
+    
+    private var headerWithLockStatus: some View {
+        HStack {
+            // League badge
+            Text(game.league)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.white.opacity(0.9))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(leagueBadgeBackground)
+            
+            Spacer()
+            
+            // Time and lock status
+            VStack(alignment: .trailing, spacing: 2) {
+                if game.isLocked || game.shouldBeLocked {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.red)
+                        Text("LOCKED")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.red)
+                    }
+                } else {
+                    Text(formatGameTime(game.time))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.9))
+                }
             }
         }
     }
     
-    private var lockedIndicatorBackground: some View {
-        Circle()
-            .fill(
-                LinearGradient(
-                    colors: [Color.red.opacity(0.8), Color.red.opacity(0.6)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .overlay(
-                Circle().stroke(Color.white.opacity(0.4), lineWidth: 2)
-            )
-            .shadow(color: Color.red.opacity(0.4), radius: 6, x: 0, y: 3)
-    }
-    
-    private var activeIndicatorBackground: some View {
-        Circle()
-            .fill(
-                LinearGradient(
-                    colors: [Color.black.opacity(0.7), Color.black.opacity(0.5)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .overlay(
-                Circle().stroke(Color.white.opacity(0.4), lineWidth: 2)
-            )
-            .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 3)
-    }
-    
-    // MARK: - Computed Properties
-    private var formattedGameTime: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, h:mm a"
-        return formatter.string(from: game.time)
-    }
+    // MARK: - Styling Properties
     
     private var gameOpacity: Double {
-        return (game.isLocked || game.shouldBeLocked) ? 0.6 : 1.0
+        game.isLocked || game.shouldBeLocked ? 0.6 : 1.0
     }
     
     private var shadowColor: Color {
@@ -643,47 +673,6 @@ struct FixedGameCard: View {
         return (game.isLocked || game.shouldBeLocked) ? 6 : 4
     }
     
-    private var cardBackground: some View {
-        // RESTORED: Enhanced team gradient background
-        LinearGradient(
-            colors: [
-                // Enhanced colors with team color influence
-                enhanceColor(game.awayTeamColors.primary, saturation: 1.2, brightness: 0.1).opacity(0.8),
-                enhanceColor(game.awayTeamColors.primary, saturation: 1.1, brightness: 0.05).opacity(0.6),
-                enhanceColor(game.awayTeamColors.secondary, saturation: 1.0, brightness: 0.05).opacity(0.3),
-                Color.black.opacity(0.7),
-                enhanceColor(game.homeTeamColors.secondary, saturation: 1.0, brightness: 0.05).opacity(0.3),
-                enhanceColor(game.homeTeamColors.primary, saturation: 1.1, brightness: 0.05).opacity(0.6),
-                enhanceColor(game.homeTeamColors.primary, saturation: 1.2, brightness: 0.1).opacity(0.8)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    // MARK: - Color Enhancement Helper
-    private func enhanceColor(_ color: Color, saturation: Double = 1.0, brightness: Double = 0.0) -> Color {
-        // Convert Color to RGB components for enhancement
-        let uiColor = UIColor(color)
-        var hue: CGFloat = 0
-        var saturationValue: CGFloat = 0
-        var brightnessValue: CGFloat = 0
-        var alpha: CGFloat = 0
-        
-        uiColor.getHue(&hue, saturation: &saturationValue, brightness: &brightnessValue, alpha: &alpha)
-        
-        // Apply enhancements
-        let newSaturation = min(1.0, saturationValue * saturation)
-        let newBrightness = min(1.0, brightnessValue + brightness)
-        
-        return Color(
-            hue: Double(hue),
-            saturation: Double(newSaturation),
-            brightness: Double(newBrightness),
-            opacity: Double(alpha)
-        )
-    }
-    
     private var borderOverlay: some View {
         RoundedRectangle(cornerRadius: 16)
             .stroke(
@@ -700,6 +689,14 @@ struct FixedGameCard: View {
                 Capsule()
                     .stroke(Color.white.opacity(0.3), lineWidth: 1)
             )
+    }
+    
+    // MARK: - ✅ FIXED: Helper Methods
+    
+    private func formatGameTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
     }
 }
 
