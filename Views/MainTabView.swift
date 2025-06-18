@@ -2,11 +2,12 @@
 //  MainTabView.swift
 //  BettorOdds
 //
-//  Version: 4.2.1 - Enhanced with simplified My Bets (removed clutter, better bet cards)
+//  Version: 5.0.0 - COMPLETE: Fixed filter wrapping, enhanced bet cards, working explore button
 //  Updated: June 2025
 //
 
 import SwiftUI
+import FirebaseFirestore
 
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
@@ -15,15 +16,15 @@ struct MainTabView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Games Tab - Using EnhancedGamesView
+            // Games Tab - Using our fixed GamesView
             GamesView()
                 .tabItem {
                     Label("Games", systemImage: "sportscourt.fill")
                 }
                 .tag(0)
             
-            // My Bets Tab - Enhanced version
-            SimplifiedMyBetsTabView()
+            // My Bets Tab - Enhanced version with tab navigation binding
+            SimplifiedMyBetsTabView(selectedTab: $selectedTab)
                 .tabItem {
                     Label("My Bets", systemImage: "list.bullet.clipboard")
                 }
@@ -73,24 +74,25 @@ struct MainTabView: View {
     }
 }
 
-// MARK: - SIMPLIFIED My Bets Tab View - Removed Clutter, Better Bet Cards
+// MARK: - FIXED: My Bets Tab View with Enhanced Bet Cards and Working Navigation
 
 struct SimplifiedMyBetsTabView: View {
     @StateObject private var viewModel = MyBetsViewModel()
     @State private var selectedFilter: BetFilter = .active
     @State private var showCancelConfirmation = false
     @State private var betToCancel: Bet?
-    @State private var scrollOffset: CGFloat = 0
     @State private var isRefreshing = false
     @State private var statsAnimation = false
     
-    // Teal color for consistency
+    // FIXED: Tab navigation binding
+    @Binding var selectedTab: Int
+    
     private let tealColor = Color(red: 0.0, green: 0.9, blue: 0.79)
     
     var body: some View {
         NavigationView {
             ZStack {
-                // MATCHING BACKGROUND - Same as other views
+                // Background
                 LinearGradient(
                     gradient: Gradient(colors: [
                         Color(red: 0.06, green: 0.13, blue: 0.15),
@@ -100,18 +102,20 @@ struct SimplifiedMyBetsTabView: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .hueRotation(.degrees(scrollOffset / 3))
-                .animation(.easeOut(duration: 0.3), value: scrollOffset)
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // SIMPLIFIED: Clean header without clutter
-                    simplifiedHeaderWithStats
+                    // Header
+                    headerSection
                     
-                    // ENHANCED: Better filter tabs with counts
-                    enhancedFilterTabsWithCounts
+                    // Stats Overview
+                    enhancedStatsOverview
+                        .padding(.bottom, 20)
                     
-                    // ENHANCED: Better bets list with improved cards
+                    // FIXED: Filter tabs (no more wrapping)
+                    fixedFilterTabsWithCounts
+                    
+                    // Bets List
                     enhancedBetsListSection
                 }
             }
@@ -126,88 +130,59 @@ struct SimplifiedMyBetsTabView: View {
                 await performRefresh()
             }
             .alert("Cancel Bet", isPresented: $showCancelConfirmation) {
-                Button("Keep Bet", role: .cancel) {
-                    betToCancel = nil
-                }
                 Button("Cancel Bet", role: .destructive) {
                     if let bet = betToCancel {
                         Task {
                             await viewModel.cancelBet(bet)
                         }
                     }
-                    betToCancel = nil
                 }
+                Button("Keep Bet", role: .cancel) {}
             } message: {
                 Text("Are you sure you want to cancel this bet? This action cannot be undone.")
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
     }
     
-    // MARK: - SIMPLIFIED: Clean Header (Removed Win Rate & Total Wagered Clutter)
+    // MARK: - Header Section
     
-    private var simplifiedHeaderWithStats: some View {
-        VStack(spacing: 20) {
-            // App title with icon
-            HStack(spacing: 12) {
-                Image(systemName: "list.bullet.clipboard.fill")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(tealColor)
-                    .scaleEffect(statsAnimation ? 1.1 : 1.0)
-                    .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: statsAnimation)
-                
+    private var headerSection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("My Bets")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: 28, weight: .black))
                     .foregroundColor(.white)
                 
-                Spacer()
+                Text("Track your betting journey")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.7))
             }
             
-            // SIMPLIFIED: Just the visual stats cards (no clutter)
-            enhancedStatsCards
+            Spacer()
+            
+            Text("🎯")
+                .font(.system(size: 24))
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
-        .padding(.bottom, 16)
     }
     
-    // MARK: - Enhanced Stats Cards (Kept - These Are Visual and Helpful)
+    // MARK: - Enhanced Stats Overview
     
-    private var enhancedStatsCards: some View {
+    private var enhancedStatsOverview: some View {
         HStack(spacing: 12) {
-            // Won bets card
-            enhancedStatCard(
-                title: "Won",
-                count: wonBetsCount,
-                icon: "checkmark.circle.fill",
-                color: .green,
-                delay: 0.1
-            )
-            
-            // Lost bets card
-            enhancedStatCard(
-                title: "Lost",
-                count: lostBetsCount,
-                icon: "xmark.circle.fill",
-                color: .red,
-                delay: 0.2
-            )
-            
-            // Pending bets card
-            enhancedStatCard(
-                title: "Pending",
-                count: pendingBetsCount,
-                icon: "clock.circle.fill",
-                color: tealColor,
-                delay: 0.3
-            )
+            enhancedStatCard("Won", count: wonBetsCount, color: .green, delay: 0.0)
+            enhancedStatCard("Lost", count: lostBetsCount, color: .red, delay: 0.3)
+            enhancedStatCard("Active", count: pendingBetsCount, color: tealColor, delay: 0.6)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
     }
     
-    private func enhancedStatCard(title: String, count: Int, icon: String, color: Color, delay: Double) -> some View {
+    private func enhancedStatCard(_ title: String, count: Int, color: Color, delay: Double) -> some View {
         VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
+            Image(systemName: iconForStat(title))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(color)
                 .scaleEffect(statsAnimation ? 1.1 : 1.0)
                 .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true).delay(delay), value: statsAnimation)
@@ -232,19 +207,33 @@ struct SimplifiedMyBetsTabView: View {
         )
     }
     
-    // MARK: - Enhanced Filter Tabs with Counts
+    private func iconForStat(_ title: String) -> String {
+        switch title {
+        case "Won":
+            return "checkmark.circle.fill"
+        case "Lost":
+            return "xmark.circle.fill"
+        case "Active":
+            return "clock.fill"
+        default:
+            return "sportscourt.fill"
+        }
+    }
     
-    private var enhancedFilterTabsWithCounts: some View {
+    // MARK: - FIXED: Filter Tabs (No More Wrapping)
+    
+    private var fixedFilterTabsWithCounts: some View {
         HStack(spacing: 12) {
-            ForEach([BetFilter.active, BetFilter.completed, BetFilter.all], id: \.self) { filter in
-                enhancedFilterTab(filter)
-            }
+            // FIXED: Use shorter text and better sizing
+            fixedFilterTab(.active, "Active")
+            fixedFilterTab(.completed, "Done") // SHORTENED to prevent wrapping
+            fixedFilterTab(.all, "All")
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
     }
     
-    private func enhancedFilterTab(_ filter: BetFilter) -> some View {
+    private func fixedFilterTab(_ filter: BetFilter, _ displayText: String) -> some View {
         Button(action: {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 selectedFilter = filter
@@ -252,33 +241,32 @@ struct SimplifiedMyBetsTabView: View {
             HapticManager.impact(.light)
         }) {
             VStack(spacing: 6) {
+                // FIXED: Single line with proper constraints (REMOVED the line indicator)
                 HStack(spacing: 4) {
-                    Text(filter.displayName)
-                        .font(.system(size: 14, weight: .bold))
+                    Text(displayText)
+                        .font(.system(size: 13, weight: .bold)) // Slightly smaller font
                         .foregroundColor(selectedFilter == filter ? .black : .white)
+                        .lineLimit(1) // CRITICAL: Prevent wrapping
+                        .minimumScaleFactor(0.8) // Allow slight scaling if needed
                     
                     // Count badge
                     Text("\(getFilteredCount(for: filter))")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(selectedFilter == filter ? .black.opacity(0.7) : tealColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
                         .background(
                             Capsule()
                                 .fill(selectedFilter == filter ? Color.black.opacity(0.1) : tealColor.opacity(0.2))
                         )
                 }
                 
-                // Active indicator line
-                Rectangle()
-                    .fill(selectedFilter == filter ? .black : Color.clear)
-                    .frame(height: 2)
-                    .animation(.easeInOut(duration: 0.2), value: selectedFilter == filter)
+                // REMOVED: The line indicator that was causing the visual issue
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 44)
+            .frame(height: 50) // FIXED: Consistent height
             .background(
-                RoundedRectangle(cornerRadius: 22)
+                RoundedRectangle(cornerRadius: 25)
                     .fill(
                         selectedFilter == filter ?
                             LinearGradient(
@@ -293,7 +281,7 @@ struct SimplifiedMyBetsTabView: View {
                             )
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 22)
+                        RoundedRectangle(cornerRadius: 25)
                             .stroke(
                                 selectedFilter == filter ? tealColor : Color.white.opacity(0.2),
                                 lineWidth: selectedFilter == filter ? 2 : 1
@@ -314,10 +302,12 @@ struct SimplifiedMyBetsTabView: View {
                 if viewModel.isLoading {
                     enhancedLoadingView
                 } else if filteredBets.isEmpty {
+                    // FIXED: Enhanced empty state with working explore button
                     enhancedEmptyStateView
                 } else {
                     ForEach(Array(filteredBets.enumerated()), id: \.element.id) { index, bet in
-                        ImprovedBetCard(
+                        // ENHANCED: Use new bet card with full matchup
+                        EnhancedBetCard(
                             bet: bet,
                             onCancelTapped: {
                                 betToCancel = bet
@@ -358,7 +348,7 @@ struct SimplifiedMyBetsTabView: View {
         .padding(.vertical, 60)
     }
     
-    // MARK: - Enhanced Empty State View
+    // MARK: - FIXED: Enhanced Empty State with Working Explore Button
     
     private var enhancedEmptyStateView: some View {
         VStack(spacing: 24) {
@@ -366,9 +356,10 @@ struct SimplifiedMyBetsTabView: View {
             Image(systemName: emptyStateIcon)
                 .font(.system(size: 48))
                 .foregroundColor(tealColor.opacity(0.6))
-                .scaleEffect(statsAnimation ? 1.05 : 1.0)
+                .scaleEffect(statsAnimation ? 1.02 : 1.0)
                 .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: statsAnimation)
             
+            // Title and message
             VStack(spacing: 12) {
                 Text(emptyStateTitle)
                     .font(.system(size: 22, weight: .bold))
@@ -376,37 +367,51 @@ struct SimplifiedMyBetsTabView: View {
                     .multilineTextAlignment(.center)
                 
                 Text(emptyStateMessage)
-                    .font(.system(size: 14))
+                    .font(.system(size: 16))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
-                    .lineLimit(3)
+                    .lineLimit(4)
             }
             
-            // Encouraging action button for empty states
+            // FIXED: Working explore button (only for active/all filters)
             if selectedFilter == .active || selectedFilter == .all {
                 Button(action: {
-                    // Note: You can implement tab switching here if needed
+                    // Navigate to Games tab
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        selectedTab = 0
+                    }
                     HapticManager.impact(.medium)
                 }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "sportscourt.fill")
-                            .font(.system(size: 14, weight: .bold))
+                    HStack(spacing: 12) {
+                        Image(systemName: "gamecontroller.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
                         
                         Text("Explore Games")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
                     .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(tealColor)
-                            .shadow(color: tealColor.opacity(0.3), radius: 8, x: 0, y: 4)
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    colors: [tealColor, tealColor.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .shadow(
+                                color: tealColor.opacity(0.4),
+                                radius: 12,
+                                x: 0,
+                                y: 6
+                            )
                     )
                 }
                 .buttonStyle(PlainButtonStyle())
-                .scaleEffect(statsAnimation ? 1.02 : 1.0)
-                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: statsAnimation)
+                .padding(.horizontal, 40)
             }
         }
         .frame(maxWidth: .infinity)
@@ -513,11 +518,12 @@ struct SimplifiedMyBetsTabView: View {
     }
 }
 
-// MARK: - IMPROVED: Better Bet Card with Full Matchup & Fixed Spread Formatting
-
-struct ImprovedBetCard: View {
+// MARK: - ENHANCED: Bet Card with Full Matchup Display
+struct EnhancedBetCard: View {
     let bet: Bet
     let onCancelTapped: () -> Void
+    
+    @StateObject private var gameLoader = GameDataLoader()
     
     private let tealColor = Color(red: 0.0, green: 0.9, blue: 0.79)
     
@@ -530,160 +536,363 @@ struct ImprovedBetCard: View {
                 timeStamp
             }
             
-            // ENHANCED: Full game matchup info
+            // ENHANCED: Full game matchup info with opponent
             VStack(alignment: .leading, spacing: 12) {
-                // Show the full matchup context
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        // IMPROVED: Show full game context
-                        HStack(spacing: 4) {
-                            Text("vs")
-                                .font(.system(size: 12))
-                                .foregroundColor(.white.opacity(0.5))
-                            
-                            Text(bet.team)
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(tealColor) // Highlight the team they bet on
-                        }
-                        
-                        // FIXED: Spread formatting to 1 decimal place only
-                        if bet.initialSpread != 0 {
-                            HStack(spacing: 4) {
-                                Text("Spread:")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.6))
-                                
-                                Text(String(format: "%.1f", bet.initialSpread))
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(tealColor)
-                            }
-                        }
-                    }
+                // Show the complete matchup
+                if let gameInfo = gameLoader.gameInfo {
+                    fullMatchupDisplay(gameInfo: gameInfo)
+                } else {
+                    // Fallback display while loading
+                    fallbackDisplay
+                }
+                
+                // Bet details
+                betDetailsSection
+            }
+            
+            // Potential winnings and actions
+            if bet.status == .pending || bet.status == .active {
+                actionsSection
+            }
+        }
+        .padding(20)
+        .background(cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: shadowColor, radius: 8, x: 0, y: 4)
+        .onAppear {
+            Task {
+                await gameLoader.loadGameInfo(for: bet.gameId)
+            }
+        }
+    }
+    
+    // MARK: - IMPROVED: Full Matchup Display with Better Layout
+    private func fullMatchupDisplay(gameInfo: GameInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // IMPROVED: Compact game matchup header
+            HStack {
+                Text("MATCHUP")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.white.opacity(0.6))
+                Spacer()
+                Text(gameInfo.league)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(tealColor)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(tealColor.opacity(0.2)))
+            }
+            
+            // IMPROVED: More compact team vs team display
+            VStack(spacing: 6) {
+                // Away team row
+                HStack(spacing: 8) {
+                    Text("Away")
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.5))
+                        .frame(width: 30, alignment: .leading)
+                    
+                    Text(gameInfo.awayTeam)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(bet.team == gameInfo.awayTeam ? tealColor : .white.opacity(0.7))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     
                     Spacer()
                     
-                    // Bet amount with coin type
-                    VStack(alignment: .trailing, spacing: 4) {
-                        HStack(spacing: 4) {
-                            Group {
-                                if bet.coinType == .yellow {
-                                    Text("🟡")
-                                        .font(.system(size: 14))
-                                } else {
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(tealColor)
-                                }
-                            }
-                            
-                            Text("\(bet.amount)")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        
-                        Text(bet.coinType.displayName)
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.6))
-                    }
+                    Text(formattedGameTime(gameInfo.gameTime))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
                 }
                 
-                // Potential winnings and actions
-                if bet.status == .pending || bet.status == .active {
-                    HStack {
-                        Text("Potential win:")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.6))
-                        
-                        Text("\(bet.potentialWinnings) coins")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.green)
-                        
-                        Spacer()
-                        
-                        // Cancel button for pending bets
-                        if bet.status == .pending {
-                            Button("Cancel") {
-                                onCancelTapped()
-                            }
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.red.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
-                        }
-                    }
+                // Home team row
+                HStack(spacing: 8) {
+                    Text("Home")
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.5))
+                        .frame(width: 30, alignment: .leading)
+                    
+                    Text(gameInfo.homeTeam)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(bet.team == gameInfo.homeTeam ? tealColor : .white.opacity(0.7))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    
+                    Spacer()
+                    
+                    Text(formattedGameDate(gameInfo.gameTime))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
                 }
             }
+            
+            // IMPROVED: More compact bet highlight
+            HStack(spacing: 4) {
+                Text("YOUR BET:")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.white.opacity(0.6))
+                
+                Text(bet.team)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(tealColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                
+                if bet.initialSpread != 0 {
+                    Text(spreadDisplay)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                
+                Spacer()
+            }
         }
-        .padding(16)
+        .padding(10) // Reduced padding
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 10) // Slightly smaller corner radius
                 .fill(Color.white.opacity(0.05))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(statusBorderColor, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
                 )
         )
     }
     
+    // MARK: - IMPROVED: Fallback Display (while loading)
+    private var fallbackDisplay: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("MATCHUP")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.white.opacity(0.6))
+                Spacer()
+                ProgressView()
+                    .scaleEffect(0.6)
+                    .progressViewStyle(CircularProgressViewStyle(tint: tealColor))
+            }
+            
+            HStack(spacing: 4) {
+                Text("YOUR BET:")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.white.opacity(0.6))
+                
+                Text(bet.team)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(tealColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                
+                if bet.initialSpread != 0 {
+                    Text(spreadDisplay)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                
+                Spacer()
+            }
+        }
+        .padding(10) // Match the main display padding
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
+        )
+    }
+    
+    // MARK: - Computed Properties
     private var statusBadge: some View {
-        Text(bet.status.rawValue)
+        Text(bet.status.rawValue.uppercased())
             .font(.system(size: 11, weight: .bold))
-            .foregroundColor(statusTextColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(statusColor.opacity(0.2))
+                    .fill(bet.status.color.opacity(0.8))
                     .overlay(
                         Capsule()
-                            .stroke(statusColor, lineWidth: 1)
+                            .stroke(bet.status.color, lineWidth: 1)
                     )
             )
     }
     
     private var timeStamp: some View {
-        Text(bet.createdAt.formatted(.dateTime.month().day().hour().minute()))
+        Text(formatTimestamp(bet.createdAt))
             .font(.system(size: 11))
             .foregroundColor(.white.opacity(0.6))
     }
     
-    private var statusColor: Color {
+    private var spreadDisplay: String {
+        let spread = bet.initialSpread
+        if spread > 0 {
+            return "+\(String(format: "%.1f", spread))"
+        } else {
+            return String(format: "%.1f", spread)
+        }
+    }
+    
+    private var betDetailsSection: some View {
+        HStack {
+            HStack(spacing: 4) {
+                Group {
+                    if bet.coinType == .yellow {
+                        Text("🟡")
+                            .font(.system(size: 14))
+                    } else {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(tealColor)
+                    }
+                }
+                
+                Text("\(bet.amount)")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                
+                Text(bet.coinType.displayName)
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            
+            Spacer()
+            
+            if bet.status == .won || bet.status == .lost {
+                HStack(spacing: 4) {
+                    Text(bet.status == .won ? "WON:" : "LOST:")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(bet.status == .won ? .green : .red)
+                    
+                    Text("\(bet.status == .won ? bet.potentialWinnings : 0)")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(bet.status == .won ? .green : .red)
+                }
+            }
+        }
+    }
+    
+    private var actionsSection: some View {
+        HStack {
+            Text("Potential win:")
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.6))
+            
+            Text("\(bet.potentialWinnings) coins")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.green)
+            
+            Spacer()
+            
+            if bet.status == .pending {
+                Button("Cancel") {
+                    onCancelTapped()
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.red)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .stroke(.red, lineWidth: 1)
+                )
+            }
+        }
+    }
+    
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.08),
+                        Color.white.opacity(0.04)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+    }
+    
+    private var shadowColor: Color {
         switch bet.status {
         case .won:
-            return .green
+            return .green.opacity(0.3)
         case .lost:
-            return .red
-        case .pending, .active, .partiallyMatched, .fullyMatched:
-            return tealColor
-        case .cancelled:
-            return .gray
-        }
-    }
-    
-    private var statusTextColor: Color {
-        switch bet.status {
-        case .won, .lost:
-            return .white
+            return .red.opacity(0.3)
+        case .active:
+            return tealColor.opacity(0.3)
         default:
-            return statusColor
+            return .black.opacity(0.2)
         }
     }
     
-    private var statusBorderColor: Color {
-        statusColor.opacity(0.3)
+    // MARK: - Helper Methods
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d 'at' h:mm a"
+        return formatter.string(from: date)
+    }
+    
+    private func formattedGameDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
+    
+    private func formattedGameTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
     }
 }
 
-// MARK: - BetFilter Definition
+// MARK: - Game Data Loader
+@MainActor
+class GameDataLoader: ObservableObject {
+    @Published var gameInfo: GameInfo?
+    @Published var isLoading = false
+    
+    private let db = Firestore.firestore()
+    
+    func loadGameInfo(for gameId: String) async {
+        guard !isLoading else { return }
+        
+        isLoading = true
+        
+        do {
+            let document = try await db.collection("games").document(gameId).getDocument()
+            
+            if let data = document.data() {
+                gameInfo = GameInfo(
+                    homeTeam: data["homeTeam"] as? String ?? "Unknown",
+                    awayTeam: data["awayTeam"] as? String ?? "Unknown",
+                    league: data["league"] as? String ?? "Unknown",
+                    gameTime: (data["time"] as? Timestamp)?.dateValue() ?? Date()
+                )
+            }
+        } catch {
+            print("Error loading game info: \(error)")
+        }
+        
+        isLoading = false
+    }
+}
 
+// MARK: - Game Info Model
+struct GameInfo {
+    let homeTeam: String
+    let awayTeam: String
+    let league: String
+    let gameTime: Date
+}
+
+// MARK: - BetFilter Definition
 enum BetFilter: CaseIterable {
     case active
     case completed
@@ -702,7 +911,6 @@ enum BetFilter: CaseIterable {
 }
 
 // MARK: - Admin Auth View
-
 struct AdminAuthView: View {
     @StateObject private var adminNav = AdminNavigation.shared
     
@@ -741,7 +949,6 @@ struct AdminAuthView: View {
 }
 
 // MARK: - Preview
-
 #Preview {
     MainTabView()
         .environmentObject(AuthenticationViewModel())

@@ -55,7 +55,7 @@ class GamesViewModel: ListViewModel<Game> {
     }
     
     var liveGames: [Game] {
-        return games.filter { $0.status == .inProgress }
+        return games.filter { $0.displayStatus == .inProgress }
     }
 
     // MARK: - Initialization

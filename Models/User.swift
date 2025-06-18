@@ -20,6 +20,8 @@ enum AdminRole: String, Codable {
     var canConfigureSystem: Bool { self == .admin }
 }
 
+
+
 // MARK: - User Preferences
 struct UserPreferences: Codable {
     var useBiometrics: Bool
@@ -67,6 +69,13 @@ struct User: Codable, Identifiable {
         case dailyGreenCoinsUsed, isPremium, lastBetDate
         case preferences, adminRole, lastAdminAction
     }
+    
+    // Add this to the User struct
+    static let guest = User(
+        id: "guest",
+        displayName: "Guest User",
+        authProvider: "guest"
+    )
     
     // MARK: - Initialization
     init(id: String, displayName: String? = nil, profileImageURL: String? = nil, authProvider: String) {
@@ -144,6 +153,8 @@ struct User: Codable, Identifiable {
         ]
     }
 }
+
+
 
 extension User: Equatable {
     static func == (lhs: User, rhs: User) -> Bool {

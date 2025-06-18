@@ -13,7 +13,7 @@ struct TeamColors: Codable {
     let secondary: Color
     
     // MARK: - Local Hex Helper (avoids conflicts with other extensions)
-    private static func colorFromHex(_ hex: String) -> Color {
+    static func colorFromHex(_ hex: String) -> Color {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)

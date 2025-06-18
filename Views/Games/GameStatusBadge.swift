@@ -29,6 +29,7 @@ extension GameStatus {
         switch self {
         case .upcoming: return "UPCOMING"
         case .locked: return "STARTING SOON"
+        case .lockingSoon: return "LOCKING SOON"
         case .inProgress: return "LIVE"
         case .completed: return "FINAL"
         case .cancelled: return "CANCELLED"
@@ -40,6 +41,7 @@ extension GameStatus {
         switch self {
         case .upcoming: return .primary
         case .locked: return .gray
+        case .lockingSoon: return .orange
         case .inProgress: return .green
         case .completed: return .secondary
         case .cancelled: return .red
@@ -50,6 +52,7 @@ extension GameStatus {
         switch self {
         case .upcoming: return .primary
         case .locked: return .gray
+        case .lockingSoon: return .orange
         case .inProgress: return .green
         case .completed: return .secondary
         case .cancelled: return .red

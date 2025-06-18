@@ -98,7 +98,7 @@ struct GameCard: View {
                 Text("Locked")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.red)
-            } else if game.status == .upcoming {
+            } else if game.displayStatus == .upcoming {
                 Image(systemName: "clock.fill")
                     .font(.system(size: 10))
                     .foregroundColor(.white.opacity(0.8))

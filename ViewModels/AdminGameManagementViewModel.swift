@@ -26,7 +26,7 @@ class AdminGameManagementViewModel: ObservableObject {
     // Filtered games for the selector
     // Filtered games for the selector
     var availableGames: [Game] {
-        games.filter { !$0.isFeatured && !$0.isFinished }
+        games.filter { !$0.isFeatured && !$0.isCompleted }
             .sorted { $0.time < $1.time }
     }
     
@@ -53,7 +53,7 @@ class AdminGameManagementViewModel: ObservableObject {
                 do {
                     let game = try document.data(as: Game.self)
                     // Filter out finished games
-                    guard !game.isFinished else {
+                    guard !game.isCompleted else {
                         print("⏭️ Skipping finished game in admin view: \(game.id)")
                         return nil
                     }
