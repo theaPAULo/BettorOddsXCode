@@ -1,38 +1,45 @@
 //
-//  LoginView.swift
+//  EnhancedLoginView.swift
 //  BettorOdds
 //
-//  Version: 2.7.0 - Fixed iOS 17 onChange deprecation warning
+//  Version: 3.0.0 - REDESIGNED: Clean, modern login with no overlapping text
 //  Updated: June 2025
+//  Changes:
+//  - Removed duplicate "BettorOdds" text (handled by ContentView now)
+//  - Streamlined loading states
+//  - Modern, clean design
+//  - Improved user experience with haptic feedback
 //
 
 import SwiftUI
 import AuthenticationServices
 
-struct LoginView: View {
+struct EnhancedLoginView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @State private var showingError = false
+    @State private var cardOffset: CGFloat = 300
+    @State private var cardOpacity: Double = 0
     
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background gradient
-                backgroundGradient
-                    .ignoresSafeArea()
+                // Sophisticated background
+                sophisticatedBackground
                 
                 // Main content
                 VStack(spacing: 0) {
-                    // Logo and welcome section
-                    logoAndWelcomeSection
-                        .frame(height: geometry.size.height * 0.5)
-                    
-                    // Sign-in buttons section
-                    signInButtonsSection
+                    // Hero section (top 40% of screen)
+                    heroSection
                         .frame(height: geometry.size.height * 0.4)
                     
-                    // Spacer to push content up
-                    Spacer()
-                        .frame(height: geometry.size.height * 0.1)
+                    // Login card section (bottom 60% of screen)
+                    loginCardSection
+                        .frame(height: geometry.size.height * 0.6)
+                }
+                
+                // Loading overlay (only for sign-in operations, not app loading)
+                if authViewModel.isLoading {
+                    signInLoadingOverlay
                 }
             }
         }
@@ -45,213 +52,327 @@ struct LoginView: View {
                 Text(errorMessage)
             }
         }
-        // FIXED: Updated onChange for iOS 17 compatibility
         .onChange(of: authViewModel.errorMessage) { _, errorMessage in
             showingError = errorMessage != nil
         }
+        .onAppear {
+            startLoginAnimations()
+        }
     }
     
-    // MARK: - View Components
+    // MARK: - Background
     
-    private var logoAndWelcomeSection: some View {
-        VStack(spacing: 24) {
-            // App Logo
-            VStack(spacing: 16) {
-                // Logo placeholder - you can replace with actual logo
-                ZStack {
-                    Circle()
-                        .fill(logoGradient)
-                        .frame(width: 120, height: 120)
-                        .shadow(color: Color.primary.opacity(0.3), radius: 20, x: 0, y: 10)
-                    
-                    VStack(spacing: 4) {
-                        Text("🎲")
-                            .font(.system(size: 40))
-                        Text("BO")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                }
-                
-                // SUGGESTION: Restored the gold gradient BettorOdds title you liked!
-                Text("BettorOdds")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [
-                                Color(hex: "FFD700"), // Gold
-                                Color(hex: "FFA500"), // Orange-gold
-                                Color(hex: "FF8C00")  // Darker orange
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+    private var sophisticatedBackground: some View {
+        ZStack {
+            // Base gradient
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: Color.black, location: 0.0),
+                    .init(color: Color(red: 0.05, green: 0.1, blue: 0.15), location: 0.4),
+                    .init(color: Color(red: 0.1, green: 0.15, blue: 0.25), location: 0.7),
+                    .init(color: Color(red: 0.08, green: 0.12, blue: 0.2), location: 1.0)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            
+            // Subtle pattern overlay
+            backgroundPattern
+        }
+        .ignoresSafeArea()
+    }
+    
+    private var backgroundPattern: some View {
+        ZStack {
+            // Floating orbs for visual interest
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.1),
+                                Color.clear
+                            ]),
+                            center: .center,
+                            startRadius: 50,
+                            endRadius: 150
                         )
                     )
-                    .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 2)
+                    .frame(width: 200, height: 200)
+                    .offset(
+                        x: index == 0 ? -100 : (index == 1 ? 150 : -50),
+                        y: index == 0 ? -200 : (index == 1 ? 100 : 300)
+                    )
+                    .blur(radius: 1)
             }
+        }
+    }
+    
+    // MARK: - Hero Section
+    
+    private var heroSection: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            
+            // Compact logo (no "BettorOdds" text - that's handled by loading screen)
+            modernCompactLogo
             
             // Welcome message
-            VStack(spacing: 8) {
-                Text("Sign in & start cooking")
-                    .font(.system(size: 16))
-                    .foregroundColor(Color("TextSecondary"))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-        }
-    }
-    
-    private var signInButtonsSection: some View {
-        VStack(spacing: 20) {
-            // Apple Sign-In Button
-            appleSignInButton
+            welcomeMessage
             
-            // Google Sign-In Button
-            googleSignInButton
-            
-            // Loading indicator
-            if authViewModel.isLoading {
-                loadingIndicator
-            }
+            Spacer()
         }
         .padding(.horizontal, 32)
-        .padding(.top, 48)
     }
     
-    private var appleSignInButton: some View {
-        SignInWithAppleButton(
-            onRequest: { request in
-                request.requestedScopes = [.fullName, .email]
-            },
-            onCompletion: { result in
-                // This is handled by the AuthenticationViewModel
-                // We'll trigger the sign-in through our view model instead
-            }
-        )
-        .frame(height: 56)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.black.opacity(0.1), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-        .onTapGesture {
-            authViewModel.signInWithApple()
+    private var modernCompactLogo: some View {
+        ZStack {
+            // Subtle glow
+            Circle()
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.3),
+                            Color.clear
+                        ]),
+                        center: .center,
+                        startRadius: 30,
+                        endRadius: 60
+                    )
+                )
+                .frame(width: 120, height: 120)
+            
+            // Main logo
+            Circle()
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 1.0, green: 0.84, blue: 0.0),
+                            Color(red: 1.0, green: 0.65, blue: 0.0),
+                            Color(red: 0.9, green: 0.55, blue: 0.0)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 80, height: 80)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
+                )
+                .shadow(color: Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.4), radius: 15, x: 0, y: 8)
+            
+            // Icon
+            Image(systemName: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(.white)
+                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
         }
     }
     
-    private var googleSignInButton: some View {
+    private var welcomeMessage: some View {
+        VStack(spacing: 12) {
+            Text("Welcome Back")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+            
+            Text("Sign in to continue your betting journey")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
+        }
+    }
+    
+    // MARK: - Login Card Section
+    
+    private var loginCardSection: some View {
+        VStack(spacing: 0) {
+            // Modern card container
+            VStack(spacing: 32) {
+                // Card header
+                cardHeader
+                
+                // Sign-in buttons
+                signInButtons
+                
+                Spacer()
+            }
+            .padding(.top, 40)
+            .padding(.horizontal, 32)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                ZStack {
+                    // Card background
+                    RoundedRectangle(cornerRadius: 32)
+                        .fill(Color.black.opacity(0.7))
+                    
+                    // Subtle border
+                    RoundedRectangle(cornerRadius: 32)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.white.opacity(0.2),
+                                    Color.white.opacity(0.05)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                    
+                    // Glass effect
+                    RoundedRectangle(cornerRadius: 32)
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(stops: [
+                                    .init(color: Color.white.opacity(0.1), location: 0.0),
+                                    .init(color: Color.clear, location: 0.3),
+                                    .init(color: Color.clear, location: 1.0)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+            )
+            .offset(y: cardOffset)
+            .opacity(cardOpacity)
+            .animation(.spring(response: 0.8, dampingFraction: 0.8), value: cardOffset)
+            .animation(.easeInOut(duration: 0.6), value: cardOpacity)
+        }
+    }
+    
+    private var cardHeader: some View {
+        VStack(spacing: 16) {
+            Text("Choose Your Sign-In Method")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(.white)
+            
+            Text("Secure and fast authentication")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(0.6))
+        }
+    }
+    
+    private var signInButtons: some View {
+        VStack(spacing: 20) {
+            // Apple Sign-In Button
+            modernAppleSignInButton
+            
+            // Google Sign-In Button
+            modernGoogleSignInButton
+        }
+    }
+    
+    private var modernAppleSignInButton: some View {
         Button(action: {
-            authViewModel.signInWithGoogle()
+            triggerHapticFeedback()
+            authViewModel.signInWithApple()
         }) {
             HStack(spacing: 12) {
-                // Google Logo
-                Image(systemName: "globe")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(Color("TextPrimary"))
+                Image(systemName: "applelogo")
+                    .font(.system(size: 18, weight: .medium))
                 
-                Text("Continue with Google")
+                Text("Continue with Apple")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color("TextPrimary"))
             }
+            .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background(googleButtonBackground)
-            .cornerRadius(16)
+            .background(Color.black)
+            .cornerRadius(14)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
         }
+        .buttonStyle(ModernButtonStyle())
         .disabled(authViewModel.isLoading)
     }
     
-    private var loadingIndicator: some View {
-        HStack(spacing: 12) {
-            ProgressView()
-                .scaleEffect(0.8)
-            
-            Text("Signing in...")
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
+    private var modernGoogleSignInButton: some View {
+        Button(action: {
+            triggerHapticFeedback()
+            authViewModel.signInWithGoogle()
+        }) {
+            HStack(spacing: 12) {
+                // Google icon (you could replace with actual Google logo)
+                Image(systemName: "globe")
+                    .font(.system(size: 18, weight: .medium))
+                
+                Text("Continue with Google")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundColor(.black)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(Color.white)
+            .cornerRadius(14)
         }
-        .padding(.top, 16)
+        .buttonStyle(ModernButtonStyle())
+        .disabled(authViewModel.isLoading)
     }
     
-    // MARK: - Computed Properties
+    // MARK: - Sign-In Loading Overlay
     
-    private var backgroundGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color("BackgroundPrimary"),
-                Color("BackgroundSecondary").opacity(0.8)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-    
-    private var logoGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color.primary,
-                Color.primary.opacity(0.8)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    private var googleButtonBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(Color("BackgroundPrimary"))
+    private var signInLoadingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                // Spinning indicator
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.2)
+                
+                Text("Signing you in...")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            .padding(32)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.1),
-                                Color.clear
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                    .fill(Color.black.opacity(0.8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
                     )
             )
+        }
+    }
+    
+    // MARK: - Animation Functions
+    
+    private func startLoginAnimations() {
+        // Animate card entrance
+        withAnimation(.spring(response: 0.8, dampingFraction: 0.8).delay(0.2)) {
+            cardOffset = 0
+        }
+        
+        withAnimation(.easeInOut(duration: 0.6).delay(0.4)) {
+            cardOpacity = 1.0
+        }
+    }
+    
+    private func triggerHapticFeedback() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
     }
 }
 
-// MARK: - Color Extension for Hex Support
+// MARK: - Modern Button Style
 
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
-        }
-
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue:  Double(b) / 255,
-            opacity: Double(a) / 255
-        )
+struct ModernButtonStyle: ButtonStyle {
+    func makeBody(configuration: Self.Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
 #Preview {
-    LoginView()
+    EnhancedLoginView()
         .environmentObject(AuthenticationViewModel())
 }

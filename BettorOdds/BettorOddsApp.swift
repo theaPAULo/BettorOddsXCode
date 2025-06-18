@@ -2,7 +2,7 @@
 //  BettorOddsApp.swift
 //  BettorOdds
 //
-//  Version: 3.0.3 - CLEAN: Removed all APNs handling since only using Google/Apple Sign-In
+//  Version: 3.1.0 - FIXED: Updated LoadingView reference to UnifiedLoadingScreen
 //  Updated: June 2025
 //
 
@@ -63,8 +63,8 @@ struct BettorOddsApp: App {
                         .environmentObject(authViewModel)
                         .environmentObject(darkModeManager)
                 } else {
-                    // Show loading while setting up dependencies
-                    LoadingView()
+                    // FIXED: Use UnifiedLoadingScreen instead of old LoadingView
+                    UnifiedLoadingScreen()
                 }
                 
                 if showLaunch {

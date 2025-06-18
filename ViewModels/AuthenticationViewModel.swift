@@ -2,8 +2,13 @@
 //  AuthenticationViewModel.swift
 //  BettorOdds
 //
-//  Version: 3.0.1 - FIXED: Added safety checks for DI initialization
+//  Version: 3.1.0 - ENHANCED: Unified state management for clean auth flow
 //  Updated: June 2025
+//  Changes:
+//  - Simplified loading state management
+//  - Better state transitions
+//  - Eliminated competing loading states
+//  - Cleaner error handling
 //
 
 import Foundation
@@ -17,13 +22,18 @@ import CryptoKit
 
 // MARK: - Authentication State
 enum AuthState: Equatable {
-    case loading
-    case signedIn
-    case signedOut
-    case error(String)
+    case loading        // Initial app load / checking auth
+    case signedIn       // User authenticated
+    case signedOut      // User not authenticated
+    case error(String)  // Error occurred
     
     var isSignedIn: Bool {
         if case .signedIn = self { return true }
+        return false
+    }
+    
+    var isLoading: Bool {
+        if case .loading = self { return true }
         return false
     }
 }
@@ -33,7 +43,7 @@ class AuthenticationViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var user: User?
     @Published var authState: AuthState = .loading
-    @Published var isLoading = false
+    @Published var isLoading = false  // For individual operations (sign in/out)
     @Published var errorMessage: String?
     @Published var showError = false
     
@@ -48,7 +58,7 @@ class AuthenticationViewModel: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        print("🔐 AuthenticationViewModel initialized with DI")
+        print("🔐 AuthenticationViewModel initialized")
         
         // SAFETY: Delay actual setup to ensure DI container is ready
         Task {
@@ -72,7 +82,6 @@ class AuthenticationViewModel: ObservableObject {
         
         await MainActor.run {
             setupAuthStateListener()
-            checkAuthState()
             isInitialized = true
             print("✅ AuthenticationViewModel fully initialized")
         }
@@ -81,16 +90,16 @@ class AuthenticationViewModel: ObservableObject {
     // MARK: - Public Methods
     
     /// Checks current authentication state
-    func checkAuthState() {
+    func checkAuthState() async {
         // SAFETY: Don't proceed if not properly initialized
         guard isInitialized else {
             print("⚠️ AuthenticationViewModel not yet initialized, delaying checkAuthState")
-            Task {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                checkAuthState()
-            }
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            await checkAuthState()
             return
         }
+        
+        print("🔐 Checking authentication state...")
         
         guard let firebaseUser = auth.currentUser else {
             print("🔐 No authenticated user found")
@@ -100,21 +109,24 @@ class AuthenticationViewModel: ObservableObject {
         }
         
         print("🔐 Found authenticated user: \(firebaseUser.uid)")
-        authState = .loading
         
-        Task {
-            await loadUserData(firebaseUser: firebaseUser)
-        }
+        // Load user data
+        await loadUserData(firebaseUser: firebaseUser)
     }
     
     /// Signs in with Google
     func signInWithGoogle() {
         guard isInitialized else {
-            print("⚠️ Cannot sign in - AuthenticationViewModel not ready")
+            handleError("Authentication system not ready. Please try again.", context: "Google Sign-In")
             return
         }
         
-        setLoading(true, message: "Signing in with Google...")
+        guard !isLoading else {
+            print("⚠️ Sign-in already in progress")
+            return
+        }
+        
+        setOperationLoading(true, message: "Signing in with Google...")
         
         Task {
             do {
@@ -129,11 +141,16 @@ class AuthenticationViewModel: ObservableObject {
     /// Signs in with Apple
     func signInWithApple() {
         guard isInitialized else {
-            print("⚠️ Cannot sign in - AuthenticationViewModel not ready")
+            handleError("Authentication system not ready. Please try again.", context: "Apple Sign-In")
             return
         }
         
-        setLoading(true, message: "Signing in with Apple...")
+        guard !isLoading else {
+            print("⚠️ Sign-in already in progress")
+            return
+        }
+        
+        setOperationLoading(true, message: "Signing in with Apple...")
         
         appleSignInCoordinator = AppleSignInCoordinator { [weak self] result in
             Task { [weak self] in
@@ -152,11 +169,16 @@ class AuthenticationViewModel: ObservableObject {
     /// Signs out the current user
     func signOut() {
         guard isInitialized else {
-            print("⚠️ Cannot sign out - AuthenticationViewModel not ready")
+            handleError("Authentication system not ready. Please try again.", context: "Sign Out")
             return
         }
         
-        setLoading(true, message: "Signing out...")
+        guard !isLoading else {
+            print("⚠️ Sign-out already in progress")
+            return
+        }
+        
+        setOperationLoading(true, message: "Signing out...")
         
         Task {
             do {
@@ -170,7 +192,7 @@ class AuthenticationViewModel: ObservableObject {
                 clearUserSession()
                 
                 print("✅ User signed out successfully")
-                setLoading(false)
+                setOperationLoading(false)
                 
             } catch {
                 await handleAuthError(error, context: "Sign Out")
@@ -181,12 +203,12 @@ class AuthenticationViewModel: ObservableObject {
     /// Updates user data in repository
     func updateUser(_ updatedUser: User) async {
         guard isInitialized else {
-            print("⚠️ Cannot update user - AuthenticationViewModel not ready")
+            handleError("Authentication system not ready. Please try again.", context: "Update User")
             return
         }
         
         guard user?.id == updatedUser.id else {
-            print("❌ Cannot update user - ID mismatch")
+            handleError("Cannot update user - ID mismatch", context: "Update User")
             return
         }
         
@@ -202,7 +224,7 @@ class AuthenticationViewModel: ObservableObject {
     /// Deletes user account
     func deleteAccount() async {
         guard isInitialized else {
-            print("⚠️ Cannot delete account - AuthenticationViewModel not ready")
+            handleError("Authentication system not ready. Please try again.", context: "Delete Account")
             return
         }
         
@@ -212,7 +234,7 @@ class AuthenticationViewModel: ObservableObject {
             return
         }
         
-        setLoading(true, message: "Deleting account...")
+        setOperationLoading(true, message: "Deleting account...")
         
         do {
             // Delete user data from Firestore
@@ -227,7 +249,7 @@ class AuthenticationViewModel: ObservableObject {
             clearUserSession()
             
             print("✅ Account deleted successfully")
-            setLoading(false)
+            setOperationLoading(false)
             
         } catch {
             await handleAuthError(error, context: "Delete Account")
@@ -243,7 +265,10 @@ class AuthenticationViewModel: ObservableObject {
                 await MainActor.run {
                     if let firebaseUser = firebaseUser {
                         print("🔐 Auth state changed: User signed in")
-                        self?.authState = .loading
+                        // Don't set to loading here if we're already signed in
+                        if self?.authState != .signedIn {
+                            self?.authState = .loading
+                        }
                         Task {
                             await self?.loadUserData(firebaseUser: firebaseUser)
                         }
@@ -291,7 +316,7 @@ class AuthenticationViewModel: ObservableObject {
                 print("✅ New user created: \(newUser.displayName ?? "Unknown")")
             }
             
-            setLoading(false)
+            setOperationLoading(false)
             
         } catch {
             await handleAuthError(error, context: "Load User Data")
@@ -348,9 +373,18 @@ class AuthenticationViewModel: ObservableObject {
         await MainActor.run {
             self.errorMessage = error.localizedDescription
             self.showError = true
-            self.authState = .error(error.localizedDescription)
-            self.setLoading(false)
+            // Don't set authState to error unless it's a critical auth issue
+            // For operation errors, keep current state but stop loading
+            self.setOperationLoading(false)
         }
+    }
+    
+    /// Handle errors without async context
+    private func handleError(_ message: String, context: String) {
+        print("❌ \(context) error: \(message)")
+        self.errorMessage = message
+        self.showError = true
+        self.setOperationLoading(false)
     }
     
     /// Gets auth provider from Firebase user
@@ -361,8 +395,8 @@ class AuthenticationViewModel: ObservableObject {
         return "unknown"
     }
     
-    /// Sets loading state with optional message
-    private func setLoading(_ loading: Bool, message: String? = nil) {
+    /// Sets loading state for individual operations (not app-level auth state)
+    private func setOperationLoading(_ loading: Bool, message: String? = nil) {
         isLoading = loading
         if let message = message {
             print("🔄 \(message)")
@@ -450,18 +484,18 @@ class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAut
                 completion(.failure(AppError.authProviderError("Invalid state: A login callback was received, but no login request was sent.")))
                 return
             }
-            
             guard let appleIDToken = appleIDCredential.identityToken else {
                 completion(.failure(AppError.authProviderError("Unable to fetch identity token")))
                 return
             }
-            
             guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
                 completion(.failure(AppError.authProviderError("Unable to serialize token string from data")))
                 return
             }
             
-            let credential = OAuthProvider.credential(withProviderID: "apple.com", idToken: idTokenString, rawNonce: nonce)
+            let credential = OAuthProvider.credential(withProviderID: "apple.com",
+                                                      idToken: idTokenString,
+                                                      rawNonce: nonce)
             
             Task {
                 do {
@@ -481,18 +515,18 @@ class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAut
     // MARK: - ASAuthorizationControllerPresentationContextProviding
     
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else {
-            return ASPresentationAnchor()
-        }
-        return window
+        return UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows
+            .first { $0.isKeyWindow } ?? UIWindow()
     }
     
-    // MARK: - Helpers
+    // MARK: - Helper Methods
     
     private func randomNonceString(length: Int = 32) -> String {
         precondition(length > 0)
-        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        let charset: [Character] =
+        Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         var result = ""
         var remainingLength = length
         
