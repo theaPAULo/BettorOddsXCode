@@ -90,7 +90,7 @@ struct EnhancedLoginView: View {
                     .fill(
                         RadialGradient(
                             gradient: Gradient(colors: [
-                                Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.1),
+                                Color(red: 0.0, green: 0.9, blue: 0.79).opacity(0.1),
                                 Color.clear
                             ]),
                             center: .center,
@@ -132,7 +132,7 @@ struct EnhancedLoginView: View {
                 .fill(
                     RadialGradient(
                         gradient: Gradient(colors: [
-                            Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.3),
+                            Color(red: 0.0, green: 0.9, blue: 0.79).opacity(0.3),  // Teal glow
                             Color.clear
                         ]),
                         center: .center,
@@ -147,9 +147,10 @@ struct EnhancedLoginView: View {
                 .fill(
                     LinearGradient(
                         gradient: Gradient(colors: [
-                            Color(red: 1.0, green: 0.84, blue: 0.0),
-                            Color(red: 1.0, green: 0.65, blue: 0.0),
-                            Color(red: 0.9, green: 0.55, blue: 0.0)
+                            // CHANGE THESE FROM GOLD TO TEAL:
+                            Color(red: 0.0, green: 0.9, blue: 0.79),    // Bright teal
+                            Color(red: 0.0, green: 0.8, blue: 0.7),     // Medium teal
+                            Color(red: 0.0, green: 0.7, blue: 0.6)      // Darker teal
                         ]),
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -160,7 +161,7 @@ struct EnhancedLoginView: View {
                     Circle()
                         .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
                 )
-                .shadow(color: Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.4), radius: 15, x: 0, y: 8)
+                .shadow(color: Color(red: 0.0, green: 0.9, blue: 0.79).opacity(0.4), radius: 15, x: 0, y: 8)
             
             // Icon
             Image(systemName: "chart.line.uptrend.xyaxis")
@@ -172,11 +173,11 @@ struct EnhancedLoginView: View {
     
     private var welcomeMessage: some View {
         VStack(spacing: 12) {
-            Text("Welcome Back")
+            Text("BettorOdds?")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
             
-            Text("Sign in to continue your betting journey")
+            Text("Ethical betting made easy.")
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
@@ -244,13 +245,9 @@ struct EnhancedLoginView: View {
     
     private var cardHeader: some View {
         VStack(spacing: 16) {
-            Text("Choose Your Sign-In Method")
+            Text("Sign In & Let's Start Cookin'")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(.white)
-            
-            Text("Secure and fast authentication")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.6))
         }
     }
     
@@ -273,7 +270,7 @@ struct EnhancedLoginView: View {
                 Image(systemName: "applelogo")
                     .font(.system(size: 18, weight: .medium))
                 
-                Text("Continue with Apple")
+                Text("Sign In with Apple")
                     .font(.system(size: 16, weight: .semibold))
             }
             .foregroundColor(.white)
@@ -296,11 +293,13 @@ struct EnhancedLoginView: View {
             authViewModel.signInWithGoogle()
         }) {
             HStack(spacing: 12) {
-                // Google icon (you could replace with actual Google logo)
-                Image(systemName: "globe")
-                    .font(.system(size: 18, weight: .medium))
+                Image("GoogleIcon")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 20, height: 20)
+
                 
-                Text("Continue with Google")
+                Text("Sign In with Google")
                     .font(.system(size: 16, weight: .semibold))
             }
             .foregroundColor(.black)
@@ -358,6 +357,41 @@ struct EnhancedLoginView: View {
     private func triggerHapticFeedback() {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
+    }
+}
+
+
+struct GoogleLogoView: View {
+    var body: some View {
+        ZStack {
+            // White background
+            Circle()
+                .fill(Color.white)
+                .frame(width: 20, height: 20)
+            
+            // Create the "G" with distinct Google colors
+            ZStack {
+                // Blue part (main part of G)
+                Text("G")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(Color(red: 0.26, green: 0.52, blue: 0.96)) // Google blue
+                    .mask(
+                        Rectangle()
+                            .frame(width: 12, height: 8)
+                            .offset(x: -2, y: -2)
+                    )
+                
+                // Red part (bottom of G)
+                Text("G")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(Color(red: 0.92, green: 0.26, blue: 0.21)) // Google red
+                    .mask(
+                        Rectangle()
+                            .frame(width: 12, height: 4)
+                            .offset(x: -2, y: 2)
+                    )
+            }
+        }
     }
 }
 

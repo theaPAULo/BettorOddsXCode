@@ -1,14 +1,14 @@
 //
-//  AuthenticationViewModel.swift
+//  AuthenticationViewModel.swift - Orphaned Auth Fix
 //  BettorOdds
 //
-//  Version: 3.1.0 - ENHANCED: Unified state management for clean auth flow
+//  Version: 3.3.0 - FIXED: Handles orphaned authentication (user in Auth but not Firestore)
 //  Updated: June 2025
 //  Changes:
-//  - Simplified loading state management
-//  - Better state transitions
-//  - Eliminated competing loading states
-//  - Cleaner error handling
+//  - Added specific handling for orphaned auth states
+//  - Enhanced user creation with detailed logging
+//  - Direct Firestore user creation as fallback
+//  - Manual user creation option
 //
 
 import Foundation
@@ -26,6 +26,8 @@ enum AuthState: Equatable {
     case signedIn       // User authenticated
     case signedOut      // User not authenticated
     case error(String)  // Error occurred
+    case retrying       // Retrying failed operation
+    case orphanedAuth   // User exists in Auth but not in Firestore
     
     var isSignedIn: Bool {
         if case .signedIn = self { return true }
@@ -33,8 +35,12 @@ enum AuthState: Equatable {
     }
     
     var isLoading: Bool {
-        if case .loading = self { return true }
-        return false
+        switch self {
+        case .loading, .retrying:
+            return true
+        default:
+            return false
+        }
     }
 }
 
@@ -46,6 +52,8 @@ class AuthenticationViewModel: ObservableObject {
     @Published var isLoading = false  // For individual operations (sign in/out)
     @Published var errorMessage: String?
     @Published var showError = false
+    @Published var retryCount = 0
+    @Published var orphanedFirebaseUser: FirebaseAuth.User?
     
     // MARK: - Dependencies (Using Dependency Injection)
     @Inject private var userRepository: UserRepository
@@ -55,6 +63,8 @@ class AuthenticationViewModel: ObservableObject {
     private var authStateListener: AuthStateDidChangeListenerHandle?
     private var appleSignInCoordinator: AppleSignInCoordinator?
     private var isInitialized = false
+    private let maxRetries = 3
+    private let db = Firestore.firestore()
     
     // MARK: - Initialization
     init() {
@@ -110,8 +120,141 @@ class AuthenticationViewModel: ObservableObject {
         
         print("🔐 Found authenticated user: \(firebaseUser.uid)")
         
-        // Load user data
-        await loadUserData(firebaseUser: firebaseUser)
+        // Load user data with specific orphaned auth handling
+        await handleAuthenticatedUser(firebaseUser: firebaseUser)
+    }
+    
+    /// ENHANCED: Handle authenticated user with orphaned auth detection
+    private func handleAuthenticatedUser(firebaseUser: FirebaseAuth.User) async {
+        do {
+            print("📱 Attempting to load user data for: \(firebaseUser.uid)")
+            
+            // Try to fetch existing user
+            if let existingUser = try await userRepository.fetch(id: firebaseUser.uid) {
+                print("✅ Found existing user in Firestore: \(existingUser.displayName ?? "Unknown")")
+                
+                // Update user with latest Firebase info
+                var updatedUser = existingUser
+                updatedUser.displayName = firebaseUser.displayName
+                updatedUser.profileImageURL = firebaseUser.photoURL?.absoluteString
+                
+                user = updatedUser
+                authState = .signedIn
+                
+                // Update in repository if needed
+                if updatedUser.displayName != existingUser.displayName ||
+                   updatedUser.profileImageURL != existingUser.profileImageURL {
+                    try await userRepository.save(updatedUser)
+                    print("📝 Updated user profile with latest Firebase data")
+                }
+                
+            } else {
+                print("❌ User document not found in Firestore - creating new user")
+                await handleOrphanedAuth(firebaseUser: firebaseUser)
+            }
+            
+        } catch {
+            print("❌ Error in handleAuthenticatedUser: \(error.localizedDescription)")
+            await handleOrphanedAuth(firebaseUser: firebaseUser)
+        }
+    }
+    
+    /// ENHANCED: Handle orphaned authentication (user in Auth but not in Firestore)
+    private func handleOrphanedAuth(firebaseUser: FirebaseAuth.User) async {
+        print("🚨 Detected orphaned authentication - user exists in Auth but not in Firestore")
+        
+        // Store the Firebase user for recovery
+        orphanedFirebaseUser = firebaseUser
+        
+        // Try to create user document directly in Firestore
+        await attemptDirectUserCreation(firebaseUser: firebaseUser)
+    }
+    
+    /// ENHANCED: Attempt direct user creation in Firestore
+    private func attemptDirectUserCreation(firebaseUser: FirebaseAuth.User) async {
+        print("🛠️ Attempting direct user creation in Firestore...")
+        
+        do {
+            // Create user object
+            let newUser = User(
+                id: firebaseUser.uid,
+                displayName: firebaseUser.displayName ?? "User",
+                profileImageURL: firebaseUser.photoURL?.absoluteString,
+                authProvider: getAuthProvider(firebaseUser)
+            )
+            
+            print("📝 Creating user document: \(newUser.id)")
+            print("📧 Email: \(firebaseUser.email ?? "No email")")
+            print("👤 Display name: \(newUser.displayName)")
+            print("🔗 Auth provider: \(newUser.authProvider)")
+            
+            // Try direct Firestore creation
+            let userDocument = db.collection("users").document(firebaseUser.uid)
+            try await userDocument.setData(newUser.toDictionary())
+            
+            print("✅ Successfully created user document directly in Firestore")
+            
+            // Set user and transition to signed in
+            user = newUser
+            authState = .signedIn
+            orphanedFirebaseUser = nil
+            
+        } catch {
+            print("❌ Direct user creation failed: \(error.localizedDescription)")
+            
+            // Show orphaned auth state for manual recovery
+            await MainActor.run {
+                self.authState = .orphanedAuth
+                self.errorMessage = """
+                Your account exists but your profile is missing.
+                
+                Error: \(error.localizedDescription)
+                
+                This can happen due to network issues during initial setup.
+                """
+            }
+        }
+    }
+    
+    /// ENHANCED: Manual user creation for orphaned auth recovery
+    func createOrphanedUserProfile() async {
+        guard let firebaseUser = orphanedFirebaseUser else {
+            print("❌ No orphaned Firebase user found")
+            return
+        }
+        
+        print("🔧 Manual orphaned user profile creation requested")
+        authState = .loading
+        
+        await attemptDirectUserCreation(firebaseUser: firebaseUser)
+    }
+    
+    /// ENHANCED: Force clean sign out for orphaned auth recovery
+    func forceCleanSignOut() async {
+        print("🚨 Force clean sign out requested for orphaned auth")
+        
+        do {
+            // Sign out from Firebase Auth
+            try auth.signOut()
+            
+            // Clear all state
+            user = nil
+            authState = .signedOut
+            errorMessage = nil
+            showError = false
+            retryCount = 0
+            orphanedFirebaseUser = nil
+            
+            clearUserSession()
+            print("✅ Force clean sign out completed")
+            
+        } catch {
+            print("❌ Force sign out failed: \(error.localizedDescription)")
+            // Even if sign out fails, reset to signed out state
+            authState = .signedOut
+            user = nil
+            orphanedFirebaseUser = nil
+        }
     }
     
     /// Signs in with Google
@@ -187,6 +330,8 @@ class AuthenticationViewModel: ObservableObject {
                 // Clear user data
                 user = nil
                 authState = .signedOut
+                retryCount = 0
+                orphanedFirebaseUser = nil
                 
                 // Clear any cached data
                 clearUserSession()
@@ -270,56 +415,17 @@ class AuthenticationViewModel: ObservableObject {
                             self?.authState = .loading
                         }
                         Task {
-                            await self?.loadUserData(firebaseUser: firebaseUser)
+                            await self?.handleAuthenticatedUser(firebaseUser: firebaseUser)
                         }
                     } else {
                         print("🔐 Auth state changed: User signed out")
                         self?.authState = .signedOut
                         self?.user = nil
+                        self?.retryCount = 0
+                        self?.orphanedFirebaseUser = nil
                     }
                 }
             }
-        }
-    }
-    
-    /// Loads user data from repository
-    private func loadUserData(firebaseUser: FirebaseAuth.User) async {
-        do {
-            if let existingUser = try await userRepository.fetch(id: firebaseUser.uid) {
-                // Update user with latest Firebase info
-                var updatedUser = existingUser
-                updatedUser.displayName = firebaseUser.displayName
-                updatedUser.profileImageURL = firebaseUser.photoURL?.absoluteString
-                
-                user = updatedUser
-                authState = .signedIn
-                print("✅ Existing user loaded: \(existingUser.displayName ?? "Unknown")")
-                
-                // Update in repository if needed
-                if updatedUser.displayName != existingUser.displayName ||
-                   updatedUser.profileImageURL != existingUser.profileImageURL {
-                    try await userRepository.save(updatedUser)
-                }
-                
-            } else {
-                // Create new user
-                let newUser = User(
-                    id: firebaseUser.uid,
-                    displayName: firebaseUser.displayName,
-                    profileImageURL: firebaseUser.photoURL?.absoluteString,
-                    authProvider: getAuthProvider(firebaseUser)
-                )
-                
-                try await userRepository.save(newUser)
-                user = newUser
-                authState = .signedIn
-                print("✅ New user created: \(newUser.displayName ?? "Unknown")")
-            }
-            
-            setOperationLoading(false)
-            
-        } catch {
-            await handleAuthError(error, context: "Load User Data")
         }
     }
     
@@ -363,7 +469,7 @@ class AuthenticationViewModel: ObservableObject {
             print("🎉 New user detected - will create user profile")
         }
         
-        await loadUserData(firebaseUser: firebaseUser)
+        await handleAuthenticatedUser(firebaseUser: firebaseUser)
     }
     
     /// Handles authentication errors

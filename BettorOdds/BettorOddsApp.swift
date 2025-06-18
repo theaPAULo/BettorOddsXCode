@@ -39,7 +39,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct BettorOddsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    @State private var showLaunch = true
     @State private var isDependencyContainerReady = false
     
     // CRITICAL FIX: Create AuthViewModel as StateObject once DI is ready
@@ -67,11 +66,8 @@ struct BettorOddsApp: App {
                     UnifiedLoadingScreen()
                 }
                 
-                if showLaunch {
-                    LaunchScreen() // Use existing LaunchScreen
-                        .transition(.opacity)
-                        .zIndex(1)
-                }
+                // REMOVED: LaunchScreen that was causing the teal "BettorOdds" text overlay
+                // This eliminates the extra text appearing during initialization
             }
             .onAppear {
                 setupApp()
@@ -93,16 +89,6 @@ struct BettorOddsApp: App {
             await MainActor.run {
                 isDependencyContainerReady = true
                 print("🔧 Dependency injection ready")
-            }
-            
-            // Setup launch screen timer
-            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-            
-            await MainActor.run {
-                withAnimation(.easeOut(duration: 0.5)) {
-                    showLaunch = false
-                }
-                print("🎬 Launch screen dismissed")
             }
         }
         

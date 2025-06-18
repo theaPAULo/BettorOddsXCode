@@ -2,13 +2,13 @@
 //  ContentView.swift
 //  BettorOdds
 //
-//  Version: 3.0.0 - REDESIGNED: Unified authentication and loading system
+//  Version: 3.2.0 - ENHANCED: Orphaned authentication recovery UI
 //  Updated: June 2025
 //  Changes:
-//  - Single source of truth for auth states
-//  - Eliminated competing loading states
-//  - Smooth transitions with no overlapping text
-//  - Professional loading animations
+//  - Added orphaned auth state handling
+//  - Manual user profile creation option
+//  - Enhanced error recovery with specific messaging
+//  - Clean sign out option for orphaned auth
 //
 
 import SwiftUI
@@ -24,6 +24,10 @@ struct ContentView: View {
                 case .loading:
                     // Show unified loading screen
                     UnifiedLoadingScreen()
+                    
+                case .retrying:
+                    // Show retry loading screen with progress
+                    RetryLoadingScreen(retryCount: authViewModel.retryCount)
                     
                 case .signedIn:
                     // User is authenticated - show main app
@@ -41,13 +45,26 @@ struct ContentView: View {
                             removal: .opacity
                         ))
                     
+                case .orphanedAuth:
+                    // Show orphaned auth recovery screen
+                    OrphanedAuthRecoveryView()
+                        .transition(.opacity)
+                    
                 case .error(let errorMessage):
-                    // Show error state with retry option
-                    AuthErrorView(errorMessage: errorMessage) {
-                        Task {
-                            await authViewModel.checkAuthState()
+                    // Show enhanced error state with recovery options
+                    EnhancedAuthErrorView(
+                        errorMessage: errorMessage,
+                        onRetry: {
+                            Task {
+                                await authViewModel.checkAuthState()
+                            }
+                        },
+                        onForceSignOut: {
+                            Task {
+                                await authViewModel.forceCleanSignOut()
+                            }
                         }
-                    }
+                    )
                     .transition(.opacity)
                 }
             }
@@ -66,7 +83,166 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Unified Loading Screen
+// MARK: - Orphaned Auth Recovery View
+
+struct OrphanedAuthRecoveryView: View {
+    @EnvironmentObject var authViewModel: AuthenticationViewModel
+    @State private var isCreatingProfile = false
+    
+    var body: some View {
+        ZStack {
+            // Background with problem indication
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color(red: 0.1, green: 0.05, blue: 0.0),
+                    Color(red: 0.15, green: 0.08, blue: 0.0)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 32) {
+                // Icon indicating missing profile
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.orange,
+                                    Color.orange.opacity(0.8)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 100, height: 100)
+                    
+                    Image(systemName: "person.badge.plus")
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                
+                VStack(spacing: 16) {
+                    Text("Profile Setup Needed")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Your account is signed in, but your profile is missing.")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                    
+                    Text("This can happen due to network issues during initial setup.")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                    
+                    // Show user info if available
+                    if let firebaseUser = authViewModel.orphanedFirebaseUser {
+                        VStack(spacing: 8) {
+                            if let email = firebaseUser.email {
+                                Text("Account: \(email)")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            
+                            Text("User ID: \(String(firebaseUser.uid.prefix(8)))...")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .padding()
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+                
+                VStack(spacing: 16) {
+                    // Create profile button
+                    Button(action: {
+                        isCreatingProfile = true
+                        Task {
+                            await authViewModel.createOrphanedUserProfile()
+                            isCreatingProfile = false
+                        }
+                    }) {
+                        HStack(spacing: 12) {
+                            if isCreatingProfile {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "plus.circle.fill")
+                            }
+                            Text(isCreatingProfile ? "Creating Profile..." : "Create My Profile")
+                        }
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(red: 0.0, green: 0.9, blue: 0.79),
+                                    Color(red: 0.0, green: 0.8, blue: 0.7)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(14)
+                        .shadow(color: Color(red: 0.0, green: 0.9, blue: 0.79).opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(isCreatingProfile)
+                    
+                    // Alternative: Clean sign out
+                    Button(action: {
+                        Task {
+                            await authViewModel.forceCleanSignOut()
+                        }
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "arrow.right.square")
+                            Text("Sign Out & Try Again")
+                        }
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                .padding(.horizontal, 32)
+                
+                // Additional help text
+                VStack(spacing: 8) {
+                    Text("Need help?")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    Text("If you continue to have issues, try signing out and signing back in with a different method.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 48)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Unified Loading Screen (Updated)
 
 struct UnifiedLoadingScreen: View {
     @State private var logoScale: CGFloat = 0.8
@@ -76,12 +252,12 @@ struct UnifiedLoadingScreen: View {
     
     var body: some View {
         ZStack {
-            // Elegant background gradient
+            // Elegant background gradient with teal accent
             LinearGradient(
                 gradient: Gradient(colors: [
                     Color.black,
-                    Color(red: 0.05, green: 0.1, blue: 0.15),
-                    Color(red: 0.1, green: 0.15, blue: 0.2)
+                    Color(red: 0.0, green: 0.08, blue: 0.1),
+                    Color(red: 0.0, green: 0.12, blue: 0.15)
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -105,12 +281,12 @@ struct UnifiedLoadingScreen: View {
         VStack(spacing: 20) {
             // Sleek logo container
             ZStack {
-                // Background glow effect
+                // Background glow effect with teal
                 Circle()
                     .fill(
                         RadialGradient(
                             gradient: Gradient(colors: [
-                                Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.3),
+                                Color(red: 0.0, green: 0.9, blue: 0.79).opacity(0.3),
                                 Color.clear
                             ]),
                             center: .center,
@@ -126,14 +302,14 @@ struct UnifiedLoadingScreen: View {
                         value: pulseAnimation
                     )
                 
-                // Main logo circle
+                // Main logo circle with teal gradient
                 Circle()
                     .fill(
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                Color(red: 1.0, green: 0.84, blue: 0.0),
-                                Color(red: 1.0, green: 0.65, blue: 0.0),
-                                Color(red: 0.8, green: 0.5, blue: 0.0)
+                                Color(red: 0.0, green: 0.9, blue: 0.79),
+                                Color(red: 0.0, green: 0.8, blue: 0.7),
+                                Color(red: 0.0, green: 0.7, blue: 0.6)
                             ]),
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -144,7 +320,7 @@ struct UnifiedLoadingScreen: View {
                         Circle()
                             .stroke(Color.white.opacity(0.3), lineWidth: 2)
                     )
-                    .shadow(color: Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.5), radius: 20, x: 0, y: 8)
+                    .shadow(color: Color(red: 0.0, green: 0.9, blue: 0.79).opacity(0.5), radius: 20, x: 0, y: 8)
                 
                 // Icon
                 Image(systemName: "chart.line.uptrend.xyaxis")
@@ -193,7 +369,7 @@ struct UnifiedLoadingScreen: View {
             }
             
             // Loading text
-            Text("Initializing...")
+            Text("Checking your account...")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white.opacity(0.6))
                 .opacity(textOpacity)
@@ -223,13 +399,81 @@ struct UnifiedLoadingScreen: View {
     }
 }
 
-// MARK: - Auth Error View
+// MARK: - Retry Loading Screen (Updated)
 
-struct AuthErrorView: View {
+struct RetryLoadingScreen: View {
+    let retryCount: Int
+    @State private var progressAnimation = false
+    
+    var body: some View {
+        ZStack {
+            // Background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color(red: 0.0, green: 0.08, blue: 0.1),
+                    Color(red: 0.0, green: 0.12, blue: 0.15)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 32) {
+                // Logo with retry indication
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(red: 0.0, green: 0.9, blue: 0.79),
+                                    Color(red: 0.0, green: 0.8, blue: 0.7)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 100, height: 100)
+                    
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 36, weight: .bold))
+                        .foregroundColor(.white)
+                        .rotationEffect(.degrees(progressAnimation ? 360 : 0))
+                        .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: progressAnimation)
+                }
+                
+                VStack(spacing: 16) {
+                    Text("Reconnecting...")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text("Attempt \(retryCount)")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(0.7))
+                    
+                    Text("Checking your connection and loading your profile")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+            }
+        }
+        .onAppear {
+            progressAnimation = true
+        }
+    }
+}
+
+// MARK: - Enhanced Auth Error View (Updated)
+
+struct EnhancedAuthErrorView: View {
     let errorMessage: String
     let onRetry: () -> Void
+    let onForceSignOut: () -> Void
     
     @State private var showingDetails = false
+    @State private var showingSignOutConfirmation = false
     
     var body: some View {
         ZStack {
@@ -246,17 +490,17 @@ struct AuthErrorView: View {
             
             VStack(spacing: 32) {
                 // Error icon
-                Image(systemName: "exclamationmark.triangle.fill")
+                Image(systemName: "wifi.exclamationmark")
                     .font(.system(size: 60))
                     .foregroundColor(.orange)
                     .shadow(color: .orange.opacity(0.5), radius: 10, x: 0, y: 5)
                 
                 VStack(spacing: 16) {
-                    Text("Connection Issue")
+                    Text("Connection Problem")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(.white)
                     
-                    Text("We're having trouble connecting to our servers")
+                    Text("We're having trouble loading your profile")
                         .font(.system(size: 16))
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -282,40 +526,63 @@ struct AuthErrorView: View {
                     }
                 }
                 
-                // Retry button
-                Button(action: onRetry) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "arrow.clockwise")
-                        Text("Try Again")
-                    }
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: 200)
-                    .padding(.vertical, 14)
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.orange,
-                                Color.orange.opacity(0.8)
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
+                VStack(spacing: 16) {
+                    // Retry button
+                    Button(action: onRetry) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Try Again")
+                        }
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.orange,
+                                    Color.orange.opacity(0.8)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .cornerRadius(12)
-                    .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                        .cornerRadius(12)
+                        .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    // Force sign out button
+                    Button(action: { showingSignOutConfirmation = true }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "arrow.right.square")
+                            Text("Sign Out & Try Different Account")
+                        }
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .buttonStyle(PlainButtonStyle())
-                .scaleEffect(1.0)
-                .onTapGesture {
-                    // Add haptic feedback
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                    impactFeedback.impactOccurred()
-                    onRetry()
-                }
+                .padding(.horizontal, 32)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: showingDetails)
+        .alert("Sign Out?", isPresented: $showingSignOutConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Sign Out", role: .destructive) {
+                onForceSignOut()
+            }
+        } message: {
+            Text("This will sign you out and return you to the login screen. You can then try signing in again.")
+        }
     }
 }
 
